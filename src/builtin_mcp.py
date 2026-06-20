@@ -28,8 +28,6 @@ def _find_npx() -> str:
     if npx:
         return npx
     if IS_WINDOWS:
-        # Minimal-PATH fallbacks: npm's global bin lives under %APPDATA%\npm,
-        # and node's installer dir carries npx.cmd alongside node.exe.
         appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
         for candidate in (
             os.path.join(appdata, "npm", "npx.cmd"),
@@ -42,8 +40,7 @@ def _find_npx() -> str:
             cand = os.path.join(os.path.dirname(node), "npx.cmd")
             if os.path.isfile(cand):
                 return cand
-        return "npx.cmd"  # fallback, will fail with a clear error
-    # Common POSIX locations when PATH is minimal (e.g. systemd)
+        return "npx.cmd"
     for candidate in [
         os.path.expanduser("~/.npm-global/bin/npx"),
         os.path.expanduser("~/.local/bin/npx"),
@@ -52,13 +49,12 @@ def _find_npx() -> str:
     ]:
         if os.path.isfile(candidate):
             return candidate
-    # Try to find node and use npx from same dir
     node = shutil.which("node")
     if node:
         npx_candidate = os.path.join(os.path.dirname(node), "npx")
         if os.path.isfile(npx_candidate):
             return npx_candidate
-    return "npx"  # fallback, will fail with a clear error
+    return "npx"
 
 # Server definitions: id -> (script path relative to project root, display name)
 #
@@ -69,11 +65,17 @@ def _find_npx() -> str:
 # image_gen / memory / rag / email still run as stdio MCP servers — each
 # carries hundreds of LOC of unique IMAP / HTTP / manager logic not worth
 # duplicating into the native path right now.
+#
+# culinary / restaurant / recipe are custom ShadowBot servers providing
+# food & dining intelligence for RestRevive-AI and RecipeOS integrations.
 _BUILTIN_SERVERS = {
-    "image_gen":  ("mcp_servers/image_gen_server.py",  "Built-in: Image Generation"),
-    "memory":     ("mcp_servers/memory_server.py",     "Built-in: Memory"),
-    "rag":        ("mcp_servers/rag_server.py",        "Built-in: RAG"),
-    "email":      ("mcp_servers/email_server.py",      "Built-in: Email"),
+    "image_gen":   ("mcp_servers/image_gen_server.py",   "Built-in: Image Generation"),
+    "memory":      ("mcp_servers/memory_server.py",      "Built-in: Memory"),
+    "rag":         ("mcp_servers/rag_server.py",         "Built-in: RAG"),
+    "email":       ("mcp_servers/email_server.py",       "Built-in: Email"),
+    "culinary":    ("mcp_servers/culinary_server.py",    "Built-in: Culinary AI"),
+    "restaurant":  ("mcp_servers/restaurant_server.py",  "Built-in: Restaurant Manager"),
+    "recipe":      ("mcp_servers/recipe_server.py",      "Built-in: Recipe Engine"),
 }
 
 # NPX-based built-in servers (run via npx, not Python)
@@ -125,24 +127,12 @@ async def register_builtin_servers(mcp_manager):
             continue
         asyncio.create_task(_connect_python_server(server_id, script_path, name))
 
-    # Register NPX-based servers in the background (they take longer to start)
     npx_path = _find_npx()
     logger.info(f"NPX binary resolved to: {npx_path}")
 
     async def _start_npx_servers():
-        await asyncio.sleep(3)  # let Python servers finish first
+        await asyncio.sleep(3)
         for server_id, cfg in _BUILTIN_NPX_SERVERS.items():
-            # Skip the server if its npx package isn't cached. Without this
-            # check, npx would try to download/install the package on first
-            # use, which can take minutes (or hang) on fresh installs without
-            # Playwright system deps. Wrapping that in asyncio.wait_for to
-            # bound the wait sounds reasonable, but mcp.client.stdio uses an
-            # internal anyio task group that can't survive the resulting
-            # cross-task cancellation: it raises "Attempted to exit cancel
-            # scope in a different task than it was entered in" in a sibling
-            # task, which cascades cancellations into the rest of the event
-            # loop and downs the app. Detecting installed-state up-front lets
-            # us bail with a useful warning before we ever touch stdio_client.
             args = cfg["args"]
             pkg_spec = _npx_package_from_args(args)
             if pkg_spec and not await _is_npx_package_cached(npx_path, pkg_spec):
@@ -179,17 +169,12 @@ async def register_builtin_servers(mcp_manager):
 
 
 def _npx_package_from_args(args):
-    """Pick the package spec out of an npx args list shaped like
-    ['-y', '<package@version>', ...flags]. Returns None if the
-    convention doesn't match (we then skip the cache check and just
-    try the connect)."""
     if not args:
         return None
     if "-y" in args:
         idx = args.index("-y") + 1
         if idx < len(args) and not args[idx].startswith("-"):
             return args[idx]
-    # No -y prefix: first non-flag arg is the package
     for a in args:
         if not a.startswith("-"):
             return a
@@ -197,15 +182,8 @@ def _npx_package_from_args(args):
 
 
 async def _is_npx_package_cached(npx_path, package_spec, timeout_s=5):
-    """Probe whether an npx package is already in the local cache.
-
-    First checks the local `_npx` cache for an installed package. If the
-    package is not found there, falls back to `npx --no-install <pkg>
-    --version` so older npm layouts still work without downloading.
-    """
     if _is_package_in_npx_cache(package_spec):
         return True
-
     try:
         proc = await asyncio.create_subprocess_exec(
             npx_path, "--no-install", package_spec, "--version",
@@ -237,11 +215,9 @@ async def _is_npx_package_cached(npx_path, package_spec, timeout_s=5):
 
 
 def _is_package_in_npx_cache(package_spec):
-    """Return True when npm's `_npx` cache already contains package_spec."""
     package_name = _npx_package_name(package_spec)
     if not package_name:
         return False
-
     for cache_root in _npm_cache_roots():
         npx_root = os.path.join(cache_root, "_npx")
         if _npx_cache_contains_package(npx_root, package_name):
@@ -250,7 +226,6 @@ def _is_package_in_npx_cache(package_spec):
 
 
 def _npx_package_name(package_spec):
-    """Strip a version/range suffix from an npm package spec."""
     if not package_spec:
         return ""
     if package_spec.startswith("@"):

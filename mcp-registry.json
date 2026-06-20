@@ -1,0 +1,56 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2026-06-20",
+  "hub": "ShadowWalkerNC/ShadowRealm",
+  "tools": [
+    {
+      "tool_name": "culinaryos_api",
+      "display_name": "CulinaryOS",
+      "repo": "ShadowWalkerNC/CulinaryOS",
+      "status": "active",
+      "plugin_manifest": "https://raw.githubusercontent.com/ShadowWalkerNC/CulinaryOS/main/shadowrealm.plugin.json"
+    },
+    {
+      "tool_name": "recipeos_api",
+      "display_name": "RecipeOS",
+      "repo": "ShadowWalkerNC/RecipeOS",
+      "status": "active",
+      "plugin_manifest": "https://raw.githubusercontent.com/ShadowWalkerNC/RecipeOS/main/shadowrealm.plugin.json"
+    },
+    {
+      "tool_name": "nexcms_api",
+      "display_name": "NexCMS",
+      "repo": "ShadowWalkerNC/NexCMS",
+      "status": "active",
+      "plugin_manifest": "https://raw.githubusercontent.com/ShadowWalkerNC/NexCMS/main/shadowrealm.plugin.json"
+    },
+    {
+      "tool_name": "postpilot_api",
+      "display_name": "Post-Pilot",
+      "repo": "ShadowWalkerNC/Post-Pilot",
+      "status": "active",
+      "plugin_manifest": "https://raw.githubusercontent.com/ShadowWalkerNC/Post-Pilot/main/shadowrealm.plugin.json"
+    },
+    {
+      "tool_name": "restrevive_api",
+      "display_name": "RestRevive-AI",
+      "repo": "ShadowWalkerNC/RestRevive-AI",
+      "status": "early_stage",
+      "plugin_manifest": "https://raw.githubusercontent.com/ShadowWalkerNC/RestRevive-AI/main/shadowrealm.plugin.json"
+    },
+    {
+      "tool_name": "bibledesk_api",
+      "display_name": "BibleDesk",
+      "repo": "ShadowWalkerNC/BibleDesk",
+      "status": "early_stage",
+      "plugin_manifest": "https://raw.githubusercontent.com/ShadowWalkerNC/BibleDesk/main/shadowrealm.plugin.json"
+    },
+    {
+      "tool_name": "shoreline_api",
+      "display_name": "Shoreline",
+      "repo": "ShadowWalkerNC/Shoreline",
+      "status": "private",
+      "plugin_manifest": null
+    }
+  ]
+}

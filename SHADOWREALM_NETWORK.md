@@ -1,173 +1,82 @@
-# ShadowRealm Network (SRN) — App Contract v1.0
+# ShadowRealm Network — App Contract v1.0
 
-Every app in the **ShadowWalkerNC ecosystem** that wants to participate in the
-ShadowRealm Network MUST implement this contract. It is the only thing ShadowRealm
-needs to discover, call, and monitor any app automatically.
-
-> Copy this file verbatim into every participating repo as `SHADOWREALM_NETWORK.md`.
-> Do not modify it locally — changes are made here and propagated.
+Every app in the **ShadowWalkerNC ecosystem** follows this contract.
+This file is identical across all repos. Do not modify it per-app —
+use `V1_API.md` for app-specific tool documentation.
 
 ---
 
-## 1. Required Endpoints
+## Purpose
 
-Every app exposes these three routes under `/v1/`:
-
-| Method | Path | Auth Required | Purpose |
-|--------|------|--------------|--------|
-| `GET`  | `/v1/health`   | No  | Liveness check — ShadowRealm polls this |
-| `GET`  | `/v1/manifest` | No  | Tool discovery — returns all callable tools |
-| `POST` | `/v1/<tool>`   | Yes | Execute a tool by name |
-
-### `/v1/health` response
-```json
-{
-  "status":  "ok",
-  "app":     "post-pilot",
-  "version": "1.2.0",
-  "uptime":  3600
-}
-```
-
-### `/v1/manifest` response
-```json
-{
-  "app":     "post-pilot",
-  "version": "1.2.0",
-  "tools": [
-    {
-      "name":        "publish_post",
-      "description": "Generate and publish a social media post",
-      "method":      "POST",
-      "path":        "/v1/publish_post",
-      "input": {
-        "caption":   { "type": "string",  "required": true  },
-        "platforms": { "type": "array",   "required": false },
-        "image_url": { "type": "string",  "required": false }
-      },
-      "output": {
-        "success": "boolean",
-        "results": "object"
-      }
-    }
-  ]
-}
-```
+The ShadowRealm Network (SRN) allows every app to:
+- **Discover** what other apps can do (via `/v1/manifest`)
+- **Call** other apps as tools over authenticated HTTP
+- **Report** health status to the ShadowRealm orchestrator
+- Stay **independent** (each app runs and deploys on its own) while being **interconnected** (any app can call any other)
 
 ---
 
-## 2. Authentication
+## Required Endpoints
 
-All `/v1/*` routes **except `/v1/health` and `/v1/manifest`** require:
+Every SRN-compliant app MUST implement these three routes:
 
-```
-Authorization: Bearer <app_api_key>
+| Endpoint | Auth | Description |
+|----------|------|-------------|
+| `GET /v1/health` | None | Liveness check — always public |
+| `GET /v1/manifest` | Bearer token | Machine-readable tool list |
+| `POST /v1/<tool_name>` | Bearer token | Execute a tool |
+
+---
+
+## Authentication
+
+All `/v1/*` routes **except `/v1/health`** require:
+
+```http
+Authorization: Bearer <api_key>
 X-SRN-App: <calling_app_name>
 ```
 
-- `app_api_key` — issued by the target app to the calling app (stored in `.env`)
-- `X-SRN-App` — the name of the calling app (e.g. `sigil`, `shadowrealm`, `culinaryos`)
-
-### Key format
-Keys follow the pattern: `<app_prefix>_live_<32_hex_chars>`  
-Example: `pp_live_a1b2c3...` (Post-Pilot), `sg_live_...` (Sigil)
+- `api_key` — an app-specific key issued by the receiving app
+- `X-SRN-App` — identifies the caller. Used for logging and rate-limiting.
 
 ---
 
-## 3. Standard Response Envelope
+## Standard Response Envelope
 
-All `/v1/<tool>` responses use this envelope:
-
-**Success**
 ```json
-{ "success": true, "data": { ... } }
+{ "success": true,  "data": { ... } }
+{ "success": false, "error": "Human readable message", "code": "MACHINE_CODE" }
 ```
 
-**Failure**
-```json
-{
-  "success": false,
-  "error":   "Human readable message",
-  "code":    "MACHINE_READABLE_CODE"
-}
-```
-
-### Standard error codes
-| Code | Meaning |
-|------|---------|
-| `AUTH_REQUIRED`    | Missing or invalid API key |
-| `FORBIDDEN`        | Key valid but lacks permission |
-| `NOT_FOUND`        | Tool or resource does not exist |
-| `VALIDATION_ERROR` | Missing or invalid input field |
-| `RATE_LIMITED`     | Too many requests |
-| `INTERNAL_ERROR`   | Unexpected server error |
+HTTP status codes: `200` success · `400` bad input · `401` unauth · `403` forbidden · `404` not found · `500` error
 
 ---
 
-## 4. `.env` Keys Every App Adds
+## Required `.env` Keys (every app)
 
 ```bash
-# This app's SRN identity
-SRN_APP_NAME=post-pilot
-
-# Shared inbound secret — ShadowRealm uses this to call this app
-# Generate with: openssl rand -hex 32
-SRN_INBOUND_SECRET=srn_live_xxxxxxxx
-
-# ShadowRealm registry URL (set when ShadowRealm is deployed)
-SRN_REGISTRY_URL=https://shadowrealm.example.com
-
-# Per-app outbound keys (add one per app you call)
-# e.g. if this app calls Post-Pilot:
-POSTPILOT_URL=https://postpilot.onrender.com
-POSTPILOT_API_KEY=pp_live_xxxxxxxx
+SRN_APP_NAME=your-app-name
+SRN_SECRET=srn_live_xxx
+SRN_REGISTRY_URL=https://shadowrealm.railway.app
 ```
 
 ---
 
-## 5. Webhook Events (Optional but Recommended)
+## App Registry
 
-Apps that emit events (e.g. "new menu item added", "reservation made") should
-`POST` to ShadowRealm's event bus:
+Canonical list: [`SRN_REGISTRY.json`](./SRN_REGISTRY.json) in `ShadowWalkerNC/ShadowRealm`.
 
-```
-POST https://shadowrealm.example.com/v1/events
-Authorization: Bearer <SRN_INBOUND_SECRET>
-X-SRN-App: sigil
-
-{
-  "event":  "menu.item.added",
-  "source": "sigil",
-  "data":   { "item": "Brisket Tacos", "price": 12.00 }
-}
-```
-
-ShadowRealm then decides which other apps to notify or trigger.
+| App | Stack | Role |
+|-----|-------|------|
+| **post-pilot** | Python/Flask | Social media engine |
+| **sigil** | Node/Discord.js | Discord bot + ops |
+| **shadowrealm** | Node/Express | Orchestrator |
 
 ---
 
-## 6. SRN_REGISTRY.json
+## Versioning
 
-The master registry lives at `ShadowWalkerNC/ShadowRealm/SRN_REGISTRY.json`.
-Update it whenever a new app joins the network or a URL changes.
-ShadowRealm reads this on startup to know what apps exist.
-
----
-
-## 7. Implementation Checklist
-
-When adding SRN support to an app, check off:
-
-- [ ] `GET /v1/health` returns correct envelope
-- [ ] `GET /v1/manifest` lists all callable tools with full schema
-- [ ] All `/v1/<tool>` routes use standard response envelope
-- [ ] Auth middleware validates `Authorization: Bearer` header
-- [ ] `.env` has `SRN_APP_NAME` and `SRN_INBOUND_SECRET`
-- [ ] `SHADOWREALM_NETWORK.md` present in repo root
-- [ ] `V1_API.md` documents all tools in plain English
-- [ ] Entry added/updated in `ShadowWalkerNC/ShadowRealm/SRN_REGISTRY.json`
-- [ ] `srn_ready: true` set in registry once checklist complete
-
----
-
-*ShadowRealm Network v1.0 — ShadowWalkerNC ecosystem*
+- Contract version lives in this file's header (`v1.0`)
+- Breaking changes bump the major version and require migration notes
+- Additive changes (new tools, new optional fields) are non-breaking

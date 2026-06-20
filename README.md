@@ -1,60 +1,70 @@
 # ShadowRealm
 
-The **orchestrator, app registry, and AI agent dispatcher** for the ShadowWalkerNC ecosystem.
+> The orchestrator for the ShadowWalkerNC app ecosystem.
 
-ShadowRealm is the hub that connects all ShadowWalkerNC apps — it knows what every app can do, routes events between them, and provides a single AI agent interface across the entire network.
+ShadowRealm is the central nervous system of the **ShadowRealm Network (SRN)** — a mesh of independent apps that can discover and call each other as tools.
 
----
+## What It Does
 
-## The Network
+- **Registry** — `SRN_REGISTRY.json` is the single source of truth listing every app in the network
+- **Health Monitor** — pings every app's `/v1/health` every 60s and reports status
+- **Manifest Fetcher** — loads every app's `/v1/manifest` on startup so it knows what each app can do
+- **Tool Dispatcher** — routes `call tool X on app Y` requests across the network
+- **Orchestrator** — chains multi-app workflows (e.g. Sigil event → Post-Pilot publish)
 
-| App | Stack | Purpose | SRN Ready |
-|-----|-------|---------|----------|
-| [Post-Pilot](https://github.com/ShadowWalkerNC/Post-Pilot) | Python/Flask | Social media posting engine | 🔨 Building |
-| [Sigil](https://github.com/ShadowWalkerNC/Sigil) | Node/Discord.js | Discord bot — culinary ops + community | 🔨 Building |
-| [CulinaryOS](https://github.com/ShadowWalkerNC/CulinaryOS) | Kotlin + React/Supabase | Culinary intelligence platform | 📋 Planned |
-| [Sylvia-Ross-MC](https://github.com/ShadowWalkerNC/Sylvia-Ross-MC) | JavaScript | Mission control dashboard | 📋 Planned |
-| [ShadowBot](https://github.com/ShadowWalkerNC/ShadowBot) | TBD | AI agent system (Odysseus) | 📋 Planned |
-| [NexCMS](https://github.com/ShadowWalkerNC/NexCMS) | React/Supabase | Website builder + CMS | 📋 Planned |
-| [RecipeOS](https://github.com/ShadowWalkerNC/RecipeOS) | Kotlin/Android | Recipe + kitchen management | 📋 Planned |
-| [RestRevive AI](https://github.com/ShadowWalkerNC/RestRevive-AI) | React/Supabase | Restaurant ops intelligence | 📋 Planned |
-| [BibleDesk](https://github.com/ShadowWalkerNC/BibleDesk) | React/Supabase | AI Bible evidence platform | 📋 Planned |
+## Network Apps
 
----
+| App | Role | Stack |
+|-----|------|-------|
+| [Post-Pilot](https://github.com/ShadowWalkerNC/Post-Pilot) | Social media engine | Python/Flask |
+| [Sigil](https://github.com/ShadowWalkerNC/Sigil) | Discord bot + culinary ops | Node/Discord.js |
+| ShadowRealm *(this)* | Orchestrator | Node/Express |
 
-## How It Works
-
-Every app in the network:
-1. Exposes `GET /v1/health` and `GET /v1/manifest`
-2. Implements `POST /v1/<tool>` routes for callable actions
-3. Is registered in `SRN_REGISTRY.json`
-
-ShadowRealm fetches every app's manifest on startup and can call any tool on any app as if it were a local function.
+## Architecture
 
 ```
 ShadowRealm
-  ├── fetches /v1/manifest from all apps
-  ├── routes events between apps
-  ├── provides unified AI agent interface
-  └── monitors /v1/health on all apps
+├── SRN_REGISTRY.json            ← source of truth: all apps
+├── orchestrator/
+│   ├── registry.js              ← loads + caches SRN_REGISTRY.json
+│   ├── manifest_fetcher.js      ← fetches /v1/manifest from each app
+│   ├── health_monitor.js        ← polls /v1/health, reports outages
+│   └── tool_dispatcher.js       ← routes tool calls to the right app
+├── server.js                    ← Express entry point + /v1/* routes
+├── package.json
+└── .env.example
 ```
 
----
+## Quick Start
 
-## Files
+```bash
+npm install
+cp .env.example .env
+# fill in SRN_SECRET (must match all other SRN apps)
+node server.js
+```
 
-| File | Purpose |
-|------|---------|
-| `SRN_REGISTRY.json` | Master list of all apps in the network |
-| `SHADOWREALM_NETWORK.md` | The contract every app must implement |
-| `orchestrator/` | ShadowRealm runtime (coming soon) |
+## API Endpoints
 
----
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/v1/health` | None | Liveness check |
+| `GET` | `/v1/manifest` | Bearer | ShadowRealm's own tool list |
+| `GET` | `/v1/health_status` | Bearer | Status of all SRN apps |
+| `GET` | `/v1/apps` | Bearer | All registered apps + cached tools |
+| `GET` | `/v1/find_tool?tool=name` | Bearer | Find which app owns a tool |
+| `POST` | `/v1/call_tool` | Bearer | Dispatch a tool call to any app |
 
-## Contract
+## Calling a Tool
 
-See [SHADOWREALM_NETWORK.md](./SHADOWREALM_NETWORK.md) for the full spec every app must follow.
+```bash
+curl -X POST https://shadowrealm.railway.app/v1/call_tool \
+  -H 'Authorization: Bearer srn_live_xxx' \
+  -H 'X-SRN-App: my-app' \
+  -H 'Content-Type: application/json' \
+  -d '{"app": "post-pilot", "tool": "publish_post", "input": {"caption": "Brisket Tacos 🔥", "platforms": ["fb","ig"]}}'
+```
 
----
+## Status
 
-*ShadowWalkerNC ecosystem — independent apps, interconnected network.*
+🛠️ **Building** — foundation committed. Post-Pilot Session 12 wires up the first real `/v1/` tools.

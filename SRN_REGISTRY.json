@@ -1,39 +1,124 @@
 {
-  "version": "1.0",
-  "updated": "2026-06-20",
-  "apps": [
-    {
-      "name":        "post-pilot",
-      "description": "Social media posting engine — generates + publishes to FB, IG, TikTok, YouTube, Google Business, Website",
-      "url":         "https://your-postpilot.onrender.com",
-      "manifest":    "https://your-postpilot.onrender.com/v1/manifest",
-      "health":      "https://your-postpilot.onrender.com/v1/health",
-      "stack":       "python/flask",
-      "repo":        "ShadowWalkerNC/Post-Pilot",
-      "status":      "active",
-      "srn_version": "1.0"
+  "_comment": "ShadowRealm Network App Registry — update live_url after each deploy",
+  "schema_version": "1.0",
+  "network": "ShadowRealm Network",
+  "registry_updated": "2026-06-20",
+
+  "apps": {
+
+    "shadowrealm": {
+      "id": "shadowrealm",
+      "name": "ShadowRealm",
+      "description": "The ShadowRealm Network hub — AI assistant, memory, and central gateway for all SRN apps.",
+      "repo": "https://github.com/ShadowWalkerNC/ShadowRealm",
+      "live_url": "__SHADOWREALM_URL__",
+      "health_endpoint": "/__srn__/health",
+      "manifest_path": "/srn-manifest.json",
+      "tech_stack": ["Python", "Flask", "SQLite"],
+      "deploy_target": "self-hosted",
+      "status": "live",
+      "version": "1.0.0",
+      "srn_role": "hub",
+      "registered_at": "2026-06-20"
     },
-    {
-      "name":        "sigil",
-      "description": "Discord bot — culinary ops, shift scheduling, community management, devotionals",
-      "url":         "https://sigil.railway.app",
-      "manifest":    "https://sigil.railway.app/v1/manifest",
-      "health":      "https://sigil.railway.app/v1/health",
-      "stack":       "node/discord.js",
-      "repo":        "ShadowWalkerNC/Sigil",
-      "status":      "active",
-      "srn_version": "1.0"
+
+    "sigil": {
+      "id": "sigil",
+      "name": "Sigil",
+      "description": "ShadowRealm Network Discord bot — commands, automation, and Post-Pilot bridge.",
+      "repo": "https://github.com/ShadowWalkerNC/Sigil",
+      "live_url": "__SIGIL_RAILWAY_URL__",
+      "health_endpoint": null,
+      "manifest_path": null,
+      "tech_stack": ["Node.js", "Discord.js", "Railway"],
+      "deploy_target": "railway",
+      "status": "live",
+      "version": "1.0.0",
+      "srn_role": "bot",
+      "registered_at": "2026-06-20",
+      "capabilities": [
+        "discord-slash-commands",
+        "post-pilot-bridge",
+        "srn-notifications"
+      ],
+      "env_vars_required": [
+        "DISCORD_TOKEN",
+        "DISCORD_CLIENT_ID",
+        "POSTPILOT_URL",
+        "POSTPILOT_API_KEY",
+        "POSTPILOT_USER_ID"
+      ]
     },
-    {
-      "name":        "shadowrealm",
-      "description": "Orchestrator — manifest registry, health monitor, tool dispatcher for the SRN ecosystem",
-      "url":         "https://shadowrealm.railway.app",
-      "manifest":    "https://shadowrealm.railway.app/v1/manifest",
-      "health":      "https://shadowrealm.railway.app/v1/health",
-      "stack":       "node/express",
-      "repo":        "ShadowWalkerNC/ShadowRealm",
-      "status":      "building",
-      "srn_version": "1.0"
+
+    "postpilot": {
+      "id": "postpilot",
+      "name": "Post-Pilot",
+      "description": "AI-powered social media hub. Generates, schedules, and publishes content to 6 platforms. Includes website builder, billing, and SRN-compliant /v1/ API.",
+      "repo": "https://github.com/ShadowWalkerNC/Post-Pilot",
+      "live_url": "__POSTPILOT_URL__",
+      "health_endpoint": "/v1/health",
+      "manifest_path": "/v1/health",
+      "tech_stack": ["Python", "Flask", "SQLite", "Stripe", "OpenAI"],
+      "deploy_target": "render",
+      "status": "staging",
+      "version": "1.0.0",
+      "srn_role": "app",
+      "registered_at": "2026-06-20",
+      "capabilities": [
+        "ai-post-generation",
+        "multi-platform-publishing",
+        "post-scheduler",
+        "analytics",
+        "website-builder",
+        "stripe-billing",
+        "srn-api-v1"
+      ],
+      "supported_platforms": [
+        "facebook",
+        "instagram",
+        "tiktok",
+        "youtube",
+        "google-business",
+        "website"
+      ],
+      "subscription_tiers": [
+        { "id": "free",    "name": "Free",    "price_monthly": 0   },
+        { "id": "starter", "name": "Starter", "price_monthly": 29  },
+        { "id": "growth",  "name": "Growth",  "price_monthly": 59  },
+        { "id": "agency",  "name": "Agency",  "price_monthly": 149 }
+      ],
+      "api": {
+        "base_path": "/v1",
+        "auth": "Bearer token (X-SRN-App header)",
+        "endpoints": [
+          { "method": "GET",  "path": "/v1/health",                "auth": false, "description": "Health check" },
+          { "method": "POST", "path": "/v1/generate_post",         "auth": true,  "description": "Generate AI caption" },
+          { "method": "POST", "path": "/v1/publish_post",          "auth": true,  "description": "Publish to platforms" },
+          { "method": "POST", "path": "/v1/generate_and_publish",  "auth": true,  "description": "One-shot generate + publish" },
+          { "method": "GET",  "path": "/v1/get_history",           "auth": true,  "description": "Post history" },
+          { "method": "GET",  "path": "/v1/get_site_config",       "auth": true,  "description": "Website hub config" },
+          { "method": "POST", "path": "/v1/keys/create",           "auth": true,  "description": "Create API key" },
+          { "method": "GET",  "path": "/v1/keys",                  "auth": true,  "description": "List API keys" },
+          { "method": "DELETE","path": "/v1/keys/<key_id>",        "auth": true,  "description": "Revoke API key" }
+        ]
+      },
+      "env_vars_required": [
+        "FLASK_SECRET_KEY",
+        "OPENAI_API_KEY",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "FACEBOOK_APP_ID",
+        "FACEBOOK_APP_SECRET",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "TIKTOK_CLIENT_KEY",
+        "TIKTOK_CLIENT_SECRET"
+      ]
     }
-  ]
+
+  },
+
+  "health_check_schedule": "every 5 minutes",
+  "alert_channel": "srn-alerts",
+  "maintained_by": "ShadowWalkerNC"
 }

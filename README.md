@@ -1,76 +1,60 @@
-<p align="center">
-  <img src="docs/odysseus-wordmark.png" alt="Odysseus" width="280">
-</p>
+# ShadowRealm
 
-<p align="center">
-  A self-hosted AI workspace for chat, agents, research, documents, email, notes, calendar, and local model workflows.
-</p>
+The **orchestrator, app registry, and AI agent dispatcher** for the ShadowWalkerNC ecosystem.
 
-<p align="center">
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="docs/setup.md">Setup Guide</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a> ·
-  <a href="ROADMAP.md">Roadmap</a>
-</p>
-
-<p align="center">
-  <a href="https://repology.org/project/odysseus-ai/versions"><img src="https://repology.org/badge/vertical-allrepos/odysseus-ai.svg" alt="Packaging status"></a>
-</p>
-
-<p align="center">
-  <img src="docs/odysseus.jpg" alt="Odysseus interface">
-</p>
+ShadowRealm is the hub that connects all ShadowWalkerNC apps — it knows what every app can do, routes events between them, and provides a single AI agent interface across the entire network.
 
 ---
 
-## Quick Start
+## The Network
 
-> `dev` is the default branch and gets the newest changes first. Use [`main`](https://github.com/pewdiepie-archdaemon/odysseus/tree/main) if you want the more curated branch.
+| App | Stack | Purpose | SRN Ready |
+|-----|-------|---------|----------|
+| [Post-Pilot](https://github.com/ShadowWalkerNC/Post-Pilot) | Python/Flask | Social media posting engine | 🔨 Building |
+| [Sigil](https://github.com/ShadowWalkerNC/Sigil) | Node/Discord.js | Discord bot — culinary ops + community | 🔨 Building |
+| [CulinaryOS](https://github.com/ShadowWalkerNC/CulinaryOS) | Kotlin + React/Supabase | Culinary intelligence platform | 📋 Planned |
+| [Sylvia-Ross-MC](https://github.com/ShadowWalkerNC/Sylvia-Ross-MC) | JavaScript | Mission control dashboard | 📋 Planned |
+| [ShadowBot](https://github.com/ShadowWalkerNC/ShadowBot) | TBD | AI agent system (Odysseus) | 📋 Planned |
+| [NexCMS](https://github.com/ShadowWalkerNC/NexCMS) | React/Supabase | Website builder + CMS | 📋 Planned |
+| [RecipeOS](https://github.com/ShadowWalkerNC/RecipeOS) | Kotlin/Android | Recipe + kitchen management | 📋 Planned |
+| [RestRevive AI](https://github.com/ShadowWalkerNC/RestRevive-AI) | React/Supabase | Restaurant ops intelligence | 📋 Planned |
+| [BibleDesk](https://github.com/ShadowWalkerNC/BibleDesk) | React/Supabase | AI Bible evidence platform | 📋 Planned |
 
-```bash
-git clone https://github.com/pewdiepie-archdaemon/odysseus.git
-cd odysseus
-cp .env.example .env
-docker compose up -d --build
+---
+
+## How It Works
+
+Every app in the network:
+1. Exposes `GET /v1/health` and `GET /v1/manifest`
+2. Implements `POST /v1/<tool>` routes for callable actions
+3. Is registered in `SRN_REGISTRY.json`
+
+ShadowRealm fetches every app's manifest on startup and can call any tool on any app as if it were a local function.
+
+```
+ShadowRealm
+  ├── fetches /v1/manifest from all apps
+  ├── routes events between apps
+  ├── provides unified AI agent interface
+  └── monitors /v1/health on all apps
 ```
 
-Open `http://localhost:7000` when the containers are healthy. The first admin password is printed in `docker compose logs odysseus`.
+---
 
-Native installs, GPU notes, Windows/macOS instructions, HTTPS, and configuration live in the [setup guide](docs/setup.md).
+## Files
 
-## Features
+| File | Purpose |
+|------|---------|
+| `SRN_REGISTRY.json` | Master list of all apps in the network |
+| `SHADOWREALM_NETWORK.md` | The contract every app must implement |
+| `orchestrator/` | ShadowRealm runtime (coming soon) |
 
-- **Chat + Agents** — local/API models, tools, MCP, files, shell, skills, and memory.
-- **Cookbook** — hardware-aware model recommendations, downloads, and serving.
-- **Deep Research** — multi-step web research with source reading and report generation.
-- **Compare** — blind side-by-side model testing and synthesis.
-- **Documents** — writing-first editor with AI edits, suggestions, Markdown, HTML, CSV, and syntax highlighting.
-- **Email** — IMAP/SMTP inbox with triage, tags, summaries, reminders, and reply drafts.
-- **Notes, Tasks + Calendar** — reminders, todos, scheduled agent tasks, and CalDAV sync.
-- **Extras** — gallery/image editor, themes, uploads, web search, presets, sessions, and 2FA.
+---
 
-## Demo
+## Contract
 
-A full hover-to-play tour lives on the landing page: [`docs/index.html`](docs/index.html).
+See [SHADOWREALM_NETWORK.md](./SHADOWREALM_NETWORK.md) for the full spec every app must follow.
 
-## Contributing
+---
 
-Help is welcome. The best entry points are fresh-install testing, provider setup bugs, mobile/editor polish, docs, and small focused refactors. See [CONTRIBUTING.md](CONTRIBUTING.md) and [ROADMAP.md](ROADMAP.md).
-
-## Security
-
-Odysseus is a self-hosted workspace with powerful local tools. Keep auth enabled, keep private data out of Git, and do not expose raw model/service ports publicly. Deployment details are in the [setup guide](docs/setup.md#security-notes).
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=pewdiepie-archdaemon%2Fodysseus&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=pewdiepie-archdaemon/odysseus&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=pewdiepie-archdaemon/odysseus&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=pewdiepie-archdaemon/odysseus&type=date&legend=top-left" />
- </picture>
-</a>
-
-## License
-
-AGPL-3.0-or-later -- see [LICENSE](LICENSE) and [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md).
+*ShadowWalkerNC ecosystem — independent apps, interconnected network.*

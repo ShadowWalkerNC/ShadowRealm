@@ -1,101 +1,216 @@
 # ShadowRealm — Master Development Plan
 
-> **Living Document** — Last updated: June 22, 2026  
-> **Branch Strategy:** `dev` = upstream Odysseus sync target | `shadowrealm` = your personal trunk  
-> **Vision:** A Mission Control AI system unlike anything else — full computer control, multi-agent coordination, deep ecosystem integration across all active projects.
+> **Living Document** — Last updated: June 22, 2026
+> **Branch Strategy:** `dev` = upstream Odysseus sync target | `shadowrealm` = your personal trunk
+> **Vision:** A universal, self-learning AI OS for any person, any task — open-source, free, and growing smarter with every interaction.
 
 ---
 
 ## Table of Contents
-1. [Project Identity](#1-project-identity)
-2. [Architecture Overview](#2-architecture-overview)
-3. [What Already Exists](#3-what-already-exists-audit)
-4. [The Missing Layers](#4-the-missing-layers)
-5. [MCP Server Build Order](#5-mcp-server-build-order)
-6. [Skills System](#6-skills-system)
-7. [Agent Modes / Presets](#7-agent-modes--presets)
-8. [Memory Architecture](#8-memory-architecture)
-9. [Background Automation Jobs](#9-background-automation-jobs)
-10. [Phased Roadmap](#10-phased-roadmap)
-11. [Industry Protocols to Adopt](#11-industry-protocols-to-adopt)
-12. [File Change Manifest](#12-file-change-manifest)
+1. [Core Vision](#1-core-vision)
+2. [Universal Learning Philosophy](#2-universal-learning-philosophy)
+3. [Architecture Overview](#3-architecture-overview)
+4. [What Already Exists](#4-what-already-exists-audit)
+5. [The Missing Layers](#5-the-missing-layers)
+6. [MCP Server Build Order](#6-mcp-server-build-order)
+7. [Skills System](#7-skills-system)
+8. [Agent Modes / Presets](#8-agent-modes--presets)
+9. [Memory Architecture](#9-memory-architecture)
+10. [Universal Task Learning Engine](#10-universal-task-learning-engine)
+11. [Background Automation Jobs](#11-background-automation-jobs)
+12. [Phased Roadmap](#12-phased-roadmap)
+13. [Industry Protocols to Adopt](#13-industry-protocols-to-adopt)
+14. [Open-Source Strategy](#14-open-source-strategy)
+15. [Swarm Architecture](#15-swarm-architecture)
+16. [File Change Manifest](#16-file-change-manifest)
 
 ---
 
-## 1. Project Identity
+## 1. Core Vision
 
-**ShadowRealm** is a fork of Odysseus (`pewdiepie-archdaemon/odysseus`, `dev` branch) rebranded and extended into a personal Mission Control AI — a system that knows your full context, controls your computer, writes and deploys your code, manages your restaurant operations, and runs background jobs autonomously.
+**ShadowRealm is not an app. It is a living AI operating system.**
 
-**Owner:** Nathaniel — Chef-developer, entrepreneur, Bangor Maine  
-**Active Projects ShadowRealm must know:**
-- `CulinaryOS` — Restaurant management + recipe platform
-- `RecipeOS` — Android app (Kotlin), recipe scaling + inventory
-- `NexCMS` — Content management system for restaurant/food sites
-- `ShadowRealm` — This system (self-aware)
-- `Bible Evidence Explorer` — Theological reasoning + knowledge system
-- `Discount Locator` — Searches nearby stores for 10%+ discounted items
-- `Ross Manor` — AttendanceOnDemand kiosk API integration
+It starts as a personal Mission Control for one person — Nathaniel — and grows into an open-source platform that any person on earth can deploy for themselves. A nurse. A contractor. A student. A farmer. A musician. Someone who has never written code. ShadowRealm doesn't require the user to define their world upfront. **It learns their world by watching, asking, and researching** until it can operate as a true partner.
 
-**Core Philosophy:**
-- Tool Groups per mode — never expose all tools at once (accuracy collapses at scale)
-- Planning-first agent loop — simulate before executing
-- Procedural memory — the system learns how Nathaniel works, not just what he knows
-- Local-first cost optimization — Ollama handles cheap tasks, Claude/GPT-4 handles complex ones
+**The core promise:**
+> *Give ShadowRealm any task. If it knows how, it does it. If it doesn't, it figures it out — through research, by asking you, or by watching you do it once. It remembers forever. It never asks twice.*
+
+**Three non-negotiables:**
+1. **Open and free** — MIT licensed, self-hostable, no cloud lock-in, no subscription
+2. **Universal** — designed for any person, any profession, any workflow
+3. **Genuinely intelligent** — not a chatbot wrapper. A system that plans, learns, acts, and grows
 
 ---
 
-## 2. Architecture Overview
+## 2. Universal Learning Philosophy
+
+### The Unknown Task Problem
+Every AI system today breaks when asked to do something outside its training or tool set. ShadowRealm's core differentiator is **a three-path resolution system for unknown tasks:**
 
 ```
-ShadowRealm
-├── AGENTS.md                         ← Codex for all AI coding agents (Claude Code, Gemini, Codex)
-├── SHADOWREALM_DEVELOPMENT_PLAN.md   ← This file
-├── skills/                           ← Reusable behavioral skill templates
-│   ├── dev/
-│   │   ├── new_feature.md
-│   │   ├── code_review.md
-│   │   ├── android_component.md
-│   │   └── api_endpoint.md
-│   ├── culinary/
-│   │   ├── recipe_scale.md
-│   │   └── production_plan.md
-│   └── ops/
-│       ├── morning_brief.md
-│       └── ross_manor_audit.md
+User gives ShadowRealm an unknown task
+           │
+           ▼
+    ┌──────────────────────────────────────┐
+    │  RESOLUTION ENGINE                   │
+    │                                      │
+    │  Path 1: RESEARCH                    │
+    │  → deep_research.py                  │
+    │  → web_tools.py                      │
+    │  → RAG knowledge base                │
+    │  → Synthesize procedure, execute     │
+    │                                      │
+    │  Path 2: ASK                         │
+    │  → Identify exactly what's missing   │
+    │  → Ask ONE targeted question         │
+    │  → Learn from answer                 │
+    │  → Store in procedural memory        │
+    │  → Never ask again                   │
+    │                                      │
+    │  Path 3: WATCH                       │
+    │  → Activate computer_use_server      │
+    │  → Ask user to demonstrate once      │
+    │  → Record screen + actions           │
+    │  → Synthesize into reusable skill    │
+    │  → Store in skills/ library          │
+    │  → Execute autonomously next time    │
+    └──────────────────────────────────────┘
+```
+
+### The Three Learning Loops
+
+**Loop 1 — Explicit Feedback**
+User says "that's wrong" or "do it like this instead" → system updates its stored procedure immediately.
+
+**Loop 2 — Implicit Signal**
+User edits the agent's output → system logs the delta, clusters patterns over time, updates its skill template for that task type.
+
+**Loop 3 — Observation**
+User says "watch me" → computer_use_server records the session → vision model synthesizes steps → new skill file written to `skills/` automatically.
+
+### The Skills Library as a Living Community Asset
+Every skill learned by ShadowRealm for one user becomes a **community-contributable skill template** in the open-source repo. Skills are sanitized of personal data and submitted as PRs to `skills/community/`. Over time, ShadowRealm ships with a vast library of human workflows — coding, cooking, accounting, medical admin, legal drafting, farming, music production — contributed by the global user base.
+
+---
+
+## 3. Architecture Overview
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║                  SHADOWREALM OS  v1.0                        ║
+║          The Universal Self-Learning AI Operating System     ║
+╠══════════════════════════════════════════════════════════════╣
+║  PRESENTATION LAYER                                          ║
+║  ├── Web UI (existing Odysseus frontend)                     ║
+║  ├── CLI interface                                           ║
+║  └── Mobile (future: React Native companion app)            ║
+╠══════════════════════════════════════════════════════════════╣
+║  ORCHESTRATION LAYER                                         ║
+║  ├── ShadowRealm Core (Odysseus engine, src/)               ║
+║  ├── AGNO AgentOS control plane (agent runtime)             ║
+║  ├── ClawTeam swarm coordinator                             ║
+║  └── Universal Task Resolution Engine (NEW)                 ║
+╠══════════════════════════════════════════════════════════════╣
+║  AGENT SWARM                                                 ║
+║  ├── DevAgent      → code, GitHub, builds, ADB              ║
+║  ├── ChefAgent     → CulinaryOS, recipes, menus             ║
+║  ├── OpsAgent      → Ross Manor, calendar, email            ║
+║  ├── ResearchAgent → deep research, web, RAG                ║
+║  ├── VisionAgent   → OpenHands computer control             ║
+║  ├── MemoryAgent   → Letta stateful learning                ║
+║  └── [user-defined agents spawned at runtime]               ║
+╠══════════════════════════════════════════════════════════════╣
+║  UNIVERSAL TASK LEARNING ENGINE                              ║
+║  ├── Path 1: Research (deep_research + web_tools)           ║
+║  ├── Path 2: Ask (targeted single-question clarification)   ║
+║  └── Path 3: Watch (computer_use + vision synthesis)        ║
+╠══════════════════════════════════════════════════════════════╣
+║  MODEL ROUTING (teacher_escalation.py)                       ║
+║  ├── Qwen3.6-Plus  → MCP-native, repo-level coding         ║
+║  ├── Llama 4 Scout → 10M ctx, full codebase in RAM         ║
+║  ├── DeepSeek V3   → cheap reasoning, summarization        ║
+║  ├── Claude 4      → hard planning, creative synthesis      ║
+║  ├── Qwen3.5-Omni  → multimodal (text+image+audio)         ║
+║  └── Ollama local  → free tier, privacy-sensitive tasks     ║
+╠══════════════════════════════════════════════════════════════╣
+║  MCP TOOL LAYER (mcp_servers/)                               ║
+║  ├── computer_use  ├── notion      ├── github               ║
+║  ├── culinaryos    ├── rossmanor   ├── supabase             ║
+║  ├── android_adb   ├── email       ├── memory               ║
+║  ├── rag           ├── image_gen   ├── discount_locator     ║
+║  └── [community MCP servers — plug and play]                ║
+╠══════════════════════════════════════════════════════════════╣
+║  SKILLS LIBRARY (skills/)                                    ║
+║  ├── dev/      ← coding + software development skills       ║
+║  ├── culinary/ ← food + restaurant skills                   ║
+║  ├── ops/      ← business operations skills                 ║
+║  ├── community/← open-source contributed skill templates    ║
+║  └── user/     ← privately learned, gitignored             ║
+╠══════════════════════════════════════════════════════════════╣
+║  MEMORY STACK                                                ║
+║  ├── Working    → src/memory.py (in-session)                ║
+║  ├── Episodic   → core/session_manager.py (history)        ║
+║  ├── Semantic   → ChromaDB + Notion RAG (knowledge)        ║
+║  └── Procedural → Letta (self-editing, persistent, learns) ║
+╠══════════════════════════════════════════════════════════════╣
+║  PERSISTENCE & STATE                                         ║
+║  ├── Supabase   → cloud state + event logs                  ║
+║  ├── ChromaDB   → local vector store                        ║
+║  └── SQLite     → core/database.py session data            ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+### File Structure
+```
+ShadowRealm/
+├── AGENTS.md                              ← Codex for all AI coding agents
+├── SHADOWREALM_DEVELOPMENT_PLAN.md        ← This file
+├── CONTRIBUTING.md                        ← How to contribute skills + MCP servers
+├── docker-compose.shadowrealm.yml         ← One-command self-hosted deploy
+├── skills/
+│   ├── dev/           ← software development skills
+│   ├── culinary/      ← food + restaurant skills
+│   ├── ops/           ← business operations skills
+│   ├── community/     ← open-source contributed (PR welcome)
+│   └── user/          ← private, gitignored
 ├── mcp_servers/
-│   ├── computer_use_server.py        ← NEW: screen/mouse/keyboard control
-│   ├── notion_server.py              ← NEW: 7-node Second Brain as RAG source
-│   ├── github_server.py              ← NEW: all repos — PR, issues, CI status
-│   ├── supabase_server.py            ← NEW: ShadowRealm persistent state
-│   ├── culinaryos_server.py          ← NEW: recipe, inventory, production data
-│   ├── rossmanor_server.py           ← NEW: AttendanceOnDemand kiosk API
-│   ├── android_studio_server.py      ← NEW: ADB build/deploy/test RecipeOS
-│   ├── discount_locator_server.py    ← NEW: deal alerts at 10%+ threshold
-│   ├── email_server.py               ← EXISTS (96KB)
-│   ├── memory_server.py              ← EXISTS (9.6KB)
-│   ├── image_gen_server.py           ← EXISTS (7KB)
-│   └── rag_server.py                 ← EXISTS (6.5KB)
+│   ├── computer_use_server.py             ← screen/mouse/keyboard
+│   ├── notion_server.py                   ← Second Brain
+│   ├── github_server.py                   ← all repos
+│   ├── supabase_server.py                 ← persistence
+│   ├── culinaryos_server.py               ← food ops
+│   ├── rossmanor_server.py                ← HR/attendance
+│   ├── android_studio_server.py           ← mobile dev
+│   ├── discount_locator_server.py         ← deal alerts
+│   ├── email_server.py                    ← EXISTS
+│   ├── memory_server.py                   ← EXISTS
+│   ├── image_gen_server.py                ← EXISTS
+│   └── rag_server.py                      ← EXISTS
 ├── src/
 │   ├── agent_tools/
-│   │   ├── computer_use_tools.py     ← NEW: pyautogui + playwright + mss + pytesseract
-│   │   ├── filesystem_tools.py       ← EXISTS (19KB)
-│   │   ├── subprocess_tools.py       ← EXISTS: shell/terminal execution
-│   │   ├── document_tools.py         ← EXISTS (27KB)
-│   │   ├── web_tools.py              ← EXISTS
-│   │   ├── model_interaction_tools.py← EXISTS
-│   │   └── session_tools.py          ← EXISTS (19KB)
-│   └── [60+ engine files — do not modify without review]
-└── config/shadowrealm/
-    ├── persona.json                  ← Identity seed loaded at every session
-    └── presets/
-        ├── dev_mode.json
-        ├── chef_mode.json
-        └── ops_mode.json
+│   │   ├── computer_use_tools.py          ← NEW
+│   │   ├── task_resolution_engine.py      ← NEW (research/ask/watch router)
+│   │   ├── skill_synthesizer.py           ← NEW (watch → skill file)
+│   │   ├── filesystem_tools.py            ← EXISTS
+│   │   ├── subprocess_tools.py            ← EXISTS
+│   │   ├── document_tools.py              ← EXISTS
+│   │   ├── web_tools.py                   ← EXISTS
+│   │   ├── model_interaction_tools.py     ← EXISTS
+│   │   └── session_tools.py               ← EXISTS
+│   ├── a2a_coordinator.py                 ← NEW (agent-to-agent)
+│   └── [60+ engine files]
+└── config/
+    └── shadowrealm/
+        ├── persona.json                   ← identity seed (gitignored)
+        └── presets/
+            ├── dev_mode.json
+            ├── chef_mode.json
+            └── ops_mode.json
 ```
 
 ---
 
-## 3. What Already Exists (Audit)
+## 4. What Already Exists (Audit)
 
 ### Engine (`src/`) — Notable Files
 | File | Size | Relevance |
@@ -112,21 +227,16 @@ ShadowRealm
 | `src/chroma_client.py` | 2.3KB | ChromaDB vector store |
 | `src/visual_report.py` | 71KB | Visual dashboard/report generation |
 | `src/caldav_sync.py` | 30KB | Google Calendar two-way sync |
-| `src/caldav_writeback.py` | 11KB | Calendar write-back |
 | `src/webhook_manager.py` | 12KB | Inbound/outbound webhooks |
 | `src/bg_jobs.py` | 11KB | Background job runner |
 | `src/bg_monitor.py` | 6KB | Job health monitor |
 | `src/preset_manager.py` | 7.5KB | Agent persona/tool group presets |
-| `src/reminder_personas.py` | 3.6KB | Persona-aware reminders |
 | `src/teacher_escalation.py` | 26KB | Multi-model cost escalation routing |
 | `src/integrations.py` | 25KB | Integration registry |
-| `src/cookbook_serve_lifecycle.py` | 9KB | **CulinaryOS-relevant: recipe serving lifecycle** |
-| `src/copilot.py` | 9KB | Copilot mode |
+| `src/cookbook_serve_lifecycle.py` | 9KB | CulinaryOS-ready: recipe serving lifecycle |
 | `src/mcp_manager.py` | 29KB | MCP server registration + management |
-| `src/mcp_oauth.py` | 7.4KB | OAuth for MCP servers |
 | `src/event_bus.py` | 4KB | Internal event pub/sub |
 | `src/context_compactor.py` | 19KB | Context window compression |
-| `src/embedding_lanes.py` | 14KB | Embedding pipeline lanes |
 
 ### Agent Tools (`src/agent_tools/`)
 | File | What It Provides |
@@ -138,420 +248,475 @@ ShadowRealm
 | `model_interaction_tools.py` | Agent → other model calls |
 | `session_tools.py` | Session context management |
 
-### MCP Servers (`mcp_servers/`)
-| File | What It Provides |
-|---|---|
-| `email_server.py` | Email read/send |
-| `memory_server.py` | Persistent agent memory |
-| `rag_server.py` | Retrieval-augmented generation |
-| `image_gen_server.py` | Image generation |
-
 ---
 
-## 4. The Missing Layers
+## 5. The Missing Layers
 
-### 4.1 Computer Control (Highest Priority)
-What Claude Computer Use, Google Gemini with Project Mariner, and OpenAI Operator all have:  
-**Screen capture + mouse + keyboard control.**
+### 5.1 Universal Task Resolution Engine ← MOST IMPORTANT NEW FILE
+**File:** `src/agent_tools/task_resolution_engine.py`
 
-Implementation stack:
-- `pyautogui` — cross-platform mouse, keyboard, screenshot
-- `playwright` — browser automation (click, fill forms, scrape dynamic pages)
-- `mss` — fast multi-screen capture
-- `pytesseract` — OCR on screenshots so the agent can *read* what's on screen
-- `opencv-python` — screen element detection / template matching
+This is the core of what makes ShadowRealm universal. When the agent encounters an unknown task it routes through three paths:
 
-File to create: `src/agent_tools/computer_use_tools.py`  
-MCP wrapper: `mcp_servers/computer_use_server.py`
-
-Tools to expose:
 ```python
-screenshot(monitor=0)           # capture current screen
-click(x, y, button='left')      # mouse click
-double_click(x, y)              # double click
-type_text(text, interval=0.05)  # keyboard input
-key_press(key)                  # single key (Enter, Tab, Escape, etc.)
-scroll(x, y, clicks)            # scroll wheel
-read_screen(region=None)        # OCR full screen or region
-find_element(template_path)     # find image on screen, return coords
-open_app(app_name)              # launch application
-browser_navigate(url)           # playwright browser nav
-browser_click(selector)         # playwright DOM click
-browser_fill(selector, value)   # playwright form fill
-browser_screenshot()            # headless browser screenshot
+class TaskResolutionEngine:
+    async def resolve(self, task: str, context: UserContext) -> ExecutionPlan:
+        # 1. Check skills library + memory
+        if skill := await self.skills_store.lookup(task):
+            return ExecutionPlan(skill=skill)
+
+        # 2. Check RAG knowledge base
+        if knowledge := await self.rag.query(task):
+            return ExecutionPlan(synthesized_from=knowledge)
+
+        # 3. Deep research
+        if procedure := await self.deep_research.find_procedure(task):
+            skill = await self.skill_synthesizer.from_research(procedure)
+            await self.skills_store.save(skill)
+            return ExecutionPlan(skill=skill)
+
+        # 4. Ask user (ONE targeted question)
+        question = await self.clarification_engine.formulate(task, missing_info)
+        answer = await self.ask_user(question)
+        skill = await self.skill_synthesizer.from_answer(task, answer)
+        await self.skills_store.save(skill)
+        return ExecutionPlan(skill=skill)
+
+        # 5. Watch user (last resort, most powerful)
+        await self.computer_use.start_observation_mode()
+        recording = await self.observe_user_demo(task)
+        skill = await self.skill_synthesizer.from_observation(recording)
+        await self.skills_store.save(skill)
+        return ExecutionPlan(skill=skill)
 ```
 
-### 4.2 Procedural Memory
-The 4th memory type — the system learns *how Nathaniel works*, not just facts.
-- Learns preferred output format over time
-- Learns that 6:30 AM = morning brief mode
-- Learns that Ross Manor issues get checked before recipe work
-- Learns which repos Nathaniel reviews vs. lets the agent auto-merge
+### 5.2 Skill Synthesizer
+**File:** `src/agent_tools/skill_synthesizer.py`
 
-Implementation: integrate **mem0** or **Letta** as a `memory_provider` in `src/memory_provider.py`
+Converts raw inputs (research findings, user answers, screen recordings) into structured, reusable skill files in `skills/`. Uses a vision model (Qwen3.5-Omni) to interpret screen recordings and extract step-by-step procedures.
 
-### 4.3 A2A (Agent-to-Agent) Coordination
-Google's Agent-to-Agent protocol for horizontal agent collaboration.  
-Makes CulinaryOS agent, Dev agent, and Ops agent hand off tasks to each other rather than each being isolated.
+### 5.3 Computer Control
+**File:** `src/agent_tools/computer_use_tools.py`
+**MCP Wrapper:** `mcp_servers/computer_use_server.py`
 
-### 4.4 Skills Layer
-See Section 6. A `skills/` directory of markdown prompt templates encoding *how* to do a class of task.
+Stack: `pyautogui` + `playwright` + `mss` + `pytesseract` + `opencv-python`
 
-### 4.5 AGENTS.md Codex
-See Section 11. The conventions file every AI coding tool reads on session start.
+Tools: `screenshot()`, `click(x,y)`, `type_text(str)`, `key_press(key)`, `scroll()`, `read_screen()`, `find_element()`, `open_app()`, `browser_navigate()`, `browser_click()`, `browser_fill()`
+
+Alternative (open-source, Docker): **OpenHands** (formerly OpenDevin) — higher accuracy on complex computer tasks, MIT licensed, 40k+ stars.
+
+Benchmark comparison for computer use:
+- InfantAgent-Next: 7.27% OSWorld (beats Claude Computer Use)
+- OpenHands: strong SWE-Bench score, best for code-heavy computer tasks
+- pyautogui native: best for simple, deterministic GUI automation
+
+Use pyautogui for simple tasks. Delegate to OpenHands sub-agent for complex web/GUI sessions.
+
+### 5.4 Procedural Memory (Letta)
+The 4th memory type — the system learns *how the user works*.
+- Self-editing memory blocks that persist indefinitely
+- Never resets between sessions
+- Learns: preferred output format, work schedule patterns, project priority order, review preferences
+- `pip install letta`
+- Integrate via `src/memory_provider.py`
+
+### 5.5 A2A (Agent-to-Agent) Coordination
+**File:** `src/a2a_coordinator.py`
+Google's open Agent-to-Agent protocol for horizontal agent collaboration.
+Sub-agents hand off tasks rather than the orchestrator doing everything.
 
 ---
 
-## 5. MCP Server Build Order
+## 6. MCP Server Build Order
 
-### Priority 1 — Computer Control
-**File:** `mcp_servers/computer_use_server.py`  
-**Dependencies:** `pyautogui`, `playwright`, `mss`, `pytesseract`, `opencv-python`  
-**Why first:** This is the single capability that separates ShadowRealm from every tool you've already used. Everything else is integration — this is control.
-
-```bash
-pip install pyautogui playwright mss pytesseract opencv-python
-python -m playwright install chromium
-```
-
-### Priority 2 — Notion (Second Brain)
-**File:** `mcp_servers/notion_server.py`  
-**Dependencies:** `notion-client`  
-**API:** Notion Integration Token (Internal Integration)  
-**Nodes to connect (your 7-node Second Brain):**
-1. Projects Hub
-2. Task Manager
-3. Knowledge Base
-4. Daily Journal / Planning
-5. Recipe / Food Notes
-6. Financial Tracker
-7. Resources / References
-
-**Integration point:** Feed Notion pages into `src/chroma_client.py` via `src/rag_server.py`
-
-### Priority 3 — GitHub
-**File:** `mcp_servers/github_server.py`  
-**Dependencies:** `PyGithub` or `httpx`  
-**Tools:** list_repos, get_pr, review_pr, create_issue, check_ci_status, get_diff, push_file  
-**Repos:** CulinaryOS, RecipeOS, NexCMS, ShadowRealm, BibleEvidenceExplorer, DiscountLocator
-
-### Priority 4 — Supabase
-**File:** `mcp_servers/supabase_server.py`  
-**Dependencies:** `supabase-py`  
-**Purpose:** ShadowRealm persistent state — agent decisions, event logs, session memory overflow, project state snapshots
-
-### Priority 5 — CulinaryOS
-**File:** `mcp_servers/culinaryos_server.py`  
-**Dependencies:** Internal REST API  
-**Hook into:** `src/cookbook_serve_lifecycle.py` (already exists)  
-**Tools:** get_recipe, scale_recipe, get_inventory, create_production_plan, get_menu
-
-### Priority 6 — Ross Manor
-**File:** `mcp_servers/rossmanor_server.py`  
-**Dependencies:** AttendanceOnDemand REST API  
-**Tools:** get_clock_events, get_schedule, flag_discrepancy, get_daily_summary  
-**Background job:** Daily attendance digest at 6:15 AM before morning brief
-
-### Priority 7 — Android Studio / ADB
-**File:** `mcp_servers/android_studio_server.py`  
-**Dependencies:** ADB (Android Debug Bridge), `subprocess_tools.py`  
-**Tools:** build_apk, run_tests, deploy_to_device, get_logcat, list_devices  
-**Purpose:** Build, test, and deploy RecipeOS from chat without touching Android Studio
-
-### Priority 8 — Discount Locator
-**File:** `mcp_servers/discount_locator_server.py`  
-**Dependencies:** Walmart API, Flipp API, store-specific scrapers  
-**Tools:** search_deals, get_store_discounts, filter_by_threshold  
-**Trigger:** Proactive alerts when 10%+ deals are found at configured stores
+| Priority | Server | SDK/API | Unlocks |
+|---|---|---|---|
+| **1** | `computer_use_server.py` | pyautogui, playwright, mss, pytesseract | Full computer control — watch + act |
+| **2** | `notion_server.py` | notion-client | Second Brain in RAG |
+| **3** | `github_server.py` | PyGithub / httpx | All repos: PR, issues, CI |
+| **4** | `supabase_server.py` | supabase-py | Persistent ShadowRealm state |
+| **5** | `culinaryos_server.py` | Internal REST | Recipe, inventory, production |
+| **6** | `rossmanor_server.py` | AttendanceOnDemand REST | Kiosk events, attendance, scheduling |
+| **7** | `android_studio_server.py` | ADB + subprocess | Build/deploy RecipeOS from chat |
+| **8** | `discount_locator_server.py` | Walmart/Flipp APIs | Deal alerts at 10%+ |
 
 ---
 
-## 6. Skills System
+## 7. Skills System
 
-Skills are markdown files that encode *how* to do a class of task. The agent loads the relevant skill file before starting work, giving it battle-tested procedure rather than improvising each time.
+Skills are markdown procedure files. When ShadowRealm needs to do a task, it loads the relevant skill for battle-tested procedure instead of improvising. Skills can be:
+- **Hand-written** by you (best for known workflows)
+- **Research-synthesized** (auto-generated from deep_research.py)
+- **Answer-synthesized** (generated from one clarification question)
+- **Observation-synthesized** (generated from watching you work)
+- **Community-contributed** (PR to skills/community/)
 
-### Dev Skills
+### Nathaniel's Initial Skill Library
 ```
-skills/dev/new_feature.md
-  - Branch naming convention
-  - Scaffold structure by project (Android = Kotlin MVVM, Web = TypeScript)
-  - Test file creation pattern
-  - PR template
-  - Commit message format
+skills/dev/
+  new_feature.md         ← branch, scaffold, test, PR
+  code_review.md         ← security + perf checklist
+  android_component.md   ← Kotlin MVVM, Jetpack Compose
+  api_endpoint.md        ← REST structure, auth, validation
 
-skills/dev/code_review.md
-  - Security checklist
-  - Performance flags to look for
-  - Style guide reminders
-  - Required test coverage threshold
+skills/culinary/
+  recipe_scale.md        ← yield%, unit conversions, equipment constraints
+  production_plan.md     ← prep schedule, station assignment, time-backward
 
-skills/dev/android_component.md
-  - Kotlin coroutines pattern
-  - ViewModel + Repository pattern for RecipeOS
-  - Room database migration process
-  - Jetpack Compose component structure
+skills/ops/
+  morning_brief.md       ← 6:15 AM data pull + format
+  ross_manor_audit.md    ← attendance check + discrepancy threshold
 
-skills/dev/api_endpoint.md
-  - REST endpoint structure
-  - Auth middleware requirements
-  - Input validation pattern
-  - Response schema standard
-  - Error handling format
-```
+skills/community/        ← open-source contributed (gitignored until PR)
+  README.md              ← how to contribute a skill
 
-### Culinary Skills
-```
-skills/culinary/recipe_scale.md
-  - Unit conversion tables
-  - Yield percentage logic
-  - Equipment capacity constraints
-  - Rounding rules for commercial quantities
-
-skills/culinary/production_plan.md
-  - How to generate prep schedules from a recipe list
-  - Station assignment logic
-  - Time-backward scheduling from service time
-  - Allergen flagging procedure
-```
-
-### Ops Skills
-```
-skills/ops/morning_brief.md
-  - What to pull (GitHub activity, calendar, Notion tasks, Ross Manor)
-  - Format: bullets, no prose, sorted by urgency
-  - Threshold for flagging vs. informing
-  - Delivery time: 6:15 AM before wake
-
-skills/ops/ross_manor_audit.md
-  - AttendanceOnDemand query procedure
-  - Discrepancy threshold (> 5 min = flag)
-  - Escalation path
-  - Report format
+skills/user/             ← private, gitignored, learned by observation
 ```
 
 ---
 
-## 7. Agent Modes / Presets
+## 8. Agent Modes / Presets
 
-Using `src/preset_manager.py`. Never expose all tools simultaneously — accuracy collapses above ~10 tools.
+Using `src/preset_manager.py`. Tool groups — never expose all tools at once.
 
-### Dev Mode (`config/shadowrealm/presets/dev_mode.json`)
-**Active tools:**
-- `computer_use_server` — screen control
-- `github_server` — repo operations  
-- `filesystem_tools` — read/write code
-- `subprocess_tools` — run tests, builds
-- `android_studio_server` — RecipeOS deploys
-- `notion_server` — pull project docs
-- `web_tools` — docs lookup
-- `deep_research` — architecture research
+| Mode | Trigger | Active Tools | Active Skills |
+|---|---|---|---|
+| **Dev** | `@dev` | computer_use, github, filesystem, subprocess, android_adb, notion, web, deep_research | skills/dev/ |
+| **Chef** | `@chef` | culinaryos, notion, web, image_gen, deep_research | skills/culinary/ |
+| **Ops** | `@ops` | rossmanor, caldav, email, supabase, visual_report, notion | skills/ops/ |
+| **Universal** | `@auto` (default) | task_resolution_engine routes dynamically | auto-selects |
 
-**Active skills:** `skills/dev/`  
-**Trigger:** `@dev` or "switch to dev mode"
-
-### Chef Mode (`config/shadowrealm/presets/chef_mode.json`)
-**Active tools:**
-- `culinaryos_server` — recipe + inventory
-- `notion_server` — food notes + research
-- `web_tools` — ingredient sourcing, technique lookup
-- `image_gen_server` — plating visualization
-- `deep_research` — menu R&D, food history
-
-**Active skills:** `skills/culinary/`  
-**Trigger:** `@chef` or "switch to chef mode"
-
-### Ops Mode (`config/shadowrealm/presets/ops_mode.json`)
-**Active tools:**
-- `rossmanor_server` — attendance
-- `caldav_sync` — scheduling
-- `email_server` — communications
-- `supabase_server` — state + logs
-- `visual_report` — dashboard generation
-- `notion_server` — task + financial tracker
-
-**Active skills:** `skills/ops/`  
-**Trigger:** `@ops` or "switch to ops mode"
+**Universal Mode** is the key addition — it uses the Task Resolution Engine to dynamically select the right tool group based on what the task actually requires, rather than the user having to know which mode to switch to.
 
 ---
 
-## 8. Memory Architecture
-
-Four-layer memory stack (current state + targets):
+## 9. Memory Architecture
 
 | Layer | Type | Status | Implementation |
 |---|---|---|---|
 | Working | In-context session | ✅ EXISTS | `src/memory.py` |
 | Episodic | Conversation history | ✅ EXISTS | `core/session_manager.py` |
-| Semantic | Knowledge base + facts | 🔧 EXTEND | `src/chroma_client.py` + Notion RAG feed |
-| Procedural | Learned work patterns | ❌ MISSING | Add `mem0` or `Letta` via `src/memory_provider.py` |
+| Semantic | Knowledge base + facts | 🔧 EXTEND | `src/chroma_client.py` + Notion RAG |
+| Procedural | Learned work patterns | ❌ MISSING | Letta via `src/memory_provider.py` |
 
-### Procedural Memory Implementation
-- Library: `mem0ai` (pip install mem0ai)
-- Learns: preferred output format, wake-time behavior, project priority ordering, review vs. auto-merge preferences
-- Stored in: Supabase (persistent) + local ChromaDB (fast retrieval)
-- Updated: after each session based on explicit feedback or implicit signals
+### Procedural Memory — What It Learns Per User
+- Preferred output format (bullet vs. prose, verbose vs. concise)
+- Wake-time and work-time patterns
+- Project priority ordering
+- Which tasks to auto-execute vs. ask permission
+- Recurring decisions and their outcomes
+- Vocabulary, terminology, abbreviations the user uses
+- Who they email most and how they prefer to respond
 
 ---
 
-## 9. Background Automation Jobs
+## 10. Universal Task Learning Engine
+
+This is the section that defines what ShadowRealm is that nothing else is.
+
+### The Principle
+**If ShadowRealm doesn't know how to do something, it never fails silently. It never hallucinates a wrong answer. It resolves the gap and learns.**
+
+### Resolution Priority Order
+1. **Skills library hit** — fastest, fully deterministic
+2. **Procedural memory hit** — learned from this user before
+3. **RAG knowledge base** — from Notion, documents, past research
+4. **Deep research** — live web research, synthesize into new skill
+5. **Single clarifying question** — ask user for the one missing piece
+6. **Observation mode** — "Show me once, I'll do it every time after"
+
+### What Gets Stored After Each Resolution
+Every time a task is resolved via paths 3–6, ShadowRealm:
+1. Writes a new skill file to `skills/user/[task_slug].md`
+2. Updates Letta procedural memory with the user's preference signal
+3. Indexes the skill in ChromaDB for fast future lookup
+4. Optionally (with permission) sanitizes and submits as PR to `skills/community/`
+
+### The "Watch Me" Protocol
+Triggered by user saying "watch me" or "let me show you":
+1. `computer_use_server` activates observation mode (screen recording + action log)
+2. User performs the task naturally
+3. Vision model (Qwen3.5-Omni or InfantAgent) interprets recording
+4. `skill_synthesizer.py` structures observations into a repeatable skill
+5. Skill is validated with user: "I learned this — is this right?"
+6. On confirmation: stored permanently, never needs demonstration again
+
+### Skill Quality Tiers
+```
+Tier 1 — Gold (hand-written or user-validated observation)
+  → Executed with full confidence, no confirmation needed
+
+Tier 2 — Silver (research-synthesized or answer-synthesized)
+  → Executed with summary shown first, runs unless user objects
+
+Tier 3 — Bronze (first-time inference, no stored procedure)
+  → Full plan shown and approved before execution
+  → On success, promoted to Silver automatically
+```
+
+---
+
+## 11. Background Automation Jobs
 
 Using `src/bg_jobs.py` + `src/task_scheduler.py`:
 
 | Schedule | Job | Output |
 |---|---|---|
 | Daily 6:15 AM | Morning brief assembly | PRs, calendar, Notion tasks, Ross Manor flags |
-| Daily midnight | CI scan across all repos | GitHub issue if failing |
+| Daily midnight | CI scan across all repos | GitHub issue if any fail |
 | On every git push | Lint + test subprocess | Session notification |
-| Weekly Sunday 8 PM | Project health dashboard | `visual_report.py` output |
-| Every 2 hours (business hours) | Discount locator scan | Alert if 10%+ deal found |
+| Weekly Sunday 8 PM | Project health dashboard | visual_report.py output |
+| Every 2 hours | Discount locator scan | Alert if 10%+ deal found |
 | Daily 11 PM | Attendance digest | Ross Manor daily summary |
-| Weekly Monday 6 AM | Weekly ops brief | Schedule, staffing, inventory levels |
+| Weekly Monday 6 AM | Weekly ops brief | Schedule, staffing, inventory |
+| Monthly | Skill library review | Suggest community PR for top user skills |
 
 ---
 
-## 10. Phased Roadmap
+## 12. Phased Roadmap
 
 ### Phase 0 — Foundation *(Week 1)*
 - [x] Create `shadowrealm` branch from `dev`
+- [x] Write master development plan
 - [ ] Write `AGENTS.md` codex
 - [ ] Write `config/shadowrealm/persona.json`
-- [ ] Rebrand surface strings (`src/constants.py`, `odysseus-ui.service`, `Odysseus.spec`)
-- [ ] Override `.env.example` with your provider setup
+- [ ] Rebrand surface strings in `src/constants.py`
+- [ ] Override `.env.example`
 
 ### Phase 1 — Computer Control *(Week 1-2)*
 - [ ] `src/agent_tools/computer_use_tools.py`
 - [ ] `mcp_servers/computer_use_server.py`
-- [ ] Register in `src/integrations.py`
+- [ ] Docker setup for OpenHands sub-agent
 - [ ] Test: screenshot → OCR → click loop
+- [ ] Test: "watch me" observation mode end-to-end
 
 ### Phase 2 — Second Brain Integration *(Week 2)*
 - [ ] `mcp_servers/notion_server.py`
 - [ ] Connect 7 Notion nodes
-- [ ] Feed into `src/chroma_client.py` via `src/rag_server.py`
-- [ ] Test: ask ShadowRealm about a Notion project → correct answer
+- [ ] RAG pipeline into ChromaDB
+- [ ] Test: ask about Notion project → correct answer
 
 ### Phase 3 — Dev Agent Mode *(Week 3)*
 - [ ] `mcp_servers/github_server.py`
 - [ ] `mcp_servers/android_studio_server.py`
-- [ ] `config/shadowrealm/presets/dev_mode.json`
-- [ ] `skills/dev/` — 4 skill files
-- [ ] Test: full dev loop from chat (ask → write code → run tests → push PR)
+- [ ] Dev mode preset + skills
+- [ ] Test: full dev loop from chat → push PR
 
 ### Phase 4 — Business Operations *(Week 4)*
 - [ ] `mcp_servers/supabase_server.py`
 - [ ] `mcp_servers/culinaryos_server.py`
 - [ ] `mcp_servers/rossmanor_server.py`
-- [ ] `config/shadowrealm/presets/chef_mode.json`
-- [ ] `config/shadowrealm/presets/ops_mode.json`
-- [ ] `skills/culinary/` + `skills/ops/`
+- [ ] Chef + Ops mode presets + skills
 
 ### Phase 5 — Memory + Autonomy *(Week 5-6)*
-- [ ] Integrate `mem0` into `src/memory_provider.py`
-- [ ] Configure all background automation jobs in `src/task_scheduler.py`
-- [ ] Wire morning brief job with all data sources
-- [ ] A2A protocol scaffold for cross-agent handoffs
+- [ ] Integrate Letta into `src/memory_provider.py`
+- [ ] Wire all background automation jobs
+- [ ] A2A coordinator scaffold
+- [ ] Morning brief fully operational
 
-### Phase 6 — Procedural Learning + Polish *(Ongoing)*
-- [ ] Procedural memory tuning
-- [ ] Discount locator server
-- [ ] `AGENTS.md` refinement as work patterns solidify
-- [ ] Upstream sync cadence established
+### Phase 6 — Universal Task Engine *(Week 7-8)*
+- [ ] `src/agent_tools/task_resolution_engine.py`
+- [ ] `src/agent_tools/skill_synthesizer.py`
+- [ ] Research path (deep_research integration)
+- [ ] Ask path (clarification engine)
+- [ ] Watch path (observation + vision synthesis)
+- [ ] Skill quality tier system
+- [ ] Universal mode preset
 
----
+### Phase 7 — Swarm + Open-Source Graduation *(Month 3)*
+- [ ] Integrate AGNO as agent runtime (`pip install agno`)
+- [ ] Integrate ClawTeam for swarm orchestration
+- [ ] Specialist sub-agents (Dev, Chef, Ops, Research, Vision, Memory)
+- [ ] Wire OpenHands as VisionAgent (Docker sub-service)
+- [ ] Swap default local model to Qwen3.6-Plus via Ollama (MCP-native)
+- [ ] Configure Llama 4 Scout for large-context codebase tasks
+- [ ] Configure DeepSeek V3 for cheap reasoning
+- [ ] `docker-compose.shadowrealm.yml` for one-command deploy
 
-## 11. Industry Protocols to Adopt
-
-### AGENTS.md / Codex File
-The AI-native README standard in 2026. Claude Code reads `CLAUDE.md`, Google Codex reads `AGENTS.md`. Place at repo root on `shadowrealm` branch. Encodes:
-- Branch strategy
-- Code style per language (Python async-first, Kotlin MVVM, TypeScript)
-- Active projects + repo locations
-- Files requiring human review before commit
-- Forbidden actions (no force push to `dev`, no `.env` commits)
-- Preferred output format (concise, no fluff, direct answers)
-
-### MCP (Model Context Protocol) — Anthropic
-- Already the architecture of this repo
-- All new integrations go in `mcp_servers/` — never write proprietary tool calling
-- OAuth flow for external services available in `src/mcp_oauth.py`
-
-### A2A (Agent-to-Agent) — Google
-- Horizontal agent coordination protocol
-- Allows CulinaryOS agent, Dev agent, Ops agent to hand off tasks
-- Implement as `src/a2a_coordinator.py` in Phase 5
-
-### Planning-First Agent Loop
-- Upgrade `src/agent_loop.py` to simulate outcome before execution
-- Phase-level reflection (not just step-level)
-- Critical for high-stakes autonomous jobs (overnight CI scans, attendance audits)
-
-### Tool Groups (Accuracy Preservation)
-- Agent accuracy drops from 96% → <15% as tool count grows
-- Tool Groups enforced via `src/preset_manager.py`
-- Max ~10 tools exposed per mode at any time
+### Phase 8 — Community + Universal Adoption *(Month 4+)*
+- [ ] Publish MCP servers as standalone pip packages
+- [ ] `skills/community/` open for PR contributions
+- [ ] `CONTRIBUTING.md` with skill contribution guide
+- [ ] GitHub Actions CI for public repo
+- [ ] Public documentation site
+- [ ] `shadowrealm init` CLI wizard for new user onboarding
+  - Asks 5 questions about who the user is and what they do
+  - Auto-configures persona.json
+  - Suggests which MCP servers to enable
+  - Sets up first skill library based on profession
+- [ ] Skill submission pipeline (user skills → sanitize → community PR)
+- [ ] Plugin/extension system for third-party MCP servers
 
 ---
 
-## 12. File Change Manifest
+## 13. Industry Protocols to Adopt
 
-Complete list of every file to create or modify, with status:
+| Protocol | Source | Purpose | Status |
+|---|---|---|---|
+| MCP | Anthropic | Agent ↔ Tool communication | ✅ Built-in |
+| A2A | Google | Agent ↔ Agent coordination | 🔧 Phase 5 |
+| AGENTS.md | Community standard | AI coding agent conventions | 📝 Phase 0 |
+| OpenHands API | MIT | Open computer use sub-agent | 🔧 Phase 1 |
+| AGNO AgentOS | Apache 2.0 | Agent runtime control plane | 🔧 Phase 7 |
+| ClawTeam | MIT | Swarm coordination | 🔧 Phase 7 |
+| Planning-first loop | Research | Simulate before execute | 🔧 Phase 6 |
+| Tool Groups | Best practice | Accuracy preservation | 🔧 Phase 0 |
 
-### Create (New Files)
+---
+
+## 14. Open-Source Strategy
+
+### Philosophy
+ShadowRealm is free. No subscription. No cloud lock-in. The value is in the platform and the community — not a paywall.
+
+### What Gets Open-Sourced (MIT License)
+- The entire `shadowrealm` platform
+- All MCP servers as standalone pip packages
+- The Skills library (`skills/community/`)
+- `AGENTS.md` template
+- `docker-compose.shadowrealm.yml`
+- `shadowrealm init` CLI onboarding wizard
+
+### What Stays Private Per Deployment
+- `config/shadowrealm/persona.json` (gitignored)
+- `skills/user/` (gitignored)
+- `.env` (gitignored)
+- Any proprietary API credentials
+
+### Community Contribution Model
 ```
-AGENTS.md
-SHADOWREALM_DEVELOPMENT_PLAN.md        ← this file
-skills/dev/new_feature.md
-skills/dev/code_review.md
-skills/dev/android_component.md
-skills/dev/api_endpoint.md
-skills/culinary/recipe_scale.md
-skills/culinary/production_plan.md
-skills/ops/morning_brief.md
-skills/ops/ross_manor_audit.md
-mcp_servers/computer_use_server.py
-mcp_servers/notion_server.py
-mcp_servers/github_server.py
-mcp_servers/supabase_server.py
-mcp_servers/culinaryos_server.py
-mcp_servers/rossmanor_server.py
-mcp_servers/android_studio_server.py
-mcp_servers/discount_locator_server.py
-src/agent_tools/computer_use_tools.py
-src/a2a_coordinator.py
-config/shadowrealm/persona.json
-config/shadowrealm/presets/dev_mode.json
-config/shadowrealm/presets/chef_mode.json
-config/shadowrealm/presets/ops_mode.json
+User installs ShadowRealm
+  → Uses it, ShadowRealm learns new skills via Watch/Ask/Research
+  → System prompts: "I learned how to [task]. Share with community?"
+  → User reviews sanitized skill file
+  → One-click PR to skills/community/
+  → Reviewed + merged → available to all ShadowRealm users next update
 ```
 
-### Modify (Existing Files)
-```
-src/constants.py          → rename Odysseus → ShadowRealm display strings
-odysseus-ui.service       → rename service + internal strings
-Odysseus.spec             → rename to ShadowRealm.spec
-README.md                 → full rewrite for ShadowRealm
-.env.example              → override with your provider setup
-src/integrations.py       → register all new MCP servers
-src/memory_provider.py    → integrate mem0 for procedural memory
-docs/                     → swap Odysseus wordmark assets
-```
+### The Moat
+Not data. Not a model. **The community skill library.**
+As more users contribute observed + validated workflows across professions,
+ShadowRealm becomes the most capable out-of-the-box AI system for real human work.
+No other system is building this. It's an open-source flywheel.
 
-### Do Not Touch (Without Deep Review)
+---
+
+## 15. Swarm Architecture
+
+Using AGNO (control plane) + ClawTeam (coordination) + custom specialists:
+
 ```
-src/agent_loop.py         ← 202KB core loop
-src/llm_core.py           ← 110KB model routing
-src/tool_implementations.py ← 198KB built-in tools
-core/database.py          ← 103KB data layer
-core/auth.py              ← 30KB auth system
+ShadowRealm Orchestrator
+       │
+       ├── DevAgent
+       │     Tools: github, filesystem, subprocess, android_adb, computer_use
+       │     Skills: skills/dev/
+       │     Model: Qwen3.6-Plus (MCP-native coding)
+       │
+       ├── ChefAgent
+       │     Tools: culinaryos, notion, web, image_gen
+       │     Skills: skills/culinary/
+       │     Model: Llama 4 Scout (large recipe corpus context)
+       │
+       ├── OpsAgent
+       │     Tools: rossmanor, caldav, email, supabase, visual_report
+       │     Skills: skills/ops/
+       │     Model: DeepSeek V3 (cheap, reliable for structured tasks)
+       │
+       ├── ResearchAgent
+       │     Tools: deep_research, web_tools, rag_server
+       │     Skills: (synthesizes new ones)
+       │     Model: Claude 4 (best synthesis + reasoning)
+       │
+       ├── VisionAgent (OpenHands Docker sub-service)
+       │     Tools: computer_use, browser, screenshot, ocr
+       │     Skills: observation-synthesized
+       │     Model: InfantAgent / Qwen3.5-Omni (vision-native)
+       │
+       └── MemoryAgent (Letta)
+             Tools: memory_server, chroma, supabase
+             Function: Persistent learning across all agents
+             Always running in background
 ```
 
 ---
 
-## Notes & Open Questions
+## 16. File Change Manifest
 
-- [ ] **Ross Manor API surface** — need to finish investigating AttendanceOnDemand endpoints before building server
-- [ ] **Notion 7-node structure** — document exact database IDs before building Notion server
-- [ ] **Supabase schema** — design tables for ShadowRealm state before building server
-- [ ] **Local model setup** — confirm Ollama is running locally and which models (llama3, mistral, etc.) for `teacher_escalation.py` cost routing
-- [ ] **Computer Use OS** — confirm target OS (Linux/Windows/Mac) for `pyautogui` config
-- [ ] **`src/agent_loop.py` review** — determine if planning-first upgrade is needed before Phase 5
+### Phase 0 (Now)
+```
+CREATE: AGENTS.md
+CREATE: CONTRIBUTING.md
+CREATE: config/shadowrealm/persona.json         ← gitignored
+CREATE: config/shadowrealm/presets/dev_mode.json
+CREATE: config/shadowrealm/presets/chef_mode.json
+CREATE: config/shadowrealm/presets/ops_mode.json
+MODIFY: src/constants.py                        ← Odysseus → ShadowRealm strings
+MODIFY: README.md                               ← full rewrite
+MODIFY: .env.example                            ← provider setup
+```
+
+### Phase 1-2
+```
+CREATE: src/agent_tools/computer_use_tools.py
+CREATE: mcp_servers/computer_use_server.py
+CREATE: mcp_servers/notion_server.py
+CREATE: docker-compose.shadowrealm.yml
+MODIFY: src/integrations.py                    ← register new MCP servers
+```
+
+### Phase 3-4
+```
+CREATE: mcp_servers/github_server.py
+CREATE: mcp_servers/android_studio_server.py
+CREATE: mcp_servers/supabase_server.py
+CREATE: mcp_servers/culinaryos_server.py
+CREATE: mcp_servers/rossmanor_server.py
+CREATE: skills/dev/new_feature.md
+CREATE: skills/dev/code_review.md
+CREATE: skills/dev/android_component.md
+CREATE: skills/dev/api_endpoint.md
+CREATE: skills/culinary/recipe_scale.md
+CREATE: skills/culinary/production_plan.md
+CREATE: skills/ops/morning_brief.md
+CREATE: skills/ops/ross_manor_audit.md
+CREATE: skills/community/README.md
+```
+
+### Phase 5-6
+```
+CREATE: src/agent_tools/task_resolution_engine.py
+CREATE: src/agent_tools/skill_synthesizer.py
+CREATE: src/a2a_coordinator.py
+MODIFY: src/memory_provider.py                 ← integrate Letta
+MODIFY: src/agent_loop.py                      ← planning-first upgrade
+```
+
+### Phase 7-8
+```
+CREATE: mcp_servers/discount_locator_server.py
+CREATE: shadowrealm_cli/init.py               ← onboarding wizard
+MODIFY: src/integrations.py                   ← register swarm agents
+MODIFY: src/teacher_escalation.py             ← add Qwen3.6, Llama 4, DeepSeek V3
+```
+
+### Do Not Touch Without Deep Review
+```
+src/agent_loop.py            ← 202KB core loop
+src/llm_core.py              ← 110KB model routing
+src/tool_implementations.py  ← 198KB built-in tools
+core/database.py             ← 103KB data layer
+core/auth.py                 ← 30KB auth system
+```
+
+---
+
+## Open Questions
+
+- [ ] **Ross Manor API** — document AttendanceOnDemand endpoints
+- [ ] **Notion node IDs** — export 7 database IDs for notion_server.py
+- [ ] **Supabase schema** — design tables for state, skill store, event log
+- [ ] **Local model stack** — confirm Ollama running + which models installed
+- [ ] **Target OS** — Linux/Windows/Mac for pyautogui config
+- [ ] **OpenHands Docker** — confirm Docker is available on the host
+- [ ] **agent_loop.py review** — planning-first upgrade feasibility
+- [ ] **Community skill sanitization** — design PII-scrubbing pipeline before Phase 8

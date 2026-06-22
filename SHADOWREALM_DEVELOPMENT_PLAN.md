@@ -11,26 +11,28 @@
 2. [What ShadowRealm Is](#2-what-shadowrealm-is)
 3. [Universal Learning Philosophy](#3-universal-learning-philosophy)
 4. [Architecture Overview](#4-architecture-overview)
-5. [Coding Workspace (IDE Layer)](#5-coding-workspace-ide-layer)
-6. [Multi-Language Support](#6-multi-language-support)
-7. [Governance & Trust System](#7-governance--trust-system)
-8. [Memory Architecture](#8-memory-architecture)
-9. [MCP Registry & Extensibility](#9-mcp-registry--extensibility)
-10. [Skills System](#10-skills-system)
-11. [Agent Mesh](#11-agent-mesh)
-12. [Universal Task Learning Engine](#12-universal-task-learning-engine)
-13. [Agent Modes / Presets](#13-agent-modes--presets)
-14. [Background Automation Jobs](#14-background-automation-jobs)
-15. [Overload Control](#15-overload-control)
-16. [Odysseus Analysis — What to Borrow, What to Avoid](#16-odysseus-analysis--what-to-borrow-what-to-avoid)
-17. [Competitive Feature Matrix](#17-competitive-feature-matrix)
-18. [What Already Exists (Audit)](#18-what-already-exists-audit)
-19. [Phased Roadmap](#19-phased-roadmap)
-20. [Industry Protocols to Adopt](#20-industry-protocols-to-adopt)
-21. [Open-Source Strategy](#21-open-source-strategy)
-22. [Swarm Architecture](#22-swarm-architecture)
-23. [File Change Manifest](#23-file-change-manifest)
-24. [Open Questions](#24-open-questions)
+5. [Verified Open-Source Tech Stack](#5-verified-open-source-tech-stack)
+6. [Coding Workspace (IDE Layer)](#6-coding-workspace-ide-layer)
+7. [Multi-Language Support](#7-multi-language-support)
+8. [Governance & Trust System](#8-governance--trust-system)
+9. [Memory Architecture](#9-memory-architecture)
+10. [MCP Registry & Extensibility](#10-mcp-registry--extensibility)
+11. [Skills System](#11-skills-system)
+12. [Agent Mesh](#12-agent-mesh)
+13. [Universal Task Learning Engine](#13-universal-task-learning-engine)
+14. [Agent Modes / Presets](#14-agent-modes--presets)
+15. [Background Automation Jobs](#15-background-automation-jobs)
+16. [Overload Control](#16-overload-control)
+17. [Observability & Monitoring](#17-observability--monitoring)
+18. [Odysseus Analysis — What to Borrow, What to Avoid](#18-odysseus-analysis--what-to-borrow-what-to-avoid)
+19. [Competitive Feature Matrix](#19-competitive-feature-matrix)
+20. [What Already Exists (Audit)](#20-what-already-exists-audit)
+21. [Phased Roadmap](#21-phased-roadmap)
+22. [Industry Protocols to Adopt](#22-industry-protocols-to-adopt)
+23. [Open-Source Strategy](#23-open-source-strategy)
+24. [Swarm Architecture](#24-swarm-architecture)
+25. [File Change Manifest](#25-file-change-manifest)
+26. [Open Questions](#26-open-questions)
 
 ---
 
@@ -128,73 +130,80 @@ Every skill learned by ShadowRealm becomes a **community-contributable skill tem
 ║           Universal Self-Learning Governed AI Operating System       ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║  PRESENTATION LAYER                                                  ║
-║  ├── Coding Workspace (IDE: editor + live preview + agent panel)     ║
+║  ├── Coding Workspace (Monaco Editor + Sandpack + CopilotKit)        ║
 ║  ├── Chat / Mission Control (existing Odysseus UI, enhanced)         ║
 ║  ├── CLI interface                                                   ║
 ║  └── Mobile (future: React Native companion app)                     ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║  ORCHESTRATION LAYER                                                 ║
-║  ├── ShadowRealm Core (Odysseus engine, src/)                       ║
-║  ├── AGNO AgentOS control plane (agent runtime)                     ║
-║  ├── ClawTeam swarm coordinator                                     ║
-║  ├── Universal Task Resolution Engine                               ║
-║  └── Policy Engine (contextual, trust-aware)                        ║
+║  ├── ShadowRealm Core (Odysseus engine, src/)                        ║
+║  ├── AGNO AgentOS control plane (agent runtime)                      ║
+║  ├── Mastra (TypeScript agent framework for workspace layer)         ║
+║  ├── LangGraph (Python multi-agent workflow engine)                  ║
+║  ├── Universal Task Resolution Engine                                ║
+║  └── OPA Policy Engine (contextual, trust-aware)                     ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║  GOVERNANCE LAYER                                                    ║
 ║  ├── Skill Trust Pipeline (scan → review → sign → verify → revoke)  ║
-║  ├── Contextual Policy Enforcement                                  ║
-║  ├── Approval Workflow (for new/modified skills)                    ║
-║  ├── Audit Memory (tamper-evident, signed, queryable)               ║
-║  └── Runtime Monitoring + Anomaly Detection                         ║
+║  ├── OPA Contextual Policy Enforcement (Apache 2.0)                  ║
+║  ├── Sigstore/cosign Skill Signing (Apache 2.0)                      ║
+║  ├── Audit Memory (tamper-evident, append-only, queryable)           ║
+║  └── OpenTelemetry Runtime Monitoring (Apache 2.0)                   ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║  AGENT SWARM                                                         ║
-║  ├── DevAgent      → code, GitHub, builds, ADB, live preview        ║
-║  ├── ChefAgent     → CulinaryOS, recipes, menus                     ║
-║  ├── OpsAgent      → Ross Manor, calendar, email                    ║
-║  ├── ResearchAgent → deep research, web, RAG                        ║
-║  ├── VisionAgent   → OpenHands computer control                     ║
-║  ├── MemoryAgent   → Letta stateful learning                        ║
-║  ├── GovernanceAgent → skill review, trust decisions, policy exceptions ║
-║  └── [user-defined agents spawned at runtime]                       ║
+║  ├── DevAgent      → code, GitHub, builds, ADB, live preview         ║
+║  ├── ChefAgent     → CulinaryOS, recipes, menus                      ║
+║  ├── OpsAgent      → Ross Manor, calendar, email                     ║
+║  ├── ResearchAgent → deep research, web, RAG (LlamaIndex)            ║
+║  ├── VisionAgent   → OpenHands + Browser Use computer control        ║
+║  ├── MemoryAgent   → Letta stateful learning                         ║
+║  ├── GovernanceAgent → OPA policy, Sigstore audit, anomaly detection ║
+║  └── [user-defined agents spawned at runtime]                        ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║  UNIVERSAL TASK LEARNING ENGINE                                      ║
-║  ├── Path 1: Research (deep_research + web_tools)                   ║
-║  ├── Path 2: Ask (targeted single-question clarification)           ║
-║  └── Path 3: Watch (computer_use + vision synthesis)                ║
+║  ├── Path 1: Research (deep_research + web_tools + LlamaIndex RAG)   ║
+║  ├── Path 2: Ask (targeted single-question clarification)            ║
+║  └── Path 3: Watch (computer_use + Browser Use + vision synthesis)   ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║  MODEL ROUTING (teacher_escalation.py)                               ║
-║  ├── Qwen3.6-Plus  → MCP-native, repo-level coding                 ║
-║  ├── Llama 4 Scout → 10M ctx, full codebase in RAM                 ║
-║  ├── DeepSeek V3   → cheap reasoning, summarization                ║
-║  ├── Claude 4      → hard planning, creative synthesis              ║
-║  ├── Qwen3.5-Omni  → multimodal (text+image+audio)                 ║
-║  └── Ollama local  → free tier, privacy-sensitive tasks             ║
+║  ├── Qwen3.6-Plus  → MCP-native, repo-level coding                  ║
+║  ├── Llama 4 Scout → 10M ctx, full codebase in RAM                  ║
+║  ├── DeepSeek V3   → cheap reasoning, summarization                 ║
+║  ├── Claude 4      → hard planning, creative synthesis               ║
+║  ├── Qwen3.5-Omni  → multimodal (text+image+audio)                  ║
+║  └── Ollama local  → free tier, privacy-sensitive tasks              ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║  MCP TOOL LAYER (mcp_servers/)                                       ║
-║  ├── computer_use  ├── notion      ├── github                       ║
-║  ├── culinaryos    ├── rossmanor   ├── supabase                     ║
-║  ├── android_adb   ├── email       ├── memory                       ║
-║  ├── rag           ├── image_gen   ├── discount_locator             ║
-║  └── [community MCP servers — plug and play via registry]           ║
+║  ├── computer_use  ├── notion      ├── github                        ║
+║  ├── culinaryos    ├── rossmanor   ├── supabase                      ║
+║  ├── android_adb   ├── email       ├── memory                        ║
+║  ├── rag           ├── image_gen   ├── discount_locator              ║
+║  └── [community MCP servers — plug and play via registry]            ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║  SKILLS LIBRARY (skills/)                                            ║
-║  ├── dev/      ← coding + software development skills               ║
-║  ├── culinary/ ← food + restaurant skills                           ║
-║  ├── ops/      ← business operations skills                         ║
-║  ├── community/← open-source contributed skill templates            ║
-║  └── user/     ← privately learned, gitignored                     ║
+║  ├── dev/      ← coding + software development skills                ║
+║  ├── culinary/ ← food + restaurant skills                            ║
+║  ├── ops/      ← business operations skills                          ║
+║  ├── community/← open-source contributed skill templates             ║
+║  └── user/     ← privately learned, gitignored                      ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║  MEMORY STACK                                                        ║
-║  ├── Working    → in-session state (src/memory.py)                  ║
-║  ├── Declarative → facts, documents, references (ChromaDB + RAG)   ║
-║  ├── Procedural → learned workflows (Letta)                        ║
-║  ├── Policy     → permissions, preferences, limits                 ║
-║  └── Audit      → signed tamper-evident action history             ║
+║  ├── Working     → in-session state (src/memory.py)                  ║
+║  ├── Declarative → facts, docs, references (Qdrant + LlamaIndex)     ║
+║  ├── Procedural  → learned workflows (Letta)                         ║
+║  ├── Policy      → permissions, preferences, limits (OPA)            ║
+║  └── Audit       → signed tamper-evident history (Sigstore)          ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║  PERSISTENCE & STATE                                                 ║
-║  ├── Supabase   → cloud state + event logs                          ║
-║  ├── ChromaDB   → local vector store                                ║
-║  └── SQLite     → core/database.py session data                    ║
+║  ├── Supabase + pgvector  → cloud state + vector search              ║
+║  ├── ElectricSQL          → local-first offline sync                 ║
+║  ├── Qdrant               → high-perf local vector store             ║
+║  └── SQLite               → core/database.py session data            ║
+╠══════════════════════════════════════════════════════════════════════╣
+║  REAL-TIME & COLLABORATION                                           ║
+║  ├── Yjs   → multi-agent conflict-free co-editing (MIT)              ║
+║  ├── Vite  → HMR dev server for live preview (MIT)                   ║
+║  └── SSE / WebSockets → live agent output streaming                  ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ```
 
@@ -207,16 +216,16 @@ ShadowRealm/
 ├── docker-compose.shadowrealm.yml             ← One-command self-hosted deploy
 ├── docs/
 │   ├── languages/
-│   │   ├── python.md                          ← Language guide + standards
+│   │   ├── python.md
 │   │   ├── kotlin.md
 │   │   ├── typescript.md
 │   │   ├── sql.md
-│   │   ├── web.md                             ← HTML/CSS/JS
+│   │   ├── web.md
 │   │   └── shell.md
-│   ├── architecture/                          ← System design decisions
-│   ├── standards/                             ← Coding standards per language
-│   ├── examples/                              ← Gold standard reference files
-│   └── adrs/                                  ← Architecture Decision Records
+│   ├── architecture/
+│   ├── standards/
+│   ├── examples/
+│   └── adrs/
 ├── skills/
 │   ├── dev/
 │   ├── culinary/
@@ -241,9 +250,9 @@ ShadowRealm/
 │   │   ├── computer_use_tools.py              ← NEW
 │   │   ├── task_resolution_engine.py          ← NEW
 │   │   ├── skill_synthesizer.py               ← NEW
-│   │   ├── governance_engine.py               ← NEW
-│   │   ├── policy_engine.py                   ← NEW
-│   │   ├── audit_logger.py                    ← NEW
+│   │   ├── governance_engine.py               ← NEW (wraps OPA)
+│   │   ├── policy_engine.py                   ← NEW (OPA rules)
+│   │   ├── audit_logger.py                    ← NEW (Sigstore)
 │   │   ├── filesystem_tools.py                ← EXISTS
 │   │   ├── subprocess_tools.py                ← EXISTS
 │   │   ├── document_tools.py                  ← EXISTS
@@ -255,13 +264,19 @@ ShadowRealm/
 │   ├── mcp_registry.py                        ← NEW
 │   └── [60+ engine files]
 ├── workspace/
-│   ├── ide/                                   ← Coding workspace UI
-│   ├── preview/                               ← Live preview panel
+│   ├── ide/                                   ← Monaco Editor + CopilotKit
+│   ├── preview/                               ← Sandpack live preview
 │   └── terminal/                              ← Embedded terminal
+├── observability/
+│   ├── otel-collector.yml                     ← OpenTelemetry config
+│   ├── prometheus.yml
+│   └── plutono/                               ← Plutono dashboard (Apache 2.0)
 └── config/
     └── shadowrealm/
         ├── persona.json                       ← identity seed (gitignored)
-        ├── trust_policy.json                  ← governance rules
+        ├── trust_policy.json                  ← OPA governance rules
+        ├── opa/
+        │   └── policies/                      ← .rego policy files
         └── presets/
             ├── dev_mode.json
             ├── chef_mode.json
@@ -270,98 +285,147 @@ ShadowRealm/
 
 ---
 
-## 5. Coding Workspace (IDE Layer)
+## 5. Verified Open-Source Tech Stack
 
-ShadowRealm should feel like a Visual Studio-class AI development studio. The layout is three-panel with a bottom bar:
+**Every technology listed here is confirmed free, open-source, and carries a permissive license. No proprietary dependencies. No subscriptions. No AGPL contamination.**
+
+### License Reference Table
+
+| Technology | Role | License | Notes |
+|---|---|---|---|
+| **Monaco Editor** | Code editor engine (VS Code core) | MIT | Microsoft — same engine as VS Code |
+| **CodeMirror 6** | Lightweight editor alternative | MIT | Best for mobile/embedded views |
+| **Sandpack** | In-browser live preview (Node.js in browser) | MIT | By CodeSandbox — zero server setup |
+| **Vite** | HMR dev server + bundler | MIT | Fastest live reload available |
+| **React** | UI framework | MIT | Industry standard |
+| **TypeScript** | Typed JavaScript | Apache 2.0 | Full stack type safety |
+| **Tailwind CSS** | Utility-first CSS | MIT | Already in stack |
+| **Radix UI** | Accessible component primitives | MIT | Unstyled, composable |
+| **shadcn/ui** | Pre-built Radix component library | MIT | Dark theme ready |
+| **CopilotKit** | Agent panel React UI components | MIT | Battle-tested agent chat + actions |
+| **Mastra** | TypeScript agent framework | Apache 2.0 | Drops into Next.js natively |
+| **LangGraph** | Python multi-agent workflow engine | MIT | Complex stateful agent graphs |
+| **Browser Use** | Browser/web automation | MIT | 50k+ stars, Playwright-based |
+| **OpenCode** | Terminal-native AI coding | MIT | 75+ model providers, LSP support |
+| **Yjs** | CRDT real-time co-editing | MIT | Multi-agent conflict-free file edits |
+| **ElectricSQL** | Local-first offline sync (SQLite ↔ Postgres) | Apache 2.0 | Works with Supabase directly |
+| **OPA (Open Policy Agent)** | Contextual policy enforcement engine | Apache 2.0 | Production standard for policy-as-code |
+| **Sigstore / cosign** | Skill signing + verification | Apache 2.0 | Same toolchain as container signing |
+| **OpenTelemetry** | Distributed tracing across agents + tools | Apache 2.0 | CNCF standard, vendor-neutral |
+| **Prometheus** | Runtime metrics collection | Apache 2.0 | Industry standard |
+| **Plutono** | Metrics dashboard (Apache fork of Grafana) | Apache 2.0 | No AGPL contamination |
+| **Sentry** | Error tracking (self-hosted) | MIT | Full self-host available |
+| **LlamaIndex** | RAG pipelines over docs, Notion, GitHub | MIT | Replaces custom RAG glue code |
+| **Qdrant** | High-performance local vector store | Apache 2.0 | Faster + more scalable than ChromaDB |
+| **pgvector** | Vector search inside Supabase/Postgres | MIT | Eliminates separate vector DB if desired |
+| **fastembed** | Local embeddings, no API cost | Apache 2.0 | Already in Odysseus stack |
+| **Letta** | Stateful self-editing procedural memory | Apache 2.0 | Already planned |
+| **AGNO** | Agent runtime control plane | Apache 2.0 | Already planned |
+| **OpenHands** | Computer use sub-agent | MIT | Already planned |
+
+### License Policy
+- **Allowed:** MIT, Apache 2.0, BSD-2, BSD-3, ISC
+- **Allowed with care:** LGPL (link only, do not modify)
+- **Rejected:** AGPL, GPL, SSPL, BSL, proprietary
+- All dependencies must be audited before adding to `requirements.txt` or `package.json`
+- AGPL check runs automatically in CI via `license-checker` before every merge
+
+---
+
+## 6. Coding Workspace (IDE Layer)
+
+ShadowRealm's coding workspace is built on **Monaco Editor + Sandpack + CopilotKit**, giving it VS Code-class editing, instant live preview, and a native AI agent panel — all in the browser, all open-source.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  SHADOWREALM CODING WORKSPACE                                   │
 ├──────────┬──────────────────────────┬──────────────────────────┤
 │          │                          │                          │
-│  FILE    │      CODE EDITOR         │    AGENT PANEL           │
-│  TREE    │   (tabs, split panes,    │   (chat, explain,        │
-│          │    syntax highlight,     │    skill picker,         │
-│          │    diff view, lint)      │    memory inspector,     │
-│          │                          │    model selector)       │
-│          │                          │                          │
+│  FILE    │   MONACO EDITOR          │   AGENT PANEL            │
+│  TREE    │  (VS Code engine)        │   (CopilotKit)           │
+│          │  · IntelliSense          │   · chat scoped to file  │
+│          │  · multi-cursor          │   · explain selection    │
+│          │  · go-to-definition      │   · skill picker         │
+│          │  · inline diff           │   · memory inspector     │
+│          │  · accept/reject patch   │   · model selector       │
+│          │  · LSP per language      │   · action trace         │
 ├──────────┴──────────────────────────┴──────────────────────────┤
-│                   LIVE PREVIEW                                  │
-│            (web app, docs, UI, reports)                         │
-│            Auto-refresh on file save or patch apply            │
+│              SANDPACK LIVE PREVIEW                              │
+│   (Node.js in browser — React, Vue, Vanilla JS, HTML)          │
+│   Auto-refresh on file save or agent patch apply               │
+│   Mobile viewport · before/after comparison · Vite HMR        │
 ├─────────────────────────────────────────────────────────────────┤
-│  TERMINAL  │  TEST RUNNER  │  LOGS  │  AUDIT TRAIL  │  SEARCH  │
+│  TERMINAL  │  TEST RUNNER  │  OTEL LOGS  │  AUDIT  │  SEARCH  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Editor Features
-- File explorer with project tree
-- Syntax highlighting for all stack languages
-- Tabs and split panes
-- Inline diff / patch review
-- Symbol search and navigation
-- Lint, diagnostics, type hints
-- Agent-proposed edits with accept / reject controls
-- Keyboard shortcuts consistent with VS Code
+### Editor: Monaco (MIT)
+- The actual VS Code editor engine, open-sourced by Microsoft
+- IntelliSense, multi-cursor, go-to-definition, symbol search
+- Inline diff / patch review with accept / reject per hunk
+- Keyboard shortcuts identical to VS Code — no learning curve
+- Agent-proposed edits rendered as inline diffs, never auto-applied
 
-### Live Preview Panel
-- Auto-run local dev server for web projects
-- Render app in embedded browser panel
-- Refresh on file save or agent patch apply
-- Agent can inspect rendered output
-- Before/after visual comparison for UI changes
-- Preview markdown, HTML, dashboards, reports
-- Mobile viewport simulation
+### Live Preview: Sandpack (MIT)
+- Runs a full Node.js sandbox in the browser — no server required
+- Supports React, Vue, Next.js, Vanilla JS, HTML/CSS out of the box
+- Instant hot-reload on every file change or agent patch
+- Agent can inspect the rendered DOM and screenshot for before/after comparison
+- Vite HMR for server-rendered projects outside the browser sandbox
 
-### Agent Panel
-- Chat interface scoped to current file or project
-- Explain any selected code in plain English
-- Skill picker and MCP tool picker
-- Memory inspector (what the agent currently knows about this project)
-- Model selector (choose which model handles the task)
-- Action trace (what tools were called and why)
+### Agent Panel: CopilotKit (MIT)
+- Battle-tested React components for agent chat, state streaming, and tool actions
+- Scoped to the currently open file or project — not a global chatbox
+- Explain any selected code block in plain English
+- Skill picker: browse and invoke skills from `skills/dev/`
+- Memory inspector: what the agent currently knows about this project
+- Model selector: choose which model handles the current task
+- Action trace: every tool call logged with what was invoked and why
 
-### Bottom Bar
-- Embedded terminal (scoped and auditable)
-- Test runner with inline results
-- Logs panel
-- Audit trail (actions taken this session)
-- Full-project search
+### LSP Integration (per language)
+Language Server Protocol gives the editor real intelligence — not just syntax highlighting:
+| Language | LSP Server | What it enables |
+|---|---|---|
+| Python | `pyright` (MIT) | Type checking, autocomplete, go-to-def |
+| Kotlin | `kotlin-language-server` (Apache 2.0) | Android SDK types, MVVM patterns |
+| TypeScript | `typescript-language-server` (MIT) | Full TS type system, React JSX |
+| SQL | `sqls` (MIT) | Schema-aware completions |
+| HTML/CSS | `vscode-html-languageservice` (MIT) | Tag completion, CSS variables |
+
+### Yjs Real-Time Co-Editing (MIT)
+- Yjs CRDTs allow multiple agents (e.g. DevAgent + GovernanceAgent) to edit the same file simultaneously without conflicts
+- Changes merge automatically — no lock/unlock required
+- Enables future multi-user collaboration with zero architectural changes
 
 ### Beginner Mode
 Because Nathaniel is a hobbyist, the agent defaults to:
-- Plain English explanations alongside every code change
+- Plain English explanation alongside every code change
 - "What is this file for?" always answerable
 - "Why is this pattern standard?" always answerable
 - Common mistakes and alternatives surfaced proactively
 - Glossary of terms inline on hover
-- "Guide me" mode where agent walks through writing it together
+- "Guide me" mode: agent walks through writing code together step by step
 
 ---
 
-## 6. Multi-Language Support
+## 7. Multi-Language Support
 
 ShadowRealm must understand not just syntax but **project structure, framework conventions, testing patterns, build tools, and deployment flow** for every language in the stack.
 
 ### Primary Stack
-| Language | Frameworks / Tools | Documentation File |
-|---|---|---|
-| Python | FastAPI, SQLAlchemy, pytest, pip | `docs/languages/python.md` |
-| Kotlin | Android SDK, Jetpack Compose, MVVM, Gradle | `docs/languages/kotlin.md` |
-| TypeScript | React, Next.js, Node.js, Jest, npm/pnpm | `docs/languages/typescript.md` |
-| HTML/CSS/JS | Tailwind, Vanilla JS, responsive patterns | `docs/languages/web.md` |
-| SQL | PostgreSQL, Supabase, migrations, schema design | `docs/languages/sql.md` |
-| Shell | Bash, zsh, Docker scripts, CI pipelines | `docs/languages/shell.md` |
+| Language | Frameworks / Tools | LSP | Doc File |
+|---|---|---|---|
+| Python | FastAPI, SQLAlchemy, pytest, pip | pyright | `docs/languages/python.md` |
+| Kotlin | Android SDK, Jetpack Compose, MVVM, Gradle | kotlin-language-server | `docs/languages/kotlin.md` |
+| TypeScript | React, Next.js, Node.js, Jest, pnpm | typescript-language-server | `docs/languages/typescript.md` |
+| HTML/CSS/JS | Tailwind, Vanilla JS, responsive patterns | vscode-html-languageservice | `docs/languages/web.md` |
+| SQL | PostgreSQL, Supabase, pgvector, migrations | sqls | `docs/languages/sql.md` |
+| Shell | Bash, zsh, Docker scripts, CI pipelines | shellcheck | `docs/languages/shell.md` |
 
-### Secondary Support
-- Markdown and docs-as-code
-- YAML and JSON for config
-- Docker and Compose files
-- Framework-specific conventions
-
-### Per-Language Doc Structure (each `docs/languages/*.md` must include)
+### Per-Language Doc Structure
+Each `docs/languages/*.md` must include:
 1. Language overview in plain English
-2. Project structure standard (file and folder layout)
+2. Project structure standard
 3. Naming conventions
 4. Core patterns (classes, functions, modules, errors)
 5. Testing standards
@@ -371,25 +435,18 @@ ShadowRealm must understand not just syntax but **project structure, framework c
 9. Gold standard example files (linked to `docs/examples/`)
 10. Anti-patterns
 
-### Agent Behavior Per Language
-- Load the relevant language doc before editing
-- Explain any change that introduces a new pattern
-- Flag deviation from documented standards
-- Suggest refactors toward industry conventions
-- For multi-language tasks, explain how the pieces connect
-
 ### Cross-Language Project Understanding
-A full-stack task may involve TypeScript frontend, Python backend, SQL data layer, and YAML deployment. The agent should:
-- Understand data flow across layers
-- Name variables consistently across languages
-- Catch mismatches between frontend and API contracts
-- Handle migrations safely
+A full-stack task may involve TypeScript frontend, Python backend, SQL data layer, and YAML deployment. The agent:
+- Understands data flow across all layers
+- Names variables consistently across languages
+- Catches mismatches between frontend and API contracts
+- Handles database migrations safely
 
 ---
 
-## 7. Governance & Trust System
+## 8. Governance & Trust System
 
-This is ShadowRealm's primary differentiator over every existing tool including Odysseus. **Governance is not an add-on. It is the foundation.**
+This is ShadowRealm's primary differentiator. **Governance is not an add-on. It is the foundation.**
 
 ### Core Principle
 > If the system cannot explain why an action is allowed, the action is denied.
@@ -407,18 +464,32 @@ ShadowRealm must defend against:
 - Malicious MCP servers
 - Supply chain attacks on dependencies
 
-### Skill Trust Pipeline
-Every skill must pass all stages before activation:
+### Policy Engine: OPA (Apache 2.0)
+Open Policy Agent is the production standard for policy-as-code. ShadowRealm uses it to enforce every skill execution decision:
+- Policies written as `.rego` files in `config/shadowrealm/opa/policies/`
+- Every tool invocation passes through OPA before execution
+- Policy decisions are logged to the audit store
+- Rules cover: skill trust tier, tool sensitivity, action reversibility, user role, time constraints
+- Policy files are version-controlled, reviewed, and signed like code
 
+### Skill Signing: Sigstore / cosign (Apache 2.0)
+Sigstore is the same open-source toolchain used to sign container images and npm packages. ShadowRealm uses it to sign every skill:
+- Each skill gets a cryptographic signature at review time
+- Signature is verified before every execution
+- If the skill file changes after signing, the signature is immediately invalid
+- Revocation is instant — set skill to Tier X, signature check fails, execution blocked
+- Audit log records every signing event with timestamp and identity
+
+### Skill Trust Pipeline
 ```
 DRAFT → SCAN → REVIEW → SIGN → QUARANTINE → ACTIVATE → MONITOR → [REVOKE if needed]
   │       │       │        │         │           │           │
-  │   static   human    sig        isolated     live      runtime
-  │   + dep    or AI    issued     run test    execution  anomaly
+  │   static   human    cosign    isolated     live      OpenTelemetry
+  │   + dep    or AI    issued     sandbox     execution  anomaly
   │   scan     review                           with      detection
   │                                             audit
   │
-  └── If any stage fails → blocked, logged, reported
+  └── If any stage fails → blocked, logged to audit store, reported to GovernanceAgent
 ```
 
 ### Trust Tiers
@@ -426,39 +497,12 @@ DRAFT → SCAN → REVIEW → SIGN → QUARANTINE → ACTIVATE → MONITOR → [
 |---|---|---|---|
 | 0 | Draft | Nobody | Not executable |
 | 1 | Sandboxed | Agent only, isolated | No production data |
-| 2 | Reviewed | Agent, limited scope | Scoped by policy |
-| 3 | Signed | Agent, production scope | Owner-approved |
+| 2 | Reviewed | Agent, limited scope | Scoped by OPA policy |
+| 3 | Signed | Agent, production scope | Owner-approved + cosign |
 | 4 | Community | Agent + users | Signed, revocable |
 | X | Revoked | Nobody | Disabled immediately |
 
-### Contextual Policy Engine
-Permission depends on:
-- Skill trust tier
-- Task type and risk classification
-- Tool sensitivity
-- Destination system
-- Action reversibility
-- User role
-- Time and context constraints
-
-### Audit Memory (Required for every sensitive action)
-Every consequential action must record:
-- Agent identity
-- Delegator
-- Skill name + version
-- Policy version
-- Tool invoked
-- Scope issued
-- Approval state
-- Result
-- Retention state
-- Timestamp
-
-### Revocation Rule
-If a skill changes after signing, the signature becomes invalid immediately. The skill is blocked until re-reviewed and re-signed. This is the primary defense against post-review tampering.
-
 ### Autonomy Tiers
-Not all tasks should run at the same autonomy level:
 | Level | Name | Description |
 |---|---|---|
 | 1 | Observe | Agent watches, records, never acts |
@@ -470,17 +514,39 @@ High-risk or irreversible actions always require Level 3 minimum, regardless of 
 
 ---
 
-## 8. Memory Architecture
+## 9. Memory Architecture
 
-Memory is split into four distinct layers. They are never mixed into one undifferentiated store.
+Memory is split into five distinct layers, never mixed into one undifferentiated store.
 
 | Layer | Type | What it stores | Implementation |
 |---|---|---|---|
 | Working | In-context | Current task state | `src/memory.py` |
-| Declarative | Long-term | Facts, docs, references, projects | ChromaDB + Notion RAG |
+| Declarative | Long-term | Facts, docs, references, projects | Qdrant + LlamaIndex RAG |
 | Procedural | Learning | Workflows, patterns, how-to | Letta (self-editing, persistent) |
-| Policy | Governance | Permissions, preferences, limits | `config/trust_policy.json` + DB |
-| Audit | Governance | Signed tamper-evident action history | Append-only store, Supabase |
+| Policy | Governance | Permissions, preferences, limits | OPA + `config/trust_policy.json` |
+| Audit | Governance | Signed tamper-evident action history | Sigstore + append-only Supabase |
+
+### Vector Store: Qdrant (Apache 2.0)
+Qdrant replaces ChromaDB as the primary vector store for declarative memory:
+- Significantly faster query performance at scale
+- Better filtering and payload indexing
+- Runs locally in Docker — no cloud dependency
+- Compatible with fastembed for local embeddings (no API cost)
+- pgvector in Supabase used as a secondary/cloud replica
+
+### RAG: LlamaIndex (MIT)
+LlamaIndex handles all RAG pipeline construction:
+- Connectors for Notion, GitHub repos, local files, web pages
+- Chunking, embedding, indexing handled automatically
+- Query engines for multi-source synthesis
+- Replaces custom RAG glue code in existing `rag_server.py`
+
+### Local-First Sync: ElectricSQL (Apache 2.0)
+ElectricSQL keeps local SQLite in sync with Supabase/Postgres:
+- Works offline — all reads and writes go to local SQLite first
+- Syncs to Supabase when connection is available
+- Conflict resolution built in via CRDTs
+- Means ShadowRealm works fully without internet connection
 
 ### What Procedural Memory Learns Per User
 - Preferred output format (bullet vs. prose, verbose vs. concise)
@@ -489,49 +555,25 @@ Memory is split into four distinct layers. They are never mixed into one undiffe
 - Which tasks to auto-execute vs. ask permission
 - Recurring decisions and their outcomes
 - Vocabulary, terminology, abbreviations the user uses
-- Who they email most and how they prefer to respond
 - Which languages and frameworks they favor
 - Coding style preferences
 
-### Memory Overload Controls
-- Summarize long sessions periodically using `src/context_compactor.py`
-- Prune low-value context automatically
-- Re-ground the agent after long runs
-- Keep skill docs short and structured
-- Use subagents rather than one giant context window
-- Working memory is session-scoped and reset between tasks
-
-### Orchestrator vs. Agent Memory Placement
-Based on LEGOMem research: orchestrator memory is critical for planning and delegation. Per-agent memory improves execution accuracy. Both are needed and should be separate stores.
-
 ---
 
-## 9. MCP Registry & Extensibility
+## 10. MCP Registry & Extensibility
 
 MCPs are the extension surface of ShadowRealm. Any MCP server can be added without modifying core code.
 
 ### MCP Registry (`src/mcp_registry.py`)
-- Maintains the catalogue of all available MCP servers
+- Maintains catalogue of all available MCP servers
 - Tracks trust tier, capabilities, version, author
 - Enables search, favorites, and per-mode activation
-- Applies policy controls before exposing tool to agent
-
-### MCP Categories
-| Category | Examples |
-|---|---|
-| Filesystem & project | computer_use, filesystem, subprocess |
-| Code & development | github, android_adb, linting |
-| Research & knowledge | deep_research, rag, web_tools |
-| Business & comms | email, calendar, rossmanor |
-| Data | supabase, chromadb, sqlite |
-| Design & preview | image_gen, live_preview |
-| Personal & domain | culinaryos, notion, discount_locator |
-| Community plugins | Any third-party MCP server |
+- Applies OPA policy before exposing any tool to the agent
 
 ### MCP Build Order
 | Priority | Server | SDK/API | Unlocks |
 |---|---|---|---|
-| **1** | `computer_use_server.py` | pyautogui, playwright, mss, pytesseract | Computer control, watch mode |
+| **1** | `computer_use_server.py` | Browser Use (MIT) + pyautogui | Computer control, watch mode |
 | **2** | `notion_server.py` | notion-client | Second Brain in RAG |
 | **3** | `github_server.py` | PyGithub / httpx | All repos: PR, issues, CI |
 | **4** | `supabase_server.py` | supabase-py | Persistent ShadowRealm state |
@@ -540,21 +582,21 @@ MCPs are the extension surface of ShadowRealm. Any MCP server can be added witho
 | **7** | `android_studio_server.py` | ADB + subprocess | Build/deploy RecipeOS from chat |
 | **8** | `discount_locator_server.py` | Walmart/Flipp APIs | Deal alerts at 10%+ |
 
-### Overload Prevention for MCPs
-- Enable only relevant MCPs per mode/task (never expose all at once)
+### Overload Prevention
+- Enable only relevant MCPs per mode/task
 - Cache tool capabilities locally
 - Group MCPs by mode — tool groups, not tool dumps
-- Trust-check every MCP before its tools are exposed to the agent
+- OPA trust-check every MCP before its tools are exposed
 - Community MCP servers start at Tier 1 (sandboxed) until reviewed
 
 ---
 
-## 10. Skills System
+## 11. Skills System
 
-Skills are structured procedure files. When ShadowRealm needs to do a task, it loads the relevant skill instead of improvising. This reduces prompt size, improves reliability, and enables governance.
+Skills are structured procedure files. When ShadowRealm needs to do a task, it loads the relevant skill instead of improvising.
 
 ### Skill Sources
-- **Hand-written** by the user (highest quality, Tier 3 by default)
+- **Hand-written** by the user (Tier 3 by default)
 - **Research-synthesized** (auto-generated from deep_research.py, Tier 2)
 - **Answer-synthesized** (generated from one clarification question, Tier 2)
 - **Observation-synthesized** (generated from watching you work, Tier 2 until validated)
@@ -562,7 +604,7 @@ Skills are structured procedure files. When ShadowRealm needs to do a task, it l
 
 ### Skill Trust Tiers
 ```
-Tier 3 — Gold (hand-written or owner-validated)
+Tier 3 — Gold (hand-written or owner-validated + cosign signature)
   → Executed with full confidence, no confirmation
 
 Tier 2 — Silver (research-synthesized or answer-synthesized)
@@ -573,16 +615,16 @@ Tier 1 — Bronze (first-time inference, community unvalidated)
   → On success, promoted to Silver automatically
 
 Tier X — Revoked
-  → Blocked, cannot execute
+  → Blocked, cosign signature check fails, cannot execute
 ```
 
 ### Skill Lifecycle State Machine
 ```
-authored → scanned → reviewed → signed → active → monitored
-                                                       │
-                                               drift detected?
-                                                       │
-                                                   revoked
+authored → scanned → reviewed → cosign-signed → active → otel-monitored
+                                                               │
+                                                       drift detected?
+                                                               │
+                                                       cosign revoked → blocked
 ```
 
 ### Nathaniel's Initial Skill Library
@@ -593,7 +635,7 @@ skills/dev/
   android_component.md    ← Kotlin MVVM, Jetpack Compose
   api_endpoint.md         ← REST structure, auth, validation
   debug_session.md        ← systematic debugging workflow
-  live_preview_setup.md   ← start dev server + preview
+  live_preview_setup.md   ← start Sandpack/Vite + preview
 
 skills/culinary/
   recipe_scale.md         ← yield%, unit conversions, equipment constraints
@@ -611,108 +653,98 @@ skills/user/              ← private, gitignored, learned by observation
 
 ---
 
-## 11. Agent Mesh
-
-ShadowRealm uses specialized sub-agents rather than one monolithic agent. Each agent has a narrower domain, smaller tool exposure, and its own memory allocation.
+## 12. Agent Mesh
 
 ```
-ShadowRealm Orchestrator
+ShadowRealm Orchestrator (OPA policy + OpenTelemetry audit)
        │
        ├── DevAgent
        │     Tools: github, filesystem, subprocess, android_adb, computer_use, live_preview
+       │     Framework: Mastra (TypeScript) + LangGraph (Python)
        │     Skills: skills/dev/
-       │     Model: Qwen3.6-Plus (MCP-native coding)
-       │     Memory: project procedural memory
+       │     Model: Qwen3.6-Plus
+       │     Memory: Qdrant project procedural memory
        │
        ├── ChefAgent
        │     Tools: culinaryos, notion, web, image_gen
        │     Skills: skills/culinary/
-       │     Model: Llama 4 Scout (large recipe corpus context)
+       │     Model: Llama 4 Scout
        │     Memory: culinary procedural memory
        │
        ├── OpsAgent
        │     Tools: rossmanor, caldav, email, supabase, visual_report
        │     Skills: skills/ops/
-       │     Model: DeepSeek V3 (cheap, reliable for structured tasks)
+       │     Model: DeepSeek V3
        │     Memory: ops procedural memory
        │
        ├── ResearchAgent
-       │     Tools: deep_research, web_tools, rag_server
-       │     Skills: (synthesizes new ones)
-       │     Model: Claude 4 (best synthesis + reasoning)
-       │     Memory: declarative knowledge base
+       │     Tools: deep_research, web_tools, LlamaIndex RAG
+       │     Skills: synthesizes new ones
+       │     Model: Claude 4
+       │     Memory: Qdrant declarative knowledge base
        │
        ├── VisionAgent (OpenHands Docker sub-service)
-       │     Tools: computer_use, browser, screenshot, ocr
+       │     Tools: Browser Use, computer_use, screenshot, OCR
        │     Skills: observation-synthesized
-       │     Model: InfantAgent / Qwen3.5-Omni (vision-native)
+       │     Model: Qwen3.5-Omni
        │
        ├── MemoryAgent (Letta)
-       │     Tools: memory_server, chroma, supabase
+       │     Tools: memory_server, Qdrant, Supabase + ElectricSQL
        │     Function: Persistent learning across all agents
        │     Always running in background
        │
        └── GovernanceAgent
-             Tools: skill_registry, audit_logger, policy_engine
+             Tools: OPA policy engine, Sigstore/cosign, OpenTelemetry, audit_logger
              Function: Reviews trust decisions, policy exceptions, flags anomalies
-             Alerts on: unsigned skill execution, policy bypass, anomalous tool use
+             Alerts on: unsigned skill execution, OPA policy bypass, anomalous tool use
 ```
 
 ---
 
-## 12. Universal Task Learning Engine
-
-This is the section that defines what ShadowRealm is that nothing else is.
+## 13. Universal Task Learning Engine
 
 ### The Principle
-**If ShadowRealm doesn't know how to do something, it never fails silently. It never hallucinates a wrong answer. It resolves the gap and learns.**
+**If ShadowRealm doesn't know how to do something, it never fails silently. It never hallucinates. It resolves the gap and learns.**
 
 ### Resolution Priority Order
-1. **Skills library hit** — fastest, fully deterministic
-2. **Procedural memory hit** — learned from this user before
-3. **RAG knowledge base** — from Notion, documents, past research
+1. **Skills library hit** — fastest, fully deterministic, cosign-verified
+2. **Procedural memory hit** — learned from this user before (Letta)
+3. **RAG knowledge base** — from Notion, documents, past research (LlamaIndex + Qdrant)
 4. **Deep research** — live web research, synthesize into new skill
 5. **Single clarifying question** — ask user for the one missing piece
 6. **Observation mode** — "Show me once, I'll do it every time after"
 
 ### What Gets Stored After Each Resolution
-Every time a task is resolved via paths 3–6, ShadowRealm:
-1. Writes a new skill file to `skills/user/[task_slug].md`
-2. Updates Letta procedural memory with preference signal
-3. Indexes the skill in ChromaDB for fast future lookup
-4. Applies the skill trust pipeline before activation
-5. Optionally sanitizes and submits as PR to `skills/community/`
+1. New skill file written to `skills/user/[task_slug].md`
+2. Letta procedural memory updated with preference signal
+3. Skill indexed in Qdrant for fast future lookup
+4. Skill enters cosign trust pipeline before activation
+5. Optionally sanitized and submitted as PR to `skills/community/`
 
 ### The "Watch Me" Protocol
-1. `computer_use_server` activates observation mode (screen recording + action log)
+1. `computer_use_server` activates via Browser Use observation mode
 2. User performs the task naturally
-3. Vision model (Qwen3.5-Omni or InfantAgent) interprets recording
+3. Vision model (Qwen3.5-Omni) interprets recording
 4. `skill_synthesizer.py` structures observations into repeatable skill
-5. Skill is validated with user: "I learned this — is this right?"
-6. On confirmation: stored permanently, enters trust pipeline
+5. Skill validated with user: "I learned this — is this right?"
+6. On confirmation: stored permanently, enters cosign pipeline
 7. Never needs demonstration again
 
 ---
 
-## 13. Agent Modes / Presets
-
-Using `src/preset_manager.py`. Tool groups — never expose all tools at once.
+## 14. Agent Modes / Presets
 
 | Mode | Trigger | Active Tools | Active Skills |
 |---|---|---|---|
-| **Dev** | `@dev` | computer_use, github, filesystem, subprocess, android_adb, notion, web, live_preview | skills/dev/ |
+| **Dev** | `@dev` | github, filesystem, subprocess, android_adb, computer_use, notion, web, live_preview | skills/dev/ |
 | **Chef** | `@chef` | culinaryos, notion, web, image_gen, deep_research | skills/culinary/ |
 | **Ops** | `@ops` | rossmanor, caldav, email, supabase, visual_report, notion | skills/ops/ |
-| **Research** | `@research` | deep_research, web_tools, rag, notion | synthesizes new |
+| **Research** | `@research` | deep_research, web_tools, LlamaIndex RAG, notion | synthesizes new |
 | **Universal** | `@auto` (default) | task_resolution_engine routes dynamically | auto-selects |
-
-**Universal Mode** dynamically selects the right tool group based on what the task actually requires, so the user never needs to know which mode to switch to.
 
 ---
 
-## 14. Background Automation Jobs
-
-Using `src/bg_jobs.py` + `src/task_scheduler.py`:
+## 15. Background Automation Jobs
 
 | Schedule | Job | Output |
 |---|---|---|
@@ -724,58 +756,83 @@ Using `src/bg_jobs.py` + `src/task_scheduler.py`:
 | Daily 11 PM | Attendance digest | Ross Manor daily summary |
 | Weekly Monday 6 AM | Weekly ops brief | Schedule, staffing, inventory |
 | Monthly | Skill library review | Suggest community PR for top user skills |
-| On skill modification | Re-sign check | Alert if signature invalid |
+| On skill modification | cosign re-sign check | Alert if signature invalid → block execution |
+| Continuous | OPA policy sync | Reload policies from config/ on change |
 
 ---
 
-## 15. Overload Control
-
-Context overload is one of the top failure modes in agentic systems. ShadowRealm prevents it at every layer.
+## 16. Overload Control
 
 ### Rules
-1. Never load all MCP tools globally — use tool groups per mode
+1. Never load all MCP tools globally — use OPA-enforced tool groups per mode
 2. Never load all skills at once — lazy-load relevant skills per task
 3. Summarize sessions periodically via `src/context_compactor.py`
-4. Use subagents for tasks that cross domains (don't pile everything into one context)
-5. Keep skill procedure files short and structured
+4. Use subagents for cross-domain tasks (Mastra routes to correct agent)
+5. Keep skill procedure files short and structured (max 500 lines enforced)
 6. Cap working memory and prune low-value context automatically
 7. Re-ground the agent after long multi-step runs
-8. Audit token use per task and alert on excess
+8. OpenTelemetry tracks token use per task — alert on excess
 
 ### What This Means in Practice
-- The Dev agent only sees Dev tools
-- The Chef agent only sees Culinary tools
-- A new unknown task starts with minimal context and expands only as needed
-- The orchestrator handles routing so no single agent is overloaded
+- Dev agent only sees Dev tools
+- Chef agent only sees Culinary tools
+- Unknown tasks start with minimal context, expand only as needed
+- The orchestrator routes, so no single agent is overloaded
 - Every skill file has a maximum size limit enforced at write time
 
 ---
 
-## 16. Odysseus Analysis — What to Borrow, What to Avoid
+## 17. Observability & Monitoring
 
-Odysseus (pewdiepie-archdaemon/odysseus, AGPL-3.0) is the strongest existing reference for a local-first AI workspace. It validates the market but leaves the hard problems unsolved.
+Full observability is built in from day one using the CNCF open-source stack. No proprietary monitoring tools, no SaaS lock-in.
+
+### Stack
+| Tool | Role | License |
+|---|---|---|
+| **OpenTelemetry** | Distributed tracing across all agents and tools | Apache 2.0 |
+| **Prometheus** | Runtime metrics: memory, token use, task success, latency | Apache 2.0 |
+| **Plutono** | Metrics dashboards (Apache 2.0 fork of Grafana — no AGPL) | Apache 2.0 |
+| **Sentry (self-hosted)** | Error tracking across workspace UI and backend | MIT |
+
+### What Gets Traced
+- Every agent action (tool call, model call, skill invocation)
+- Every OPA policy decision (allow/deny + reason)
+- Every cosign verification event (pass/fail)
+- Token usage per task, per agent, per model
+- Skill execution time and success rate
+- Memory read/write operations
+- MCP server health
+
+### Governance Integration
+- OpenTelemetry traces feed directly into the GovernanceAgent
+- Anomalous patterns (unexpected tool use, policy bypasses, signature failures) trigger alerts
+- All audit events are append-only and tamper-evident via Sigstore
+- Audit trail is queryable from the workspace bottom bar
+
+---
+
+## 18. Odysseus Analysis — What to Borrow, What to Avoid
 
 ### What to Borrow
 | Pattern | Why |
 |---|---|
-| All-in-one workspace concept | Right product shape for the target user |
-| Docker-first onboarding | Frictionless: clone → cp .env → compose up |
-| Hardware-aware model recommendation (Cookbook) | Genuine friction reduction for local model users |
-| Deep research UX | Multi-step research with citations differentiates from chat |
-| MCP tool externalization | Architecturally sound extension pattern |
-| Branch strategy (dev + main) | Clean upstream sync model |
+| All-in-one workspace concept | Right product shape |
+| Docker-first onboarding | clone → cp .env → compose up |
+| Hardware-aware model recommendation | Friction reduction for local models |
+| Deep research UX | Multi-step research with citations |
+| MCP tool externalization | Architecturally sound |
+| Branch strategy (dev + main) | Clean upstream sync |
 
 ### What to Avoid
 | Problem | ShadowRealm Solution |
 |---|---|
-| No skill trust tiers | Implement trust pipeline from day one |
-| No skill signing | Sign all skills, revoke on modification |
-| Single ChromaDB memory store | Separate declarative / procedural / policy / audit memory |
-| No multi-agent architecture | Full specialist agent mesh |
-| AGPL license | MIT license — no copyleft contamination |
-| Single maintainer | Build community + contribution structures early |
+| No skill trust tiers | cosign trust pipeline from day one |
+| No skill signing | Sigstore/cosign — revoke on modification |
+| Single ChromaDB memory store | Qdrant + LlamaIndex + Letta + OPA + Sigstore audit |
+| No multi-agent architecture | Full specialist agent mesh via LangGraph + Mastra |
+| AGPL license | MIT — no copyleft contamination |
+| No contextual policy | OPA policy engine evaluates every sensitive action |
 | Prompt injection from email/web | Treat external content as untrusted, sanitize before agent |
-| No contextual policy | Policy engine evaluates every sensitive action |
 
 ### Scoring Comparison
 | Dimension | Odysseus | ShadowRealm Target |
@@ -791,30 +848,32 @@ Odysseus (pewdiepie-archdaemon/odysseus, AGPL-3.0) is the strongest existing ref
 
 ---
 
-## 17. Competitive Feature Matrix
+## 19. Competitive Feature Matrix
 
 | Feature | VS Code Copilot | Cursor | Windsurf | ShadowRealm |
 |---|---|---|---|---|
-| Multi-file editing | ✅ | ✅ | ✅ | ✅ |
-| Live preview | ⚠️ partial | ⚠️ partial | ✅ | ✅ first-class |
-| Persistent memory | ✅ | ✅ | ⚠️ | ✅ multi-layer |
+| Multi-file editing | ✅ | ✅ | ✅ | ✅ Monaco |
+| Live preview | ⚠️ partial | ⚠️ partial | ✅ | ✅ Sandpack |
+| Persistent memory | ✅ | ✅ | ⚠️ | ✅ Letta + Qdrant |
 | Plugin/MCP ecosystem | ✅ | ⚠️ | ⚠️ | ✅ full registry |
-| Debug/trace panel | ✅ | ✅ | ⚠️ | ✅ |
+| Debug/trace panel | ✅ | ✅ | ⚠️ | ✅ OpenTelemetry |
 | Terminal integration | ✅ | ✅ | ✅ | ✅ auditable |
 | Skill trust tiers | ❌ | ❌ | ❌ | ✅ |
-| Skill signing | ❌ | ❌ | ❌ | ✅ |
-| Audit trail | ❌ | ❌ | ❌ | ✅ |
+| Skill signing | ❌ | ❌ | ❌ | ✅ Sigstore |
+| Policy engine | ❌ | ❌ | ❌ | ✅ OPA |
+| Audit trail | ❌ | ❌ | ❌ | ✅ tamper-evident |
 | Beginner teaching mode | ❌ | ❌ | ❌ | ✅ |
 | Self-hosted / local | ❌ | ❌ | ❌ | ✅ |
-| Multi-agent mesh | ❌ | ❌ | ❌ | ✅ |
+| Multi-agent mesh | ❌ | ❌ | ❌ | ✅ LangGraph + Mastra |
 | Task learning engine | ❌ | ❌ | ❌ | ✅ |
-| Watch mode | ❌ | ❌ | ❌ | ✅ |
+| Watch mode | ❌ | ❌ | ❌ | ✅ Browser Use |
+| Real-time co-editing | ❌ | ❌ | ❌ | ✅ Yjs CRDTs |
 | Context overload control | ⚠️ | ⚠️ | ⚠️ | ✅ by design |
-| Open source | ⚠️ | ❌ | ❌ | ✅ MIT |
+| 100% open source | ⚠️ | ❌ | ❌ | ✅ MIT |
 
 ---
 
-## 18. What Already Exists (Audit)
+## 20. What Already Exists (Audit)
 
 ### Engine (`src/`) — Notable Files
 | File | Size | Relevance |
@@ -827,8 +886,8 @@ Odysseus (pewdiepie-archdaemon/odysseus, AGPL-3.0) is the strongest existing ref
 | `src/deep_research.py` | 40KB | Multi-source deep research agent |
 | `src/memory.py` | 16KB | Working + episodic memory |
 | `src/memory_vector.py` | 9KB | Vector memory layer |
-| `src/memory_provider.py` | 10KB | Memory provider abstraction |
-| `src/chroma_client.py` | 2.3KB | ChromaDB vector store |
+| `src/memory_provider.py` | 10KB | Memory provider abstraction ← Qdrant + Letta go here |
+| `src/chroma_client.py` | 2.3KB | ChromaDB ← replace with Qdrant client |
 | `src/visual_report.py` | 71KB | Visual dashboard/report generation |
 | `src/caldav_sync.py` | 30KB | Google Calendar two-way sync |
 | `src/webhook_manager.py` | 12KB | Inbound/outbound webhooks |
@@ -837,37 +896,28 @@ Odysseus (pewdiepie-archdaemon/odysseus, AGPL-3.0) is the strongest existing ref
 | `src/preset_manager.py` | 7.5KB | Agent persona/tool group presets |
 | `src/teacher_escalation.py` | 26KB | Multi-model cost escalation routing |
 | `src/integrations.py` | 25KB | Integration registry |
-| `src/cookbook_serve_lifecycle.py` | 9KB | CulinaryOS-ready: recipe serving lifecycle |
+| `src/cookbook_serve_lifecycle.py` | 9KB | CulinaryOS-ready recipe serving lifecycle |
 | `src/mcp_manager.py` | 29KB | MCP server registration + management |
 | `src/event_bus.py` | 4KB | Internal event pub/sub |
 | `src/context_compactor.py` | 19KB | Context window compression ← KEY for overload control |
 
-### Agent Tools (`src/agent_tools/`)
-| File | What It Provides |
-|---|---|
-| `filesystem_tools.py` | Read, write, navigate disk files |
-| `subprocess_tools.py` | Shell command execution, terminal |
-| `document_tools.py` | Parse + generate documents |
-| `web_tools.py` | Web fetch, scraping, search |
-| `model_interaction_tools.py` | Agent → other model calls |
-| `session_tools.py` | Session context management |
-
 ---
 
-## 19. Phased Roadmap
+## 21. Phased Roadmap
 
 ### Phase 0 — Foundation *(Week 1)*
 - [x] Create `shadowrealm` branch from `dev`
 - [x] Write master development plan
 - [ ] Write `AGENTS.md` codex
 - [ ] Write `config/shadowrealm/persona.json`
-- [ ] Write `config/shadowrealm/trust_policy.json`
+- [ ] Write `config/shadowrealm/trust_policy.json` + initial OPA `.rego` policies
 - [ ] Rebrand surface strings in `src/constants.py`
 - [ ] Create `docs/languages/` structure
 - [ ] Override `.env.example`
+- [ ] Add `license-checker` to CI (block AGPL/GPL/SSPL deps)
 
 ### Phase 1 — Computer Control *(Week 1-2)*
-- [ ] `src/agent_tools/computer_use_tools.py`
+- [ ] `src/agent_tools/computer_use_tools.py` (wraps Browser Use)
 - [ ] `mcp_servers/computer_use_server.py`
 - [ ] Docker setup for OpenHands sub-agent
 - [ ] Test: screenshot → OCR → click loop
@@ -875,93 +925,104 @@ Odysseus (pewdiepie-archdaemon/odysseus, AGPL-3.0) is the strongest existing ref
 
 ### Phase 2 — Second Brain Integration *(Week 2)*
 - [ ] `mcp_servers/notion_server.py`
-- [ ] Connect 7 Notion nodes
-- [ ] RAG pipeline into ChromaDB
+- [ ] LlamaIndex RAG pipeline → Qdrant
+- [ ] Replace `src/chroma_client.py` with `src/qdrant_client.py`
 - [ ] Test: ask about Notion project → correct answer
 
 ### Phase 3 — Dev Agent + Coding Workspace *(Week 3)*
 - [ ] `mcp_servers/github_server.py`
 - [ ] `mcp_servers/android_studio_server.py`
-- [ ] Coding workspace UI (editor + agent panel + live preview)
-- [ ] Dev mode preset + skills
-- [ ] Multi-language doc files (`docs/languages/`)
-- [ ] Beginner teaching mode
-- [ ] Test: full dev loop from chat → push PR + preview
+- [ ] `workspace/ide/` — Monaco Editor + CopilotKit
+- [ ] `workspace/preview/` — Sandpack + Vite
+- [ ] LSP servers wired per language
+- [ ] Yjs co-editing layer
+- [ ] Dev mode preset + `skills/dev/`
+- [ ] `docs/languages/` all six language guides
+- [ ] Beginner mode + glossary
+- [ ] Test: full dev loop — chat → edit → preview → push PR
 
 ### Phase 4 — Business Operations *(Week 4)*
 - [ ] `mcp_servers/supabase_server.py`
+- [ ] ElectricSQL local-first sync wired
 - [ ] `mcp_servers/culinaryos_server.py`
 - [ ] `mcp_servers/rossmanor_server.py`
 - [ ] Chef + Ops mode presets + skills
 
 ### Phase 5 — Memory + Autonomy *(Week 5-6)*
-- [ ] Integrate Letta into `src/memory_provider.py` (procedural memory)
-- [ ] Separate declarative / policy / audit memory stores
+- [ ] Integrate Letta into `src/memory_provider.py`
+- [ ] Separate declarative (Qdrant) / procedural (Letta) / policy (OPA) / audit (Sigstore) stores
 - [ ] Wire all background automation jobs
 - [ ] A2A coordinator scaffold
 - [ ] Morning brief fully operational
 
 ### Phase 6 — Governance Layer *(Week 6-7)*
-- [ ] `src/agent_tools/governance_engine.py`
-- [ ] `src/agent_tools/policy_engine.py`
-- [ ] `src/agent_tools/audit_logger.py`
-- [ ] Skill trust pipeline (scan → review → sign → verify)
+- [ ] `src/agent_tools/governance_engine.py` (wraps OPA)
+- [ ] `src/agent_tools/policy_engine.py` (OPA .rego policy files)
+- [ ] `src/agent_tools/audit_logger.py` (Sigstore cosign)
+- [ ] Skill trust pipeline (scan → review → cosign → verify)
 - [ ] Trust tiers 0–4 + revocation
 - [ ] GovernanceAgent wired to monitor all skill activations
-- [ ] Autonomy tier enforcement (observe / advise / act-with-approval / autonomous)
+- [ ] Autonomy tier enforcement
 
-### Phase 7 — Universal Task Engine *(Week 7-8)*
+### Phase 7 — Observability *(Week 7)*
+- [ ] OpenTelemetry collector wired across all agents and tools
+- [ ] Prometheus metrics exporter
+- [ ] Plutono dashboards (token use, task success, policy decisions, error rates)
+- [ ] Sentry self-hosted error tracking
+- [ ] Audit trail panel in workspace bottom bar
+
+### Phase 8 — Universal Task Engine *(Week 7-8)*
 - [ ] `src/agent_tools/task_resolution_engine.py`
 - [ ] `src/agent_tools/skill_synthesizer.py`
-- [ ] Research path (deep_research integration)
+- [ ] Research path (LlamaIndex + deep_research)
 - [ ] Ask path (clarification engine)
-- [ ] Watch path (observation + vision synthesis)
+- [ ] Watch path (Browser Use + vision synthesis)
 - [ ] Skill quality tier system
 - [ ] Universal mode preset
-- [ ] Overload control audit + tuning
 
-### Phase 8 — Swarm + Open-Source Graduation *(Month 3)*
+### Phase 9 — Swarm + Open-Source Graduation *(Month 3)*
 - [ ] Integrate AGNO as agent runtime
-- [ ] Integrate ClawTeam for swarm orchestration
+- [ ] LangGraph wired for Python multi-agent workflows
+- [ ] Mastra wired for TypeScript workspace agent layer
 - [ ] All specialist sub-agents wired
 - [ ] Wire OpenHands as VisionAgent
 - [ ] `docker-compose.shadowrealm.yml` for one-command deploy
 - [ ] MCP registry with community plugin support
 
-### Phase 9 — Community + Universal Adoption *(Month 4+)*
+### Phase 10 — Community + Universal Adoption *(Month 4+)*
 - [ ] Publish MCP servers as standalone pip packages
 - [ ] `skills/community/` open for PR contributions
 - [ ] `CONTRIBUTING.md` with skill contribution guide
-- [ ] GitHub Actions CI for public repo
+- [ ] GitHub Actions CI with license-checker
 - [ ] Public documentation site
 - [ ] `shadowrealm init` CLI wizard for new user onboarding
-- [ ] Skill submission pipeline (user skills → sanitize → community PR)
+- [ ] Skill submission pipeline (user skills → PII scrub → community PR)
 
 ---
 
-## 20. Industry Protocols to Adopt
+## 22. Industry Protocols to Adopt
 
-| Protocol | Source | Purpose | Status |
-|---|---|---|---|
-| MCP | Anthropic | Agent ↔ Tool communication | ✅ Built-in |
-| A2A | Google | Agent ↔ Agent coordination | 🔧 Phase 5 |
-| AGENTS.md | Community standard | AI coding agent conventions | 📝 Phase 0 |
-| OpenHands API | MIT | Open computer use sub-agent | 🔧 Phase 1 |
-| AGNO AgentOS | Apache 2.0 | Agent runtime control plane | 🔧 Phase 8 |
-| ClawTeam | MIT | Swarm coordination | 🔧 Phase 8 |
-| Skill Cards | Emerging | Skill metadata + trust metadata | 🔧 Phase 6 |
-| Policy-as-Prompt | Research | LLM-enforceable governance rules | 🔧 Phase 6 |
-| Signed Provenance | Research | Tamper-evident audit trails | 🔧 Phase 6 |
-| Planning-first loop | Research | Simulate before execute | 🔧 Phase 7 |
-| Tool Groups | Best practice | Accuracy preservation / no overload | 🔧 Phase 0 |
-| AMDM Monitoring | Research | Multi-axis anomaly detection | 🔧 Phase 8 |
+| Protocol | Source | License | Purpose | Status |
+|---|---|---|---|---|
+| MCP | Anthropic | MIT | Agent ↔ Tool communication | ✅ Built-in |
+| A2A | Google | Apache 2.0 | Agent ↔ Agent coordination | 🔧 Phase 5 |
+| LSP | Microsoft | MIT | Editor ↔ Language intelligence | 🔧 Phase 3 |
+| AGENTS.md | Community | MIT | AI coding agent conventions | 📝 Phase 0 |
+| OpenHands API | MIT | MIT | Open computer use sub-agent | 🔧 Phase 1 |
+| AGNO AgentOS | Apache 2.0 | Apache 2.0 | Agent runtime control plane | 🔧 Phase 9 |
+| OPA Policy | Apache 2.0 | Apache 2.0 | Policy-as-code enforcement | 🔧 Phase 6 |
+| Sigstore | Apache 2.0 | Apache 2.0 | Tamper-evident skill signing | 🔧 Phase 6 |
+| OpenTelemetry | Apache 2.0 | Apache 2.0 | Distributed observability | 🔧 Phase 7 |
+| Yjs CRDT | MIT | MIT | Conflict-free collaborative editing | 🔧 Phase 3 |
+| Planning-first loop | Research | — | Simulate before execute | 🔧 Phase 8 |
+| Tool Groups | Best practice | — | Accuracy preservation / no overload | 🔧 Phase 0 |
 
 ---
 
-## 21. Open-Source Strategy
+## 23. Open-Source Strategy
 
 ### Philosophy
-ShadowRealm is free. No subscription. No cloud lock-in. The value is in the platform and community — not a paywall. License: **MIT** (explicitly not AGPL — no copyleft contamination).
+ShadowRealm is free. No subscription. No cloud lock-in. License: **MIT**. No AGPL contamination. Every dependency must pass the license audit gate in CI.
 
 ### What Gets Open-Sourced
 - The entire ShadowRealm platform
@@ -970,8 +1031,9 @@ ShadowRealm is free. No subscription. No cloud lock-in. The value is in the plat
 - `AGENTS.md` template
 - `docker-compose.shadowrealm.yml`
 - `shadowrealm init` CLI onboarding wizard
-- Governance engine and policy engine
+- Governance engine, OPA policies, and policy engine
 - Language documentation templates
+- Observability configs (OTel, Prometheus, Plutono)
 
 ### What Stays Private Per Deployment
 - `config/shadowrealm/persona.json` (gitignored)
@@ -980,40 +1042,28 @@ ShadowRealm is free. No subscription. No cloud lock-in. The value is in the plat
 - Any proprietary API credentials
 
 ### The Moat
-Not data. Not a model. **The community skill library + governance system.**
-As more users contribute observed + validated workflows across professions, ShadowRealm becomes the most capable out-of-the-box AI system for real human work — with a trust pipeline that no other open-source system has.
-
-### Community Contribution Model
-```
-User installs ShadowRealm
-  → ShadowRealm learns new skills via Watch/Ask/Research
-  → System prompts: "I learned how to [task]. Share with community?"
-  → User reviews sanitized skill file
-  → One-click PR to skills/community/
-  → Reviewed + signed + merged → available to all users
-```
+**The community skill library + governed trust pipeline.**
+As users contribute validated workflows, ShadowRealm becomes the most capable out-of-the-box AI system for real human work — with a cosign-signed trust pipeline that no other open-source system has.
 
 ---
 
-## 22. Swarm Architecture
-
-Using AGNO (control plane) + ClawTeam (coordination) + custom specialists:
+## 24. Swarm Architecture
 
 ```
-ShadowRealm Orchestrator (Policy-enforcing, audit-logging)
+ShadowRealm Orchestrator (OPA + OpenTelemetry + cosign audit)
        │
-       ├── DevAgent       → Qwen3.6-Plus   → skills/dev/      → github, filesystem, live_preview
-       ├── ChefAgent      → Llama 4 Scout  → skills/culinary/ → culinaryos, notion
-       ├── OpsAgent       → DeepSeek V3    → skills/ops/      → rossmanor, caldav, email
-       ├── ResearchAgent  → Claude 4       → synthesizes      → deep_research, rag, web
-       ├── VisionAgent    → Qwen3.5-Omni   → observation      → computer_use, browser
-       ├── MemoryAgent    → Letta          → always running   → memory_server, chroma
-       └── GovernanceAgent→ Claude 4       → always watching  → skill_registry, audit_logger
+       ├── DevAgent       → Qwen3.6-Plus   → skills/dev/      → Mastra + LangGraph
+       ├── ChefAgent      → Llama 4 Scout  → skills/culinary/ → LangGraph
+       ├── OpsAgent       → DeepSeek V3    → skills/ops/      → LangGraph
+       ├── ResearchAgent  → Claude 4       → synthesizes      → LlamaIndex + LangGraph
+       ├── VisionAgent    → Qwen3.5-Omni   → observation      → Browser Use + OpenHands
+       ├── MemoryAgent    → Letta          → always running   → Qdrant + ElectricSQL
+       └── GovernanceAgent→ Claude 4       → always watching  → OPA + Sigstore + OTel
 ```
 
 ---
 
-## 23. File Change Manifest
+## 25. File Change Manifest
 
 ### Phase 0 (Now)
 ```
@@ -1021,6 +1071,8 @@ CREATE: AGENTS.md
 CREATE: CONTRIBUTING.md
 CREATE: config/shadowrealm/persona.json             ← gitignored
 CREATE: config/shadowrealm/trust_policy.json
+CREATE: config/shadowrealm/opa/policies/skill.rego  ← OPA skill policy
+CREATE: config/shadowrealm/opa/policies/tool.rego   ← OPA tool policy
 CREATE: config/shadowrealm/presets/dev_mode.json
 CREATE: config/shadowrealm/presets/chef_mode.json
 CREATE: config/shadowrealm/presets/ops_mode.json
@@ -1039,18 +1091,19 @@ MODIFY: .env.example                                ← provider setup
 
 ### Phase 1-2
 ```
-CREATE: src/agent_tools/computer_use_tools.py
+CREATE: src/agent_tools/computer_use_tools.py       ← wraps Browser Use (MIT)
 CREATE: mcp_servers/computer_use_server.py
 CREATE: mcp_servers/notion_server.py
+CREATE: src/qdrant_client.py                        ← replace chroma_client.py
 CREATE: docker-compose.shadowrealm.yml
-MODIFY: src/integrations.py                        ← register new MCP servers
+MODIFY: src/integrations.py                         ← register new MCP servers
 ```
 
 ### Phase 3 — Coding Workspace
 ```
-CREATE: workspace/ide/                              ← editor UI
-CREATE: workspace/preview/                          ← live preview panel
-CREATE: workspace/terminal/                         ← embedded terminal
+CREATE: workspace/ide/                              ← Monaco Editor + CopilotKit (React)
+CREATE: workspace/preview/                          ← Sandpack + Vite
+CREATE: workspace/terminal/                         ← Embedded terminal
 CREATE: mcp_servers/github_server.py
 CREATE: mcp_servers/android_studio_server.py
 CREATE: skills/dev/new_feature.md
@@ -1075,24 +1128,31 @@ CREATE: skills/community/README.md
 
 ### Phase 5-6
 ```
-CREATE: src/agent_tools/governance_engine.py
-CREATE: src/agent_tools/policy_engine.py
-CREATE: src/agent_tools/audit_logger.py
+CREATE: src/agent_tools/governance_engine.py        ← wraps OPA
+CREATE: src/agent_tools/policy_engine.py            ← OPA .rego loader
+CREATE: src/agent_tools/audit_logger.py             ← Sigstore cosign
 CREATE: src/skill_registry.py
 CREATE: src/mcp_registry.py
-MODIFY: src/memory_provider.py                     ← integrate Letta
-MODIFY: src/agent_loop.py                          ← planning-first + autonomy tiers
+MODIFY: src/memory_provider.py                      ← integrate Letta + Qdrant
+MODIFY: src/agent_loop.py                           ← planning-first + autonomy tiers
 ```
 
-### Phase 7-8
+### Phase 7
+```
+CREATE: observability/otel-collector.yml
+CREATE: observability/prometheus.yml
+CREATE: observability/plutono/                      ← dashboard configs
+```
+
+### Phase 8-9
 ```
 CREATE: src/agent_tools/task_resolution_engine.py
 CREATE: src/agent_tools/skill_synthesizer.py
 CREATE: src/a2a_coordinator.py
 CREATE: mcp_servers/discount_locator_server.py
-CREATE: shadowrealm_cli/init.py                    ← onboarding wizard
-MODIFY: src/integrations.py                        ← register swarm agents
-MODIFY: src/teacher_escalation.py                  ← add Qwen3.6, Llama 4, DeepSeek V3
+CREATE: shadowrealm_cli/init.py
+MODIFY: src/integrations.py                         ← register swarm agents
+MODIFY: src/teacher_escalation.py                   ← add Qwen3.6, Llama 4, DeepSeek V3
 ```
 
 ### Do Not Touch Without Deep Review
@@ -1106,17 +1166,17 @@ core/auth.py                 ← 30KB auth system
 
 ---
 
-## 24. Open Questions
+## 26. Open Questions
 
 - [ ] **Ross Manor API** — document AttendanceOnDemand endpoints
 - [ ] **Notion node IDs** — export 7 database IDs for notion_server.py
-- [ ] **Supabase schema** — design tables for state, skill store, event log, audit trail
+- [ ] **Supabase schema** — design tables for state, skill store, event log, audit trail, pgvector columns
 - [ ] **Local model stack** — confirm Ollama running + which models installed
-- [ ] **Target OS** — Linux/Windows/Mac for pyautogui config
+- [ ] **Target OS** — Linux/Windows/Mac for Browser Use + pyautogui config
 - [ ] **OpenHands Docker** — confirm Docker is available on the host
 - [ ] **agent_loop.py review** — planning-first upgrade feasibility
-- [ ] **Community skill sanitization** — design PII-scrubbing pipeline before Phase 9
-- [ ] **IDE framework choice** — evaluate Monaco Editor (VS Code core) vs. CodeMirror for workspace
-- [ ] **Live preview server** — evaluate Vite HMR vs. custom dev server for preview panel
-- [ ] **Audit store** — evaluate append-only log format + Supabase vs. local SQLite
-- [ ] **Skill signing toolchain** — evaluate GPG vs. Sigstore for skill signatures
+- [ ] **Community skill sanitization** — design PII-scrubbing pipeline before Phase 10
+- [ ] **ElectricSQL shape** — define which tables sync locally vs. cloud-only
+- [ ] **OPA policy scope** — write initial .rego policies for skill tiers and tool sensitivity
+- [ ] **Plutono dashboard design** — define which metrics panels are most useful day-to-day
+- [ ] **Qdrant collections** — define collection schema for declarative, procedural, and skill index

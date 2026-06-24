@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShadowRealm — Render Status</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:#0f0f1a;color:#e2e8f0;
+         display:flex;flex-direction:column;align-items:center;
+         justify-content:center;min-height:100vh;padding:2rem}
+    .card{background:#1a1a2e;border:1px solid #2d2d4e;border-radius:1rem;
+          padding:2.5rem 3rem;max-width:480px;width:100%;text-align:center;
+          box-shadow:0 8px 32px rgba(0,0,0,.4)}
+    h1{font-size:1.8rem;color:#a78bfa;margin-bottom:.5rem}
+    .sub{color:#94a3b8;margin-bottom:2rem;font-size:.95rem}
+    .badge{display:inline-flex;align-items:center;gap:.5rem;
+           background:#22c55e22;border:1px solid #22c55e55;
+           color:#4ade80;border-radius:999px;padding:.3rem 1rem;
+           font-size:.85rem;margin-bottom:2rem}
+    .dot{width:8px;height:8px;border-radius:50%;background:#4ade80;
+         animation:pulse 1.5s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    .btn{display:inline-block;background:#7c3aed;color:#fff;
+         border-radius:.6rem;padding:.75rem 2rem;text-decoration:none;
+         font-weight:600;transition:background .2s}
+    .btn:hover{background:#6d28d9}
+    .info{margin-top:1.5rem;font-size:.8rem;color:#64748b}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🌑 ShadowRealm</h1>
+    <p class="sub">Odysseus AI — running on Render</p>
+    <div class="badge"><span class="dot"></span> Service online</div>
+    <br>
+    <a href="/" class="btn">Open the App →</a>
+    <p class="info">If the app prompts for login, use the ADMIN_USER&nbsp;/&nbsp;ADMIN_PASS<br>you set in the Render environment dashboard.</p>
+  </div>
+</body>
+</html>

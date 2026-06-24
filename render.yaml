@@ -1,0 +1,46 @@
+# render.yaml — Render deployment blueprint for ShadowRealm (Odysseus fork)
+# Deploy by connecting this repo on https://dashboard.render.com → New → Blueprint
+
+services:
+  - type: web
+    name: shadowrealm
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    # Render injects PORT; the start command in the Dockerfile must bind to it.
+    # We override the CMD here so the container honours $PORT automatically.
+    dockerCommand: >-
+      sh -c "uvicorn app:app
+        --host 0.0.0.0
+        --port ${PORT:-8080}
+        --workers 1
+        --timeout-keep-alive 120"
+    plan: free          # change to 'starter' or 'standard' for paid tier
+    region: oregon      # closest Render region — change freely
+    healthCheckPath: /api/health
+    # Persistent disk so the SQLite DB + settings survive redeploys
+    disk:
+      name: shadowrealm-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      # Required: set at least one auth user or AUTH_DISABLED=true
+      - key: AUTH_DISABLED
+        value: "false"
+      # Set your admin credentials via Render dashboard → Environment
+      # ADMIN_USER  / ADMIN_PASS are read by Odysseus on first boot
+      - key: ADMIN_USER
+        sync: false     # fill in Render dashboard — never commit plaintext
+      - key: ADMIN_PASS
+        sync: false
+      # Optional: pre-seed an OpenAI key so the model picker works on boot
+      - key: OPENAI_API_KEY
+        sync: false
+      # Odysseus needs to know its own public URL for email deep-links etc.
+      - key: APP_PUBLIC_URL
+        fromService:
+          type: web
+          name: shadowrealm
+          property: host
+      # Tell Python not to buffer stdout so Render's log stream is live
+      - key: PYTHONUNBUFFERED
+        value: "1"

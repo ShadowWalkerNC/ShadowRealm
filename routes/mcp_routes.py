@@ -284,6 +284,109 @@ def setup_mcp_routes(mcp_manager: McpManager):
             "auth_url": status.get("auth_url"),
         }
 
+    @router.put("/servers/{server_id}")
+    async def edit_server(
+        server_id: str,
+        request: Request,
+        name: str = Form(...),
+        transport: str = Form("stdio"),
+        command: str = Form(None),
+        args: str = Form("[]"),
+        env: str = Form("{}"),
+        url: str = Form(None),
+        oauth_config: str = Form(None),
+    ):
+        """Edit an existing MCP server configuration and reconnect. Admin-only."""
+        require_admin(request)
+
+        # Validate transport requirements
+        if transport == "stdio" and not command:
+            raise HTTPException(400, "command is required for stdio transport")
+        if transport in ("sse", "http") and not url:
+            raise HTTPException(400, "url is required for SSE/HTTP transport")
+
+        # Parse JSON fields
+        try:
+            parsed_args = json.loads(args) if args else []
+        except json.JSONDecodeError:
+            parsed_args = []
+        try:
+            parsed_env = json.loads(env) if env else {}
+        except json.JSONDecodeError:
+            parsed_env = {}
+        if not isinstance(parsed_env, dict):
+            parsed_env = {}
+
+        # Parse OAuth config
+        parsed_oauth_config = None
+        if oauth_config:
+            try:
+                parsed_oauth_config = _sanitize_mcp_oauth_config(json.loads(oauth_config))
+            except json.JSONDecodeError:
+                pass
+        _apply_mcp_oauth_env(parsed_env, parsed_oauth_config)
+
+        db = SessionLocal()
+        try:
+            srv = db.query(McpServer).filter(McpServer.id == server_id).first()
+            if not srv:
+                raise HTTPException(404, "Server not found")
+
+            srv.name = name
+            srv.transport = transport
+            srv.command = command
+            srv.args = json.dumps(parsed_args)
+            srv.env = json.dumps(parsed_env)
+            srv.url = url
+            srv.oauth_config = json.dumps(parsed_oauth_config) if parsed_oauth_config else None
+            db.commit()
+        finally:
+            db.close()
+
+        # Reconnect with updated config (only when server is enabled)
+        db = SessionLocal()
+        try:
+            srv = db.query(McpServer).filter(McpServer.id == server_id).first()
+            is_enabled = srv.is_enabled if srv else False
+        finally:
+            db.close()
+
+        connected = False
+        if is_enabled:
+            await mcp_manager.disconnect_server(server_id)
+
+            needs_oauth = False
+            if parsed_oauth_config:
+                needs_oauth = _mcp_oauth_token_missing(parsed_oauth_config)
+
+            if not needs_oauth:
+                connected = await mcp_manager.connect_server(
+                    server_id=server_id,
+                    name=name,
+                    transport=transport,
+                    command=command,
+                    args=parsed_args,
+                    env=parsed_env,
+                    url=url,
+                )
+
+        status = mcp_manager.get_server_status(server_id)
+        needs_oauth_flag = False
+        if parsed_oauth_config:
+            needs_oauth_flag = _mcp_oauth_token_missing(parsed_oauth_config, strict=False)
+
+        return {
+            "id": server_id,
+            "name": name,
+            "connected": connected,
+            "status": "needs_oauth" if needs_oauth_flag else status.get("status", "disconnected"),
+            "tool_count": status.get("tool_count", 0),
+            "error": "OAuth authorization required" if needs_oauth_flag else status.get("error"),
+            "needs_oauth": needs_oauth_flag,
+            "needs_auth": status.get("status") == "needs_auth",
+            "auth_url": status.get("auth_url"),
+        }
+
     @router.post("/servers/{server_id}/reconnect")
     async def reconnect_server(server_id: str, request: Request):
         """Reconnect to an MCP server."""

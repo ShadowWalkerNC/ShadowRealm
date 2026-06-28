@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/odysseus-wordmark.png" alt="ShadowRealm" width="238">
+  <img src="docs/Shadow-Realm.PNG" alt="ShadowRealm" width="160">
 </p>
 
 <p align="center">

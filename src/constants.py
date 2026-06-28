@@ -4,7 +4,7 @@ import os
 
 from src.runtime_paths import get_app_root, get_default_data_dir
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 
 # Base paths
 BASE_DIR = os.path.join(get_app_root(), "")
@@ -115,9 +115,10 @@ def internal_api_base() -> str:
 
     Agent tools and background jobs reach admin-gated routes by calling the
     running server over HTTP. Resolution order:
-      1. ODYSSEUS_INTERNAL_BASE  - explicit override (e.g. behind a TLS proxy).
-      2. APP_PORT                - http://127.0.0.1:$APP_PORT (docker-compose).
-      3. Fallback http://127.0.0.1:7000 - legacy default.
+      1. ODYSSEUS_INTERNAL_BASE  — explicit override (e.g. Render, behind TLS proxy).
+      2. PORT                    — http://127.0.0.1:$PORT  (Render / cloud hosts).
+      3. APP_PORT                — http://127.0.0.1:$APP_PORT (docker-compose).
+      4. Fallback http://127.0.0.1:7000 — legacy local default.
 
     127.0.0.1 (not "localhost") avoids IPv6/DNS ambiguity for a strictly-local
     call. Without this, loopback tools fail with "All connection attempts
@@ -126,4 +127,6 @@ def internal_api_base() -> str:
     override = os.environ.get("ODYSSEUS_INTERNAL_BASE")
     if override:
         return override.rstrip("/")
-    return f"http://127.0.0.1:{os.environ.get('APP_PORT', '7000')}"
+    # Prefer PORT (Render) over APP_PORT (docker-compose) over legacy default
+    port = os.environ.get("PORT") or os.environ.get("APP_PORT") or "7000"
+    return f"http://127.0.0.1:{port}"

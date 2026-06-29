@@ -128,9 +128,9 @@ Sprint 7B self-healing is ~60% done. Total timeline drops from 17 weeks to 10–
 - [x] **C01** `fix: audit all integrations — docs/STATUS.md` ✅ DONE
 - [x] **C02** `docs: update .env.example — ShadowRealm branding + quick-reference` ✅ DONE
 - [x] **C03** `feat: degraded-state reporting` ✅ ALREADY SHIPPED — `src/service_health.py` (bounded concurrent probes, secret scrubbing, ChromaDB/SearXNG/email/ntfy/providers)
+- [x] **C04** `fix: dead code pass — removed ChatGPT Subscription device-flow stub + app.py registration` ✅ DONE
 - [x] **C05** `feat: GET /api/diagnostics/services health endpoint` ✅ ALREADY SHIPPED — JSON `{overall, services[], timestamp}`
-- [ ] **C04** `fix: dead code pass — audit chatgpt_subscription_routes.py, copilot_routes.py, device_flow.py, stale feature flags`
-- [ ] **C06** `feat: /status UI page — wire to existing /api/diagnostics/services`
+- [x] **C06** `feat: /status UI page — wire to existing /api/diagnostics/services` ✅ DONE
 - [ ] **C07** `feat: setup.sh — OS-detect, dep install, .env builder, launch`
 - [ ] **C08** `docs: update AGENTS.md — full ShadowRealm identity, stack, active agents, phase context`
 
@@ -308,7 +308,7 @@ Sprint 7B self-healing is ~60% done. Total timeline drops from 17 weeks to 10–
 
 | Sprint | Focus | Commits | Est. Time |
 |---|---|---|---|
-| 1 | Foundation stabilization | C01–C08 (4 done) | ~3 days remaining |
+| 1 | Foundation stabilization | C01–C08 (6 done) | ~2 days remaining |
 | 2 | Token & context compression | C09–C14 | ~5 days |
 | 3 | CSS cleanup | C15–C20 | ~5 days |
 | 4 | Visual identity | C21–C27 | ~5 days |
@@ -319,7 +319,7 @@ Sprint 7B self-healing is ~60% done. Total timeline drops from 17 weeks to 10–
 | 7B | Self-healing completion + reflection | C67–C76 | ~6 days |
 | 8 | Onboarding wizard | C77–C85 | ~6 days |
 | 9 | Analytics, QA, ship | C86–C94 | ~5 days |
-| **Total** | | **94 commits (5 already done)** | **~10–11 weeks** |
+| **Total** | | **94 commits (6 already done)** | **~10–11 weeks** |
 
 ---
 
@@ -341,8 +341,9 @@ Merge `dev` → `main` only on C94 v2.0.0 tag.
 - [x] C01 — STATUS.md integration audit ✅
 - [x] C02 — .env.example branding + quick reference ✅
 - [x] C03 — degraded-state reporting ✅ (was already shipped as src/service_health.py)
+- [x] C04 — dead code pass: removed ChatGPT subscription device-flow stub ✅
 - [x] C05 — GET /api/diagnostics/services ✅ (was already shipped)
-- [x] V2_MASTER_PLAN.md — this file, rebuilt from source audit ✅
-- [ ] **C04 — Next up:** dead code pass on chatgpt_subscription_routes.py, copilot_routes.py, device_flow.py
+- [x] C06 — /status UI page wired to /api/diagnostics/services ✅
+- [ ] **C07 — Next up:** `feat: setup.sh — OS-detect, dep install, .env builder, launch`
 
 *This file is the single source of truth. Update the checklist as commits land.*

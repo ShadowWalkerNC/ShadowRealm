@@ -849,6 +849,12 @@ async def serve_tasks(request: Request):
 async def serve_library(request: Request):
     return await serve_index(request)
 
+@app.get("/status")
+async def serve_status(request: Request):
+    """Health / system-status deep-link — serves the SPA; JS auto-opens the
+    status panel based on window.location.pathname == '/status'."""
+    return await serve_index(request)
+
 @app.get("/backgrounds")
 async def serve_backgrounds(request: Request):
     """Sandbox page for prototyping background effects. No auth required."""

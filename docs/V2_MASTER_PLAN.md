@@ -211,8 +211,8 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 - [x] **C04** `fix: dead code pass — removed ChatGPT Subscription device-flow stub` ✅ DONE
 - [x] **C05** `feat: GET /api/diagnostics/services health endpoint` ✅ ALREADY SHIPPED
 - [x] **C06** `feat: /status UI page — wire to existing /api/diagnostics/services` ✅ DONE
-- [ ] **C07** `feat: setup.sh — OS-detect, dep install, .env builder, launch`
-- [ ] **C08** `docs: update AGENTS.md — full ShadowRealm identity, stack, active agents, skills-first philosophy`
+- [x] **C07** `feat: setup.sh — OS-detect, dep install, .env builder, launch` ✅ DONE
+- [x] **C08** `docs: update AGENTS.md — full ShadowRealm identity, stack, active agents, skills-first philosophy` ✅ DONE
 
 ---
 
@@ -416,7 +416,7 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 
 | Sprint | Focus | Commits | Est. Time |
 |---|---|---|---|
-| 1 | Foundation stabilization | C01–C08 (6 done) | ~2 days remaining |
+| 1 | Foundation stabilization | C01–C08 ✅ ALL DONE | — |
 | 2 | Token & context compression | C09–C14 ✅ ALL DONE | — |
 | 3 | **Skills-First: Agent Harness + Skill Factory** | C15–C25 | ~6 days |
 | 4 | CSS cleanup | C26–C31 | ~4 days |
@@ -428,7 +428,7 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 | 8B | Self-healing completion + Reflection | C79–C89 | ~6 days |
 | 9 | Onboarding wizard | C90–C99 | ~6 days |
 | 10 | Analytics, QA, ship | C100–C108 | ~5 days |
-| **Total** | | **108 commits (14 done)** | **~11–12 weeks** |
+| **Total** | | **108 commits (16 done)** | **~11–12 weeks** |
 
 ---
 
@@ -447,7 +447,7 @@ Merge `dev` → `main` only on C108 v2.0.0 tag.
 
 ## Current Progress
 
-**Sprint 1:** 6/8 done. C07–C08 remaining.
+**Sprint 1:** ✅ COMPLETE (C01–C08 all done)
 **Sprint 2:** ✅ COMPLETE (C09–C14 all shipped)
 **Sprint 3:** Next — C15 is `skill_creator` meta-skill. Say **"Sprint 3 go"** to begin.
 

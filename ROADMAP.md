@@ -1,80 +1,110 @@
-# Roadmap / Help Wanted
+# ShadowRealm v2 — Master Roadmap
 
-Odysseus is on a voyage, but not home yet. It works great for me (lol), but this ship is moving fast and feedback/help would be appreciated! (I don't know what I'm doing, help).
+> Last updated: 2026-06-29  
+> Branch: `shadowrealm-v2`  
+> Progress: **78 / 120 components shipped**
 
-If you see weird CSS, strange layout behavior, or a suspiciously murky corner of
-the codebase, you are probably right to stay away.
+---
 
-## High Priority
+## Progress Overview
 
-- SQUASH BUGS
-- Fresh install smoke tests on Linux, macOS, and Windows. Docker, native Python,
-  and WSL all need coverage.
+| Track | Components | Status |
+|---|---|---|
+| Foundation (C1–C18) | 18 | ✅ Complete |
+| Data & Storage (C19–C36) | 18 | ✅ Complete |
+| Security & Auth (C37–C54) | 18 | ✅ Complete |
+| Observability (C55–C63) | 9 | ✅ Complete |
+| Task & Job Queue (C64–C66) | 3 | ✅ Complete |
+| Networking & HTTP (C67–C69) | 3 | ✅ Complete |
+| Event Sourcing & Audit (C70–C72) | 3 | ✅ Complete |
+| Search & Indexing (C73–C75) | 3 | ✅ Complete |
+| User & Session (C76–C78) | 3 | ✅ Complete |
+| Notification & Messaging (C79–C81) | 3 | 🔄 Sprint 23 |
+| Permission & Policy (C82–C84) | 3 | Queued |
+| Plugin & Extension (C85–C87) | 3 | Queued |
+| AI/LLM Integration (C88–C90) | 3 | Queued |
+| Workflow Engine (C91–C93) | 3 | Queued |
+| Data Pipeline (C94–C96) | 3 | Queued |
+| Multimodal & Media (C97–C99) | 3 | Queued |
+| Testing Infrastructure (C100–C102) | 3 | Queued |
+| Deployment & DevOps (C103–C105) | 3 | Queued |
+| Integration Adapters (C106–C108) | 3 | Queued |
+| **[NEW] Agent Identity Layer (C109–C111)** | 3 | Queued — Hermes-inspired |
+| **[NEW] Memory Vault (C112–C114)** | 3 | Queued — Hermes-inspired |
+| **[NEW] Operational Controls (C115–C117)** | 3 | Queued — Hermes-inspired |
+| **[NEW] Model & Channel Routing (C118–C120)** | 3 | Queued — Hermes-inspired |
 
-- Integration audit: do integrations even work? Confirm what works, what needs setup docs, and what should be removed or hidden. 
-- Self-host troubleshooting cookbook. Document the weird 30-second fixes that otherwise become 30-minute searches: Dovecot cleartext auth for local stacks, ntfy Android Instant Delivery for non-ntfy.sh servers, clipboard limits on plain-HTTP Tailscale URLs, Radicale collection URLs, and similar traps.
-- Cookbook reliability on other computers. This is probably the area most likely to need work across different machines, GPUs, drivers, shells, and Python environments.
-- Cookbook SGLang support across platforms. Make sure SGLang setup/serve works
-  predictably on Linux, Windows/WSL, macOS where possible, Docker, and common
-  NVIDIA/AMD hardware paths.
-- Deep Research model presets by hardware. Recommend approved model/parameter
-  profiles for small, medium, and large local setups so people with different
-  hardware can use Deep Research without guessing. Surface this either in Deep
-  Research settings or as a Cookbook scan/dropdown suggestion.
-- Cookbook model scan/download ranking. Prioritize newer architectures and
-  better hardware-fit models instead of scoring everything almost the same.
-  Ranking should account for architecture age, quant format, VRAM/RAM fit,
-  backend support, vision/mmproj requirements, and likely serve reliability.
-- Cookbook error feedback and logging. Failed downloads, dependency installs,
-  preflights, and serve jobs should show the actual command/output/error in the
-  UI, with copyable logs and clear next steps instead of just "crashed".
-- Agent prompt/context bloat. Agent mode is too heavy for smaller local models:
-  tool schemas, skills, memory, documents, and instructions can eat the context
-  before the user request really starts. We need slimmer prompts, better tool
-  selection, smaller default tool sets, and clearer guidance for models with
-  4k/8k/16k context windows.
-- Skill/tool prompt-injection audit. User-editable skills, notes, documents,
-  fetched pages, and memories should be treated as untrusted data. Keep testing
-  whether models follow malicious instructions from those surfaces.
-- Better degraded-state reporting for ChromaDB, SearXNG, email, ntfy, and provider probes.
-- Email performance audit. Fetching, searching, opening, deleting, and sending
-  email can feel slow, especially over IMAP/SMTP providers with high latency.
-  Need someone who knows mail performance to profile the current flow, identify
-  whether the bottleneck is IMAP folder select/fetch, cache invalidation,
-  attachment/body loading, SMTP handshakes, or frontend refresh behavior, then
-  propose safer caching/prefetch/batching without breaking multi-account state.
-- Provider setup/probing audit for Anthropic, Gemini, Groq, xAI, OpenRouter, OpenAI, and DeepSeek.
+---
 
-## Refactor Targets
-- CSS cleanup. `static/style.css` basically Calypso's island atm.
-- Tour core helper. The onboarding tours have too much copy-pasted scaffolding; promote a shared `tour-core.js` helper before adding more tours.
-- Modal/window positioning cleanup. Some window controls have improved, but the
-  underlying popup/dropdown/fixed-position behavior is still too fragile.
-- Mobile media override discoverability. A lot of "CSS did not move" bugs are mobile `@media` overrides of the same selector; comments or linting around desktop/mobile paired rules would help.
-- Dead code pass for old routes, stale feature flags, and unused UI states.
+## Original Sprints (C1–C108)
 
-## Frontend
+### ✅ Sprint 1–6 — Foundation & Core (C1–C18)
+Config, logging, error handling, event bus, plugin manager, service registry, CLI, env validator, task runner.
 
-- Expand the Editor for quicker, more robust everyday use. Better file/document
-  handling, smoother window behavior, clearer save/export flows, stronger image
-  editing affordances, and fewer brittle edge cases.
-- Better AI integration for Notes and Todos. Notes should be easier for the
-  agent to read, update, summarize, and turn into actions. Todos should be
-  assignable to an agent from the UI, possibly through a button, task action,
-  or dedicated skill/tool flow.
-- Mobile gallery/editor polish. Easier to launch/download inpaint model or any missing pieces.
-- Accessibility pass: keyboard navigation, focus states, contrast, reduced motion.
-- Improve empty states and error messages on fresh installs.
-- Tighten first-run setup, hints, and tours so they do not repeat or fight each other.
-- Vendor CDN assets eventually for a more fully self-hosted/offline mode.
+### ✅ Sprint 7–12 — Data & Storage (C19–C36)
+Database manager, migrations, model registry, cache layers, file store, blob store, document store, graph store, time-series store, data validator, serialiser, query builder.
 
-## Backend
+### ✅ Sprint 13–18 — Security & Auth (C37–C54)
+JWT auth, OAuth2, RBAC, rate limiter, request validator, secret manager, encryption, key rotation, audit, threat model.
 
-- More tests around endpoint probing and provider setup.
-- Better task scheduler defaults and visibility.
-- Backup/restore guide and helper flow for `data/`.
-- Security hardening around admin-only tools and clear docs for their risk.
+### ✅ Sprint 16–17 — Observability (C55–C63)
+Structured logging, distributed tracing, metrics collector, alert manager, dashboard, health checker, metrics registry, diagnostics reporter.
 
-## Not The Focus Right Now
+### ✅ Sprint 18 — Task & Job Queue (C64–C66)
+TaskQueue (priority + retry + DLQ), JobScheduler (interval/cron/once), WorkerPool (thread drain + backoff).
 
-I prob shouldnt add more themes.
+### ✅ Sprint 19 — Networking & HTTP (C67–C69)
+HTTPClient (retry + auth), WebhookDispatcher (HMAC-signed), RateLimitedSession (token bucket).
+
+### ✅ Sprint 20 — Event Sourcing & Audit (C70–C72)
+EventStore (append-only + snapshots), AuditLogger (hash-chained), ChangeTracker (field diff + rollback).
+
+### ✅ Sprint 21 — Search & Indexing (C73–C75)
+FullTextIndex (FTS5/BM25), VectorSearchIndex (cosine + numpy), SearchRouter (hybrid RRF fusion).
+
+### ✅ Sprint 22 — User & Session (C76–C78)
+UserStore (PBKDF2), SessionManager (CSPRNG tokens + sliding TTL), UserPreferenceStore (namespaced + callbacks).
+
+### 🔄 Sprint 23 — Notification & Messaging (C79–C81)
+NotificationDispatcher, InAppMessageQueue, EmailComposer.
+
+### Sprints 24–33 — Remaining Original Track (C82–C108)
+Permission/Policy → Plugin/Extension → AI/LLM Integration → Workflow Engine →
+Data Pipeline → Multimodal/Media → Testing Infrastructure → Deployment/DevOps → Integration Adapters.
+
+---
+
+## 🔮 Hermes-Inspired Extension (C109–C120)
+
+> Derived from Hermes agentic framework analysis. See `docs/HERMES_MAPPING.md`.
+
+### Sprint H1 — Agent Identity Layer (C109–C111)
+- **C109** `core/soul_loader.py` — Parse + validate `soul.md` persona blueprints
+- **C110** `core/agent_identity.py` — Runtime identity object injected into every LLM prompt
+- **C111** `core/pantheon_router.py` — Route tasks to named persona+model combos by cost/complexity tier
+
+### Sprint H2 — Memory Vault (C112–C114)
+- **C112** `core/memory_vault.py` — Unified `memory.md` + SQLite store with context-injection API
+- **C113** `core/context_compressor.py` — LLM-based summarisation + `/compress` command trigger
+- **C114** `core/memory_sync_agent.py` — Scheduled push of memory state to GitHub
+
+### Sprint H3 — Operational Controls (C115–C117)
+- **C115** `core/command_parser.py` — `/q /background /reset /compress /model /stop` inline parser
+- **C116** `core/goal_budget.py` — N-turn constraint loop with budget-exhaustion auto-compress
+- **C117** `core/sub_agent_orchestrator.py` — Parallel sub-agents with isolated context windows + result merge
+
+### Sprint H4 — Model & Channel Routing (C118–C120)
+- **C118** `core/model_router.py` — Dynamic LLM swap with cost-aware routing + Ollama offline fallback
+- **C119** `core/channel_router.py` — Multi-channel adapter: Telegram, Discord, Slack, WhatsApp, Matrix, Web
+- **C120** `core/os_action_executor.py` — Sandboxed OS execution with permission gates + audit trail
+
+---
+
+## Design Principles
+
+1. **Zero external deps for core** — every `core/` module runs on stdlib alone
+2. **Least privilege** — all agents operate under explicit permission grants
+3. **Local-first** — full functionality without cloud; cloud features are additive
+4. **Compounding memory** — context stacks across sessions; nothing is lost silently
+5. **Model agnostic** — swap any LLM backend without touching business logic
+6. **Observable** — every action is logged, audited, and traceable

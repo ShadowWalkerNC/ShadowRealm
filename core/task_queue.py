@@ -1,266 +1,177 @@
-"""TaskQueue — Durable async work queue with worker pool (C48).
+"""TaskQueue — Priority-based async task queue (C64).
 
-A lightweight alternative to Celery/RQ for intra-process background work.
-Tasks are enqueued by producers and consumed by a configurable worker
-pool.  Supports:
-  - Priority queues (1-10 scale)
-  - Dead-letter queue (DLQ) after max_retries exhausted
-  - Result store (in-memory dict with TTL eviction)
-  - Back-pressure: enqueue blocks / raises when queue is full
-  - Pause / resume without stopping workers
-  - Metrics: enqueued, dequeued, failed, dlq_size
+Thread-safe FIFO/priority queue for background tasks with:
+  - Priority levels: CRITICAL(0), HIGH(1), NORMAL(2), LOW(3)
+  - Task deduplication by idempotency key
+  - TTL: tasks that aren't consumed before expiry are discarded
+  - Retry tracking: max_retries, attempt count, backoff delay
+  - Dead-letter queue for exhausted tasks
+  - Blocking and non-blocking dequeue
 
 Public API:
-  q = TaskQueue(workers=4, maxsize=1000, max_retries=3)
-  q.start()
-  job_id = q.enqueue(fn, *args, priority, ttl_s, **kwargs)
-  result = q.result(job_id, timeout_s)  # blocks until done or timeout
-  q.pause() / q.resume()
-  q.stop(drain=True)
-  q.metrics()  -> dict
-  q.dlq_items() -> list
+  tq = TaskQueue(maxsize=0)
+  task_id = tq.enqueue(fn, args, kwargs, *, priority, ttl_s, max_retries, idempotency_key)
+  task    = tq.dequeue(block=True, timeout=None)  -> Task | None
+  tq.ack(task_id)
+  tq.nack(task_id, *, requeue=True)
+  tq.dead_letters()  -> list[Task]
+  tq.stats()         -> dict
+  tq.cancel(task_id) -> bool
 """
-
 from __future__ import annotations
-
-import heapq
-import logging
-import threading
-import time
-import uuid
+import heapq, logging, threading, time, uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_WORKERS   = 4
-_DEFAULT_MAXSIZE   = 1_000
-_DEFAULT_RETRIES   = 3
-_DEFAULT_RESULT_TTL = 300.0   # seconds
+CRITICAL, HIGH, NORMAL, LOW = 0, 1, 2, 3
 
 
 @dataclass
-class QueuedJob:
-    job_id:    str
-    fn:        Callable
-    args:      tuple
-    kwargs:    dict
-    priority:  int = 5
-    ttl_s:     float = 0.0
-    enqueued_at: float = field(default_factory=time.time)
-    attempts:  int = 0
-    max_retries: int = _DEFAULT_RETRIES
-    last_error: Optional[str] = None
+class Task:
+    task_id:         str
+    fn:              Callable
+    args:            Tuple
+    kwargs:          Dict
+    priority:        int        = NORMAL
+    created_at:      float      = field(default_factory=time.time)
+    expires_at:      Optional[float] = None
+    max_retries:     int        = 3
+    attempts:        int        = 0
+    idempotency_key: Optional[str] = None
+    delay_until:     float      = 0.0
 
-    def __lt__(self, other: QueuedJob) -> bool:
-        return (self.priority, self.enqueued_at) < (other.priority, other.enqueued_at)
+    def __lt__(self, other: "Task") -> bool:
+        if self.priority != other.priority:
+            return self.priority < other.priority
+        return self.created_at < other.created_at
 
+    def is_expired(self) -> bool:
+        return self.expires_at is not None and time.time() > self.expires_at
 
-@dataclass
-class JobResult:
-    job_id:    str
-    success:   bool
-    value:     Any
-    error:     Optional[str]
-    duration_ms: float
-    stored_at: float = field(default_factory=time.time)
+    def is_ready(self) -> bool:
+        return time.time() >= self.delay_until
 
 
 class TaskQueue:
-    """Priority work queue with retry, DLQ, and result store."""
+    """Priority-based task queue with retry and dead-letter support."""
 
-    def __init__(
-        self,
-        workers:    int   = _DEFAULT_WORKERS,
-        maxsize:    int   = _DEFAULT_MAXSIZE,
-        max_retries: int  = _DEFAULT_RETRIES,
-        result_ttl_s: float = _DEFAULT_RESULT_TTL,
-        telemetry=None,
-    ):
-        self._workers     = workers
+    def __init__(self, maxsize: int = 0):
+        self._heap:       List[Task] = []
+        self._in_flight:  Dict[str, Task] = {}
+        self._dead:       List[Task] = []
+        self._idem_keys:  Dict[str, str] = {}  # idempotency_key -> task_id
+        self._cancelled:  set = set()
+        self._lock        = threading.Lock()
+        self._not_empty   = threading.Condition(self._lock)
         self._maxsize     = maxsize
-        self._max_retries = max_retries
-        self._result_ttl  = result_ttl_s
-        self._tel         = telemetry
-
-        self._heap:    List[QueuedJob]       = []
-        self._results: Dict[str, JobResult]  = {}
-        self._dlq:     List[QueuedJob]       = []
-        self._events:  Dict[str, threading.Event] = {}
-
-        self._lock    = threading.Lock()
-        self._notempty = threading.Condition(self._lock)
-        self._paused  = False
-        self._running = False
-        self._threads: List[threading.Thread] = []
-
-        # Counters
-        self._n_enqueued = 0
-        self._n_dequeued = 0
-        self._n_failed   = 0
-
-    # ------------------------------------------------------------------
-    # Lifecycle
-    # ------------------------------------------------------------------
-
-    def start(self) -> None:
-        self._running = True
-        for _ in range(self._workers):
-            t = threading.Thread(target=self._worker, daemon=True)
-            t.start()
-            self._threads.append(t)
-        # GC thread for result store
-        gc = threading.Thread(target=self._gc_loop, daemon=True)
-        gc.start()
-        logger.info(f"TaskQueue: started {self._workers} workers")
-
-    def stop(self, drain: bool = True) -> None:
-        if drain:
-            deadline = time.time() + 30
-            while time.time() < deadline:
-                with self._lock:
-                    if not self._heap:
-                        break
-                time.sleep(0.1)
-        self._running = False
-        with self._notempty:
-            self._notempty.notify_all()
-        logger.info("TaskQueue: stopped")
-
-    def pause(self) -> None:
-        with self._lock:
-            self._paused = True
-
-    def resume(self) -> None:
-        with self._notempty:
-            self._paused = False
-            self._notempty.notify_all()
-
-    # ------------------------------------------------------------------
-    # Enqueue
-    # ------------------------------------------------------------------
+        self._enqueued = self._acked = self._nacked = self._dropped = 0
 
     def enqueue(
         self,
-        fn: Callable,
-        *args,
-        priority:    int   = 5,
-        ttl_s:       float = 0.0,
-        max_retries: Optional[int] = None,
-        **kwargs,
+        fn:              Callable,
+        args:            Tuple = (),
+        kwargs:          Optional[Dict] = None,
+        *,
+        priority:        int   = NORMAL,
+        ttl_s:           Optional[float] = None,
+        max_retries:     int   = 3,
+        idempotency_key: Optional[str] = None,
+        delay_s:         float = 0.0,
     ) -> str:
-        with self._lock:
-            if len(self._heap) >= self._maxsize:
-                raise RuntimeError(f"TaskQueue full (maxsize={self._maxsize})")
-            job = QueuedJob(
-                job_id=uuid.uuid4().hex[:10],
-                fn=fn, args=args, kwargs=kwargs,
-                priority=priority, ttl_s=ttl_s,
-                max_retries=max_retries if max_retries is not None else self._max_retries,
+        with self._not_empty:
+            if idempotency_key and idempotency_key in self._idem_keys:
+                return self._idem_keys[idempotency_key]
+            if self._maxsize and len(self._heap) >= self._maxsize:
+                raise OverflowError("TaskQueue is full")
+            task = Task(
+                task_id=uuid.uuid4().hex,
+                fn=fn, args=args, kwargs=kwargs or {},
+                priority=priority,
+                expires_at=(time.time() + ttl_s) if ttl_s else None,
+                max_retries=max_retries,
+                idempotency_key=idempotency_key,
+                delay_until=time.time() + delay_s,
             )
-            heapq.heappush(self._heap, job)
-            self._events[job.job_id] = threading.Event()
-            self._n_enqueued += 1
-        with self._notempty:
-            self._notempty.notify()
-        return job.job_id
+            heapq.heappush(self._heap, task)
+            if idempotency_key:
+                self._idem_keys[idempotency_key] = task.task_id
+            self._enqueued += 1
+            self._not_empty.notify()
+        return task.task_id
 
-    # ------------------------------------------------------------------
-    # Result retrieval
-    # ------------------------------------------------------------------
+    def dequeue(self, block: bool = True, timeout: Optional[float] = None) -> Optional[Task]:
+        deadline = (time.time() + timeout) if timeout else None
+        with self._not_empty:
+            while True:
+                task = self._next_ready()
+                if task:
+                    task.attempts += 1
+                    self._in_flight[task.task_id] = task
+                    return task
+                if not block:
+                    return None
+                wait_s = 0.1 if deadline is None else max(0, deadline - time.time())
+                if deadline and time.time() >= deadline:
+                    return None
+                self._not_empty.wait(timeout=wait_s)
 
-    def result(
-        self,
-        job_id: str,
-        timeout_s: float = 30.0,
-    ) -> Optional[JobResult]:
-        """Block until job completes or timeout. Returns None on timeout."""
-        event = self._events.get(job_id)
-        if event:
-            event.wait(timeout=timeout_s)
-        return self._results.get(job_id)
+    def ack(self, task_id: str) -> None:
+        with self._lock:
+            task = self._in_flight.pop(task_id, None)
+            if task and task.idempotency_key:
+                self._idem_keys.pop(task.idempotency_key, None)
+            self._acked += 1
 
-    # ------------------------------------------------------------------
-    # Inspection
-    # ------------------------------------------------------------------
+    def nack(self, task_id: str, *, requeue: bool = True, delay_s: float = 0.0) -> None:
+        with self._not_empty:
+            task = self._in_flight.pop(task_id, None)
+            if not task: return
+            self._nacked += 1
+            if requeue and task.attempts < task.max_retries:
+                task.delay_until = time.time() + delay_s
+                heapq.heappush(self._heap, task)
+                self._not_empty.notify()
+            else:
+                self._dead.append(task)
+                if task.idempotency_key:
+                    self._idem_keys.pop(task.idempotency_key, None)
+                logger.warning(f"TaskQueue: task {task_id} moved to dead-letter after {task.attempts} attempts")
 
-    def metrics(self) -> Dict:
+    def cancel(self, task_id: str) -> bool:
+        with self._lock:
+            self._cancelled.add(task_id)
+            return True
+
+    def dead_letters(self) -> List[Task]:
+        return list(self._dead)
+
+    def stats(self) -> Dict:
         with self._lock:
             return {
-                "queued":    len(self._heap),
-                "enqueued":  self._n_enqueued,
-                "dequeued":  self._n_dequeued,
-                "failed":    self._n_failed,
-                "dlq_size":  len(self._dlq),
-                "workers":   self._workers,
-                "paused":    self._paused,
-                "results_cached": len(self._results),
+                "queued":     len(self._heap),
+                "in_flight":  len(self._in_flight),
+                "dead":       len(self._dead),
+                "enqueued":   self._enqueued,
+                "acked":      self._acked,
+                "nacked":     self._nacked,
             }
 
-    def dlq_items(self) -> List[QueuedJob]:
-        with self._lock:
-            return list(self._dlq)
-
-    # ------------------------------------------------------------------
-    # Worker loop
-    # ------------------------------------------------------------------
-
-    def _worker(self) -> None:
-        while self._running:
-            with self._notempty:
-                while self._running and (self._paused or not self._heap):
-                    self._notempty.wait(timeout=5)
-                if not self._running:
-                    return
-                if not self._heap:
-                    continue
-                job = heapq.heappop(self._heap)
-                self._n_dequeued += 1
-
-            # TTL check
-            if job.ttl_s and time.time() - job.enqueued_at > job.ttl_s:
-                logger.debug(f"TaskQueue: job '{job.job_id}' expired (ttl)")
-                self._store_result(job, False, None, "TTL expired", 0)
+    def _next_ready(self) -> Optional[Task]:
+        while self._heap:
+            task = self._heap[0]
+            if task.task_id in self._cancelled:
+                heapq.heappop(self._heap)
+                self._dropped += 1
                 continue
-
-            t0 = time.time()
-            try:
-                value = job.fn(*job.args, **job.kwargs)
-                dur   = (time.time() - t0) * 1000
-                self._store_result(job, True, value, None, dur)
-            except Exception as e:
-                dur = (time.time() - t0) * 1000
-                job.last_error = str(e)
-                job.attempts  += 1
-                if job.attempts <= job.max_retries:
-                    logger.debug(f"TaskQueue: retry {job.attempts}/{job.max_retries} for '{job.job_id}'")
-                    with self._notempty:
-                        heapq.heappush(self._heap, job)
-                        self._notempty.notify()
-                else:
-                    with self._lock:
-                        self._dlq.append(job)
-                        self._n_failed += 1
-                    self._store_result(job, False, None, str(e), dur)
-                    logger.warning(f"TaskQueue: job '{job.job_id}' sent to DLQ: {e}")
-
-    def _store_result(self, job: QueuedJob, success: bool,
-                      value: Any, error: Optional[str], dur: float) -> None:
-        res = JobResult(job_id=job.job_id, success=success,
-                        value=value, error=error, duration_ms=dur)
-        with self._lock:
-            self._results[job.job_id] = res
-        ev = self._events.get(job.job_id)
-        if ev:
-            ev.set()
-
-    def _gc_loop(self) -> None:
-        while self._running:
-            time.sleep(60)
-            now = time.time()
-            with self._lock:
-                expired = [jid for jid, r in self._results.items()
-                           if now - r.stored_at > self._result_ttl]
-                for jid in expired:
-                    del self._results[jid]
-                    self._events.pop(jid, None)
+            if task.is_expired():
+                heapq.heappop(self._heap)
+                self._dead.append(task)
+                self._dropped += 1
+                continue
+            if task.is_ready():
+                heapq.heappop(self._heap)
+                return task
+            break
+        return None

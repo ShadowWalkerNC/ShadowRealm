@@ -1,229 +1,236 @@
-"""ToolRegistry — Centralised tool catalogue with lifecycle management (C34).
-
-Builds on top of the existing ToolSelector / ToolDescriptor infrastructure
-(tool_selector.py) and adds:
-  - Runtime registration / deregistration of tools
-  - Tool health tracking (enabled / disabled / error state)
-  - Permission gating (owner-level allow/deny lists)
-  - Schema caching and token-cost bookkeeping
-  - Integration with ContextProfile.max_tool_slots
-
-The registry is a singleton per process; callers get it via
-`ToolRegistry.get()`.  Tools are registered at startup from the MCP tool
-list, then the agent_harness calls `select_for_task()` to get the filtered
-slice passed to the LLM.
-
-Public API:
-  reg = ToolRegistry.get()
-  reg.register(tool_dict, *, always_include, enabled)  → ToolDescriptor
-  reg.register_many(tool_dicts)                        → List[ToolDescriptor]
-  reg.deregister(name)                                 → bool
-  reg.enable(name) / reg.disable(name, reason)         → bool
-  reg.select_for_task(task, session_tags, owner, profile) → List[ToolDescriptor]
-  reg.get_tool(name)                                   → ToolDescriptor | None
-  reg.all_tools(*, enabled_only)                       → List[ToolDescriptor]
-  reg.status()                                         → dict
 """
-
+C89 — Tool Registry
+Stores tool schemas, dispatches calls, and exports provider-specific formats.
+"""
 from __future__ import annotations
 
-import logging
-import threading
-from typing import Dict, List, Optional, Set
+import inspect
+import json
+from dataclasses import dataclass, field
+from typing import Any, Callable, Optional
 
-from core.tool_selector import (
-    ToolDescriptor,
-    ToolSelector,
-    build_registry,
-    _infer_tags,
-    _estimate_cost,
-)
-from core.context_profiles import ContextProfile, get_profile
 
-logger = logging.getLogger(__name__)
+@dataclass
+class ToolDefinition:
+    name: str
+    description: str
+    parameters: dict  # JSON Schema object
+    handler: Callable
+    category: str = "general"
+    requires_confirmation: bool = False
+
+
+class ToolValidationError(Exception):
+    pass
+
+
+class ToolNotFoundError(Exception):
+    pass
 
 
 class ToolRegistry:
-    """Singleton tool catalogue with selection, health, and permission gating."""
-
-    _instance: Optional[ToolRegistry] = None
-    _lock = threading.Lock()
+    """
+    Central registry for agent tools.
+    Supports decorator registration, direct registration, validation, and dispatch.
+    """
 
     def __init__(self):
-        self._tools:    Dict[str, ToolDescriptor] = {}   # name → descriptor
-        self._enabled:  Dict[str, bool] = {}             # name → bool
-        self._reasons:  Dict[str, str] = {}              # name → disable reason
-        self._errors:   Dict[str, int] = {}              # name → consecutive error count
-        self._allow:    Dict[str, Set[str]] = {}         # owner → allowed names (empty = all)
-        self._deny:     Dict[str, Set[str]] = {}         # owner → denied names
-        self._rlock     = threading.Lock()
-
-    # ------------------------------------------------------------------
-    # Singleton
-    # ------------------------------------------------------------------
-
-    @classmethod
-    def get(cls) -> ToolRegistry:
-        if cls._instance is None:
-            with cls._lock:
-                if cls._instance is None:
-                    cls._instance = cls()
-        return cls._instance
-
-    @classmethod
-    def reset(cls) -> None:
-        """Reset singleton (tests only)."""
-        with cls._lock:
-            cls._instance = None
-
-    # ------------------------------------------------------------------
-    # Registration
-    # ------------------------------------------------------------------
+        self._tools: dict[str, ToolDefinition] = {}
 
     def register(
         self,
-        tool_dict: Dict,
-        *,
-        always_include: bool = False,
-        enabled: bool = True,
-    ) -> ToolDescriptor:
-        name = tool_dict.get("name", "")
-        if not name:
-            raise ValueError("tool_dict must have a 'name' field")
-        desc = tool_dict.get("description", "")
-        td = ToolDescriptor(
+        name: str,
+        description: str,
+        parameters: dict,
+        handler: Callable,
+        category: str = "general",
+        requires_confirmation: bool = False,
+    ) -> ToolDefinition:
+        defn = ToolDefinition(
             name=name,
-            description=desc,
-            tags=_infer_tags(name, desc),
-            always_include=always_include,
-            token_cost=_estimate_cost(tool_dict),
-            raw=tool_dict,
+            description=description,
+            parameters=parameters,
+            handler=handler,
+            category=category,
+            requires_confirmation=requires_confirmation,
         )
-        with self._rlock:
-            self._tools[name]   = td
-            self._enabled[name] = enabled
-        logger.debug(f"ToolRegistry: registered '{name}' enabled={enabled}")
-        return td
+        self._tools[name] = defn
+        return defn
 
-    def register_many(
+    def tool(
         self,
-        tool_dicts: List[Dict],
-        *,
-        always_include: Optional[List[str]] = None,
-    ) -> List[ToolDescriptor]:
-        pinned = set(always_include or [])
-        return [self.register(t, always_include=(t.get("name") in pinned)) for t in tool_dicts]
+        name: Optional[str] = None,
+        description: str = "",
+        parameters: Optional[dict] = None,
+        category: str = "general",
+        requires_confirmation: bool = False,
+    ):
+        """Decorator for registering a function as a tool."""
+        def decorator(fn: Callable) -> Callable:
+            tool_name = name or fn.__name__
+            tool_desc = description or (inspect.getdoc(fn) or "")
+            tool_params = parameters or self._infer_parameters(fn)
+            self.register(
+                name=tool_name,
+                description=tool_desc,
+                parameters=tool_params,
+                handler=fn,
+                category=category,
+                requires_confirmation=requires_confirmation,
+            )
+            return fn
+        return decorator
 
-    def deregister(self, name: str) -> bool:
-        with self._rlock:
-            if name in self._tools:
-                del self._tools[name]
-                self._enabled.pop(name, None)
-                self._reasons.pop(name, None)
-                self._errors.pop(name, None)
-                return True
-        return False
+    def _infer_parameters(self, fn: Callable) -> dict:
+        """Build a minimal JSON Schema from function annotations."""
+        sig = inspect.signature(fn)
+        properties: dict = {}
+        required: list = []
+        type_map = {
+            str: "string",
+            int: "integer",
+            float: "number",
+            bool: "boolean",
+            list: "array",
+            dict: "object",
+        }
+        for param_name, param in sig.parameters.items():
+            if param_name == "self":
+                continue
+            ann = param.annotation
+            json_type = type_map.get(ann, "string")
+            properties[param_name] = {"type": json_type}
+            if param.default is inspect.Parameter.empty:
+                required.append(param_name)
+        return {
+            "type": "object",
+            "properties": properties,
+            "required": required,
+        }
 
-    # ------------------------------------------------------------------
-    # Health / enable
-    # ------------------------------------------------------------------
+    def get(self, name: str) -> ToolDefinition:
+        if name not in self._tools:
+            raise ToolNotFoundError(f"Tool '{name}' not registered")
+        return self._tools[name]
 
-    def enable(self, name: str) -> bool:
-        with self._rlock:
-            if name in self._tools:
-                self._enabled[name] = True
-                self._reasons.pop(name, None)
-                self._errors[name]  = 0
-                return True
-        return False
+    def list_names(self, category: Optional[str] = None) -> list[str]:
+        if category:
+            return [n for n, t in self._tools.items() if t.category == category]
+        return list(self._tools.keys())
 
-    def disable(self, name: str, reason: str = "") -> bool:
-        with self._rlock:
-            if name in self._tools:
-                self._enabled[name] = False
-                self._reasons[name] = reason
-                logger.info(f"ToolRegistry: disabled '{name}': {reason}")
-                return True
-        return False
+    def list_tools(self, category: Optional[str] = None) -> list[ToolDefinition]:
+        if category:
+            return [t for t in self._tools.values() if t.category == category]
+        return list(self._tools.values())
 
-    def record_error(self, name: str, *, auto_disable_after: int = 5) -> None:
-        """Increment error count; auto-disable after threshold."""
-        with self._rlock:
-            self._errors[name] = self._errors.get(name, 0) + 1
-            if self._errors[name] >= auto_disable_after:
-                self._enabled[name] = False
-                self._reasons[name] = f"Auto-disabled after {self._errors[name]} consecutive errors"
-                logger.warning(f"ToolRegistry: auto-disabled '{name}' after {self._errors[name]} errors")
+    def validate_arguments(self, name: str, arguments: dict) -> None:
+        defn = self.get(name)
+        schema = defn.parameters
+        required = schema.get("required", [])
+        properties = schema.get("properties", {})
 
-    def record_success(self, name: str) -> None:
-        with self._rlock:
-            self._errors[name] = 0
+        for req in required:
+            if req not in arguments:
+                raise ToolValidationError(
+                    f"Tool '{name}' missing required argument: '{req}'"
+                )
 
-    # ------------------------------------------------------------------
-    # Permissions
-    # ------------------------------------------------------------------
+        for arg_name, value in arguments.items():
+            if arg_name in properties:
+                expected_type = properties[arg_name].get("type")
+                if expected_type and not self._check_type(value, expected_type):
+                    raise ToolValidationError(
+                        f"Tool '{name}' argument '{arg_name}' expected {expected_type}, "
+                        f"got {type(value).__name__}"
+                    )
 
-    def set_allow_list(self, owner: str, names: List[str]) -> None:
-        """Only allow these tools for `owner`. Empty list = allow all."""
-        self._allow[owner] = set(names)
+    def _check_type(self, value: Any, json_type: str) -> bool:
+        type_checks = {
+            "string": lambda v: isinstance(v, str),
+            "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
+            "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
+            "boolean": lambda v: isinstance(v, bool),
+            "array": lambda v: isinstance(v, list),
+            "object": lambda v: isinstance(v, dict),
+        }
+        checker = type_checks.get(json_type)
+        return checker(value) if checker else True
 
-    def set_deny_list(self, owner: str, names: List[str]) -> None:
-        self._deny[owner] = set(names)
+    def dispatch(self, name: str, arguments: dict) -> Any:
+        self.validate_arguments(name, arguments)
+        defn = self.get(name)
+        return defn.handler(**arguments)
 
-    def _permitted(self, name: str, owner: Optional[str]) -> bool:
-        if not owner:
-            return True
-        if owner in self._deny and name in self._deny[owner]:
-            return False
-        if owner in self._allow and self._allow[owner]:
-            return name in self._allow[owner]
-        return True
+    async def adispatch(self, name: str, arguments: dict) -> Any:
+        import asyncio
+        self.validate_arguments(name, arguments)
+        defn = self.get(name)
+        if inspect.iscoroutinefunction(defn.handler):
+            return await defn.handler(**arguments)
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, lambda: defn.handler(**arguments))
 
-    # ------------------------------------------------------------------
-    # Queries
-    # ------------------------------------------------------------------
+    def as_openai_tools(
+        self,
+        category: Optional[str] = None,
+        names: Optional[list[str]] = None,
+    ) -> list[dict]:
+        tools = self._filter(category, names)
+        return [
+            {
+                "type": "function",
+                "function": {
+                    "name": t.name,
+                    "description": t.description,
+                    "parameters": t.parameters,
+                },
+            }
+            for t in tools
+        ]
 
-    def get_tool(self, name: str) -> Optional[ToolDescriptor]:
-        return self._tools.get(name)
+    def as_anthropic_tools(
+        self,
+        category: Optional[str] = None,
+        names: Optional[list[str]] = None,
+    ) -> list[dict]:
+        tools = self._filter(category, names)
+        return [
+            {
+                "name": t.name,
+                "description": t.description,
+                "input_schema": t.parameters,
+            }
+            for t in tools
+        ]
 
-    def all_tools(self, *, enabled_only: bool = False) -> List[ToolDescriptor]:
-        with self._rlock:
-            tools = list(self._tools.values())
-        if enabled_only:
-            tools = [t for t in tools if self._enabled.get(t.name, True)]
+    def as_gemini_tools(self) -> list[dict]:
+        return [
+            {
+                "function_declarations": [
+                    {
+                        "name": t.name,
+                        "description": t.description,
+                        "parameters": t.parameters,
+                    }
+                ]
+            }
+            for t in self._tools.values()
+        ]
+
+    def _filter(
+        self,
+        category: Optional[str],
+        names: Optional[list[str]],
+    ) -> list[ToolDefinition]:
+        tools = list(self._tools.values())
+        if category:
+            tools = [t for t in tools if t.category == category]
+        if names:
+            tools = [t for t in tools if t.name in names]
         return tools
 
-    def select_for_task(
-        self,
-        task: str,
-        session_tags: Optional[List[str]] = None,
-        owner: Optional[str] = None,
-        profile: Optional[ContextProfile] = None,
-        force_include: Optional[List[str]] = None,
-    ) -> List[ToolDescriptor]:
-        """Return task-relevant tools respecting health, permissions and profile."""
-        profile = profile or get_profile("gpt-4o")
-        eligible = [
-            t for t in self.all_tools(enabled_only=True)
-            if self._permitted(t.name, owner)
-        ]
-        selector = ToolSelector(eligible, profile)
-        return selector.select(task, session_tags=session_tags, force_include=force_include)
+    def __len__(self) -> int:
+        return len(self._tools)
 
-    def status(self) -> Dict:
-        with self._rlock:
-            tools = list(self._tools.values())
-        return {
-            "total":    len(tools),
-            "enabled":  sum(1 for t in tools if self._enabled.get(t.name, True)),
-            "disabled": sum(1 for t in tools if not self._enabled.get(t.name, True)),
-            "tools": [
-                {
-                    "name":    t.name,
-                    "enabled": self._enabled.get(t.name, True),
-                    "errors":  self._errors.get(t.name, 0),
-                    "reason":  self._reasons.get(t.name, ""),
-                }
-                for t in sorted(tools, key=lambda x: x.name)
-            ],
-        }
+    def __contains__(self, name: str) -> bool:
+        return name in self._tools

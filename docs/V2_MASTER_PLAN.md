@@ -191,8 +191,8 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 | Level | Capability | Status |
 |---|---|---|
 | SF1 — Manual skill write | Human writes skills/*.md by hand | ✅ Always available |
-| SF2 — Trace-to-skill | Agent reviews own trace, writes skill via skill_creator | 🔲 Sprint 3 |
-| SF3 — Failure refinement | skill_refiner patches skill from error log automatically | 🔲 Sprint 3 |
+| SF2 — Trace-to-skill | Agent reviews own trace, writes skill via skill_creator | ✅ Sprint 3 C15 |
+| SF3 — Failure refinement | skill_refiner patches skill from error log automatically | ✅ Sprint 3 C16 |
 | SF4 — Teach Mode crystallize | Human-guided workflow → auto-crystallized procedural skill | 🔲 Sprint 7 |
 | SF5 — Nightly self-improvement | ReflectionEngine proposes skill rewrites from 24h traces | 🔲 Sprint 7B |
 | SF6 — Autonomous skill evolution | Agent autonomously evolves skills, human reviews diffs | 🔲 v2.1 |
@@ -235,9 +235,9 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 > Philosophy: Build the meta-skills first, then the harness, then the API layer.
 
 **Meta-Skills (the Skill Factory core):**
-- [ ] **C15** `feat: skill_creator meta-skill — writes new skills/*.md from successful workflow traces`
-- [ ] **C16** `feat: skill_refiner meta-skill — patches failing skills from error logs`
-- [ ] **C17** `feat: skill_template.md — canonical template enforcing progressive disclosure contract`
+- [x] **C15** `feat: skill_creator meta-skill — writes new skills/*.md from successful workflow traces` ✅ DONE
+- [x] **C16** `feat: skill_refiner meta-skill — patches failing skills from error logs` ✅ DONE
+- [x] **C17** `feat: skill_template.md — canonical template enforcing progressive disclosure contract` ✅ DONE
 
 **Agent Harness:**
 - [ ] **C18** `feat: SkillRegistry — loads skills/*.md, progressive disclosure (name+desc only in context)`
@@ -418,7 +418,7 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 |---|---|---|---|
 | 1 | Foundation stabilization | C01–C08 ✅ ALL DONE | — |
 | 2 | Token & context compression | C09–C14 ✅ ALL DONE | — |
-| 3 | **Skills-First: Agent Harness + Skill Factory** | C15–C25 | ~6 days |
+| 3 | **Skills-First: Agent Harness + Skill Factory** | C15–C17 ✅ / C18–C25 🔲 | ~6 days |
 | 4 | CSS cleanup | C26–C31 | ~4 days |
 | 5 | Visual identity | C32–C38 | ~5 days |
 | 6 | 5-tier memory system | C39–C46 | ~9 days |
@@ -428,7 +428,7 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 | 8B | Self-healing completion + Reflection | C79–C89 | ~6 days |
 | 9 | Onboarding wizard | C90–C99 | ~6 days |
 | 10 | Analytics, QA, ship | C100–C108 | ~5 days |
-| **Total** | | **108 commits (16 done)** | **~11–12 weeks** |
+| **Total** | | **108 commits (19 done)** | **~11–12 weeks** |
 
 ---
 
@@ -449,6 +449,6 @@ Merge `dev` → `main` only on C108 v2.0.0 tag.
 
 **Sprint 1:** ✅ COMPLETE (C01–C08 all done)
 **Sprint 2:** ✅ COMPLETE (C09–C14 all shipped)
-**Sprint 3:** Next — C15 is `skill_creator` meta-skill. Say **"Sprint 3 go"** to begin.
+**Sprint 3:** 🔄 IN PROGRESS — C15 ✅ C16 ✅ C17 ✅ — Next: **C18** `SkillRegistry`
 
 *This file is the single source of truth. Update the checklist as commits land.*

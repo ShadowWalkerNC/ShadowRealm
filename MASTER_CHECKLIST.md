@@ -2,7 +2,7 @@
 
 > Last updated: 2026-06-29
 > Branch: `shadowrealm-v2`
-> **78 / 129 components complete**
+> **81 / 129 components complete**
 
 Legend: ✅ Shipped · 🔄 In Progress · ⬜ Queued
 
@@ -131,11 +131,11 @@ Legend: ✅ Shipped · 🔄 In Progress · ⬜ Queued
 
 ---
 
-## Block 10 — Notification & Messaging (C79–C81) 🔄 Sprint 23
+## Block 10 — Notification & Messaging (C79–C81) ✅
 
-- [ ] C79 `core/notification_dispatcher.py` — Multi-channel fanout · dedup · pluggable adapters
-- [ ] C80 `core/in_app_message_queue.py` — SQLite inbox · read/unread/archived · TTL
-- [ ] C81 `core/email_composer.py` — Template registry · SMTP · pluggable transport · dry-run
+- [x] C79 `core/notification_dispatcher.py` — Multi-channel fanout · dedup · pluggable adapters
+- [x] C80 `core/in_app_message_queue.py` — SQLite inbox · read/unread/archived · TTL
+- [x] C81 `core/email_composer.py` — Template registry · SMTP · pluggable transport · dry-run
 
 ---
 

@@ -1,407 +1,376 @@
-"""C90 — LLM Response Parser
-
-Structured output extraction and validation from raw LLM responses.
-Handles:
-  * JSON extraction from fenced code blocks or bare JSON embedded in prose
-  * Strict / lenient JSON repair (trailing commas, single quotes, etc.)
-  * Schema validation against a user-supplied dict schema (lite, stdlib-only)
-  * Typed field coercion (str → int, str → bool, str → list, etc.)
-  * Key normalisation (snake_case, camelCase → canonical form)
-  * Extraction of reasoning traces, chain-of-thought tags, and tool-call blocks
 """
-from __future__ import annotations
+core/llm_response_parser.py
+C90 — LLM Response Parser
+
+Extracts structured data from any LLMResponse (C88):
+  - Plain text content
+  - Tool/function call arguments (OpenAI + Anthropic normalised format)
+  - JSON blobs (fenced or raw)
+  - Key-value fields from structured prose
+  - ReAct Thought / Action / Observation blocks (feeds C123 ReasoningEngine)
+  - Streaming chunk accumulation
+
+Architecture Invariant #1: stdlib only at module level.
+No external dependencies.
+"""
 
 import json
+import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any, Optional, TypeVar, Type
+from typing import Any, Dict, List, Optional, Tuple
 
-from core.structured_logger import get_logger
-
-log = get_logger(__name__)
-
-T = TypeVar("T")
-
-# ---------------------------------------------------------------------------
-# Regexes
-# ---------------------------------------------------------------------------
-_JSON_FENCE = re.compile(
-    r"```(?:json)?\s*\n?(?P<body>[\s\S]*?)\n?```",
-    re.IGNORECASE,
-)
-_BARE_JSON_OBJ = re.compile(r"(?s)\{.*\}", re.DOTALL)
-_BARE_JSON_ARR = re.compile(r"(?s)\[.*\]", re.DOTALL)
-_THINK_TAG = re.compile(r"<think>(?P<trace>[\s\S]*?)</think>", re.IGNORECASE)
-_REASON_TAG = re.compile(r"<reasoning>(?P<trace>[\s\S]*?)</reasoning>", re.IGNORECASE)
-_TOOL_CALL_TAG = re.compile(
-    r"<tool_call>(?P<body>[\s\S]*?)</tool_call>", re.IGNORECASE
-)
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Data classes
+# Result dataclasses
 # ---------------------------------------------------------------------------
 
 @dataclass
-class ParseResult:
-    raw_text: str
-    extracted: Optional[Any] = None          # parsed Python object
-    reasoning_trace: Optional[str] = None    # <think>…</think> content
-    tool_calls: list[dict[str, Any]] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)
-    repaired: bool = False                   # True if JSON required repair
+class ToolCall:
+    """A single parsed tool/function call from an LLM response."""
+    id: str
+    name: str
+    arguments: Dict[str, Any]  # already parsed from JSON string
+    raw_arguments: str         # original JSON string
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self.arguments.get(key, default)
+
+
+@dataclass
+class ReActStep:
+    """
+    One Thought→Action→Observation triple from a ReAct-style response.
+    Feeds directly into C123 ReasoningEngine.
+    """
+    thought: str = ""
+    action: str = ""
+    action_input: str = ""
+    observation: str = ""   # populated by the caller after tool execution
+
+
+@dataclass
+class ParsedResponse:
+    """Fully parsed and validated result from any LLMResponse."""
+    # Raw
+    raw_content: str
+    finish_reason: str
+    model: str
+    provider: str
+
+    # Extracted
+    text: str = ""                          # clean prose, no fences
+    json_data: Optional[Dict] = None        # first valid JSON block found
+    json_blocks: List[Dict] = field(default_factory=list)  # all JSON blocks
+    tool_calls: List[ToolCall] = field(default_factory=list)
+    react_step: Optional[ReActStep] = None
+    key_values: Dict[str, str] = field(default_factory=dict)  # "Key: value" pairs
+
+    # Meta
+    has_tool_calls: bool = False
+    has_json: bool = False
+    is_react: bool = False
+    parse_errors: List[str] = field(default_factory=list)
+
+    @property
+    def first_tool_call(self) -> Optional[ToolCall]:
+        return self.tool_calls[0] if self.tool_calls else None
 
     @property
     def ok(self) -> bool:
-        return not self.errors and self.extracted is not None
-
-
-@dataclass
-class FieldSpec:
-    """Declare an expected field for schema-lite validation."""
-    type: type
-    required: bool = True
-    default: Any = None
-    choices: Optional[list[Any]] = None
-    min_value: Optional[float] = None
-    max_value: Optional[float] = None
+        """True if parsing completed with no errors."""
+        return len(self.parse_errors) == 0
 
 
 # ---------------------------------------------------------------------------
-# JSON repair helpers
-# ---------------------------------------------------------------------------
-
-def _repair_json(text: str) -> str:
-    """Apply lightweight heuristic fixes to near-valid JSON."""
-    # Remove JS-style // line comments
-    text = re.sub(r"//[^\n]*", "", text)
-    # Remove /* */ block comments
-    text = re.sub(r"/\*[\s\S]*?\*/", "", text)
-    # Trailing commas before } or ]
-    text = re.sub(r",\s*([}\]])", r"\1", text)
-    # Single-quoted strings → double-quoted (naive, avoids apostrophes in words)
-    text = re.sub(r"(?<![\w])'([^']*?)'(?![\w])", r'"\1"', text)
-    # Python True/False/None → JSON
-    text = re.sub(r"\bTrue\b", "true", text)
-    text = re.sub(r"\bFalse\b", "false", text)
-    text = re.sub(r"\bNone\b", "null", text)
-    return text
-
-
-# ---------------------------------------------------------------------------
-# Main extractor
-# ---------------------------------------------------------------------------
-
-def _extract_json_text(text: str) -> Optional[str]:
-    """Return the first plausible JSON string from *text*, or None."""
-    # 1. Fenced code block
-    m = _JSON_FENCE.search(text)
-    if m:
-        return m.group("body").strip()
-    # 2. Bare JSON object
-    m = _BARE_JSON_OBJ.search(text)
-    if m:
-        return m.group(0)
-    # 3. Bare JSON array
-    m = _BARE_JSON_ARR.search(text)
-    if m:
-        return m.group(0)
-    return None
-
-
-def _parse_json_with_repair(
-    raw: str, strict: bool = False
-) -> tuple[Any, bool, list[str]]:
-    """Attempt to parse JSON; optionally repair and retry.
-    Returns (object, repaired, errors).
-    """
-    try:
-        return json.loads(raw), False, []
-    except json.JSONDecodeError as exc:
-        if strict:
-            return None, False, [f"JSON parse error: {exc}"]
-        repaired = _repair_json(raw)
-        try:
-            return json.loads(repaired), True, []
-        except json.JSONDecodeError as exc2:
-            return None, False, [f"JSON parse error (after repair): {exc2}"]
-
-
-# ---------------------------------------------------------------------------
-# Schema-lite validation
-# ---------------------------------------------------------------------------
-
-def _coerce(value: Any, target: type) -> tuple[Any, Optional[str]]:
-    """Attempt to coerce *value* to *target* type. Returns (coerced, error)."""
-    if isinstance(value, target):
-        return value, None
-    try:
-        if target is bool:
-            if isinstance(value, str):
-                if value.lower() in ("true", "1", "yes"):
-                    return True, None
-                if value.lower() in ("false", "0", "no"):
-                    return False, None
-            return bool(value), None
-        if target is int:
-            return int(value), None
-        if target is float:
-            return float(value), None
-        if target is str:
-            return str(value), None
-        if target is list and isinstance(value, str):
-            return json.loads(value), None
-        if target is dict and isinstance(value, str):
-            return json.loads(value), None
-    except (ValueError, TypeError, json.JSONDecodeError) as exc:
-        return value, f"Cannot coerce {value!r} to {target.__name__}: {exc}"
-    return value, f"No coercion rule from {type(value).__name__} to {target.__name__}"
-
-
-def validate_schema(
-    obj: dict[str, Any],
-    schema: dict[str, FieldSpec],
-    coerce: bool = True,
-) -> tuple[dict[str, Any], list[str]]:
-    """Validate and optionally coerce *obj* against a ``FieldSpec`` schema.
-    Returns (validated_obj, errors).
-    """
-    errors: list[str] = []
-    result = dict(obj)
-
-    for field_name, spec in schema.items():
-        if field_name not in result:
-            if spec.required:
-                errors.append(f"Missing required field: '{field_name}'")
-            else:
-                result[field_name] = spec.default
-            continue
-
-        val = result[field_name]
-
-        if coerce:
-            val, err = _coerce(val, spec.type)
-            if err:
-                errors.append(f"Field '{field_name}': {err}")
-            else:
-                result[field_name] = val
-
-        if spec.choices is not None and val not in spec.choices:
-            errors.append(
-                f"Field '{field_name}' value {val!r} not in {spec.choices}"
-            )
-        if spec.min_value is not None:
-            try:
-                if float(val) < spec.min_value:
-                    errors.append(
-                        f"Field '{field_name}' {val} < min {spec.min_value}"
-                    )
-            except (TypeError, ValueError):
-                pass
-        if spec.max_value is not None:
-            try:
-                if float(val) > spec.max_value:
-                    errors.append(
-                        f"Field '{field_name}' {val} > max {spec.max_value}"
-                    )
-            except (TypeError, ValueError):
-                pass
-
-    return result, errors
-
-
-# ---------------------------------------------------------------------------
-# Key normalisation
-# ---------------------------------------------------------------------------
-
-_CAMEL_RE = re.compile(r"(?<=[a-z0-9])([A-Z])")
-
-
-def _to_snake(name: str) -> str:
-    return _CAMEL_RE.sub(r"_\1", name).lower()
-
-
-def normalise_keys(obj: Any, style: str = "snake") -> Any:
-    """Recursively convert dict keys to snake_case (or leave as-is)."""
-    if isinstance(obj, dict):
-        return {
-            (_to_snake(k) if style == "snake" else k): normalise_keys(v, style)
-            for k, v in obj.items()
-        }
-    if isinstance(obj, list):
-        return [normalise_keys(i, style) for i in obj]
-    return obj
-
-
-# ---------------------------------------------------------------------------
-# Trace + tool-call extraction
-# ---------------------------------------------------------------------------
-
-def _extract_reasoning(text: str) -> tuple[Optional[str], str]:
-    """Return (trace_text, cleaned_text) stripping <think>/<reasoning> tags."""
-    for pattern in (_THINK_TAG, _REASON_TAG):
-        m = pattern.search(text)
-        if m:
-            trace = m.group("trace").strip()
-            cleaned = pattern.sub("", text).strip()
-            return trace, cleaned
-    return None, text
-
-
-def _extract_tool_calls(text: str) -> tuple[list[dict[str, Any]], str]:
-    """Return (tool_calls, cleaned_text) from <tool_call>…</tool_call> tags."""
-    calls: list[dict[str, Any]] = []
-    cleaned = text
-    for m in _TOOL_CALL_TAG.finditer(text):
-        body = m.group("body").strip()
-        try:
-            obj = json.loads(body)
-            calls.append(obj)
-        except json.JSONDecodeError:
-            repaired = _repair_json(body)
-            try:
-                calls.append(json.loads(repaired))
-            except json.JSONDecodeError:
-                log.warning("llm_response_parser.bad_tool_call", body=body[:80])
-    cleaned = _TOOL_CALL_TAG.sub("", cleaned).strip()
-    return calls, cleaned
-
-
-# ---------------------------------------------------------------------------
-# Public API
+# LLMResponseParser
 # ---------------------------------------------------------------------------
 
 class LLMResponseParser:
-    """Parse, validate, and normalise raw LLM response text.
+    """
+    Parses LLMResponse objects (C88) into structured ParsedResponse objects.
 
-    Usage::
+    Usage:
+        from core.llm_client import complete, LLMConfig, Message
+        from core.llm_response_parser import LLMResponseParser
 
         parser = LLMResponseParser()
+        llm_resp = complete([Message(role="user", content="...")])
+        parsed = parser.parse(llm_resp)
 
-        # Extract a JSON object from a response
-        result = parser.parse_json(response.content)
-        if result.ok:
-            data = result.extracted
+        # Access tool calls
+        if parsed.has_tool_calls:
+            tc = parsed.first_tool_call
+            result = dispatch(tc.name, tc.arguments)  # C89 ToolRegistry
 
-        # Extract and validate against a schema
-        schema = {
-            "action": FieldSpec(str, required=True, choices=["search", "done"]),
-            "query":  FieldSpec(str, required=False, default=""),
-        }
-        result = parser.parse_structured(response.content, schema=schema)
+        # Access JSON
+        if parsed.has_json:
+            data = parsed.json_data
+
+        # Access ReAct step (C123)
+        if parsed.is_react:
+            step = parsed.react_step
+            print(step.thought, step.action, step.action_input)
     """
 
-    def __init__(self, strict: bool = False, normalise: str = "snake") -> None:
-        """Args:
-            strict: If True, do not attempt JSON repair.
-            normalise: Key normalisation style ("snake" | "none").
+    # Regex patterns
+    _JSON_FENCE_RE = re.compile(
+        r"```(?:json)?\s*\n?({.*?})\s*\n?```",
+        re.DOTALL | re.IGNORECASE,
+    )
+    _JSON_OBJECT_RE = re.compile(r"(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})", re.DOTALL)
+    _KEY_VALUE_RE = re.compile(r"^([A-Za-z][\w ]{0,40}):\s*(.+)$", re.MULTILINE)
+
+    # ReAct patterns
+    _THOUGHT_RE = re.compile(r"Thought:\s*(.+?)(?=Action:|Observation:|$)", re.DOTALL | re.IGNORECASE)
+    _ACTION_RE = re.compile(r"Action:\s*(.+?)(?=Action Input:|Observation:|Thought:|$)", re.DOTALL | re.IGNORECASE)
+    _ACTION_INPUT_RE = re.compile(r"Action Input:\s*(.+?)(?=Observation:|Thought:|Action:|$)", re.DOTALL | re.IGNORECASE)
+    _OBSERVATION_RE = re.compile(r"Observation:\s*(.+?)(?=Thought:|Action:|$)", re.DOTALL | re.IGNORECASE)
+
+    def parse(self, llm_response: Any) -> ParsedResponse:
         """
-        self._strict = strict
-        self._normalise = normalise
+        Main entry point. Accepts an LLMResponse (C88) or any object with
+        .content, .finish_reason, .model, .provider, .tool_calls attributes.
+        """
+        content = getattr(llm_response, "content", "") or ""
+        finish_reason = getattr(llm_response, "finish_reason", "stop") or "stop"
+        model = getattr(llm_response, "model", "unknown")
+        provider = getattr(llm_response, "provider", "unknown")
+        raw_tool_calls = getattr(llm_response, "tool_calls", None) or []
+
+        result = ParsedResponse(
+            raw_content=content,
+            finish_reason=finish_reason,
+            model=model,
+            provider=provider,
+        )
+
+        # 1. Tool calls (provider-normalised format from C88)
+        self._parse_tool_calls(raw_tool_calls, result)
+
+        # 2. JSON blocks
+        self._parse_json(content, result)
+
+        # 3. ReAct structure
+        self._parse_react(content, result)
+
+        # 4. Key-value pairs
+        self._parse_key_values(content, result)
+
+        # 5. Clean text
+        result.text = self._clean_text(content)
+
+        return result
+
+    def parse_raw(self, content: str, **kwargs) -> ParsedResponse:
+        """
+        Parse a raw string without a full LLMResponse object.
+        Useful for testing or processing streamed/accumulated content.
+        """
+        class _Stub:
+            pass
+        stub = _Stub()
+        stub.content = content
+        stub.finish_reason = kwargs.get("finish_reason", "stop")
+        stub.model = kwargs.get("model", "unknown")
+        stub.provider = kwargs.get("provider", "unknown")
+        stub.tool_calls = kwargs.get("tool_calls", [])
+        return self.parse(stub)
+
+    # ------------------------------------------------------------------
+    # Tool call parsing
+    # ------------------------------------------------------------------
+
+    def _parse_tool_calls(self, raw: List[Dict], result: ParsedResponse) -> None:
+        """
+        Normalises the tool_calls list from C88 (already in OpenAI format):
+        [{ "id": ..., "type": "function", "function": { "name": ..., "arguments": "..." } }]
+        """
+        for tc in raw:
+            try:
+                fn = tc.get("function", {})
+                name = fn.get("name", "")
+                raw_args = fn.get("arguments", "{}")
+                if isinstance(raw_args, dict):
+                    # Anthropic already parsed it
+                    arguments = raw_args
+                    raw_args = json.dumps(raw_args)
+                else:
+                    arguments = json.loads(raw_args)
+                result.tool_calls.append(ToolCall(
+                    id=tc.get("id", ""),
+                    name=name,
+                    arguments=arguments,
+                    raw_arguments=raw_args,
+                ))
+            except (json.JSONDecodeError, KeyError, TypeError) as e:
+                result.parse_errors.append(f"ToolCall parse error: {e}")
+                logger.warning(f"[LLMResponseParser] Tool call parse error: {e}")
+
+        result.has_tool_calls = len(result.tool_calls) > 0
 
     # ------------------------------------------------------------------
     # JSON extraction
     # ------------------------------------------------------------------
 
-    def parse_json(
-        self,
-        text: str,
-        repair: bool = True,
-    ) -> ParseResult:
-        """Extract the first JSON object/array from *text*."""
-        trace, text = _extract_reasoning(text)
-        tool_calls, text = _extract_tool_calls(text)
+    def _parse_json(self, content: str, result: ParsedResponse) -> None:
+        blocks: List[Dict] = []
 
-        json_text = _extract_json_text(text)
-        if json_text is None:
-            return ParseResult(
-                raw_text=text,
-                reasoning_trace=trace,
-                tool_calls=tool_calls,
-                errors=["No JSON found in response."],
-            )
+        # 1. Try fenced ```json blocks first (highest confidence)
+        for m in self._JSON_FENCE_RE.finditer(content):
+            try:
+                blocks.append(json.loads(m.group(1)))
+            except json.JSONDecodeError:
+                pass
 
-        obj, repaired, errors = _parse_json_with_repair(
-            json_text, strict=self._strict or not repair
-        )
-        if errors:
-            return ParseResult(
-                raw_text=text,
-                reasoning_trace=trace,
-                tool_calls=tool_calls,
-                errors=errors,
-            )
+        # 2. Try bare JSON objects if no fenced blocks found
+        if not blocks:
+            for m in self._JSON_OBJECT_RE.finditer(content):
+                try:
+                    obj = json.loads(m.group(1))
+                    if isinstance(obj, dict):
+                        blocks.append(obj)
+                except json.JSONDecodeError:
+                    pass
 
-        if self._normalise != "none" and isinstance(obj, (dict, list)):
-            obj = normalise_keys(obj, style=self._normalise)
+        # 3. Try entire content as JSON (response_format=json_object mode)
+        if not blocks:
+            stripped = content.strip()
+            if stripped.startswith("{") and stripped.endswith("}"):
+                try:
+                    blocks.append(json.loads(stripped))
+                except json.JSONDecodeError:
+                    pass
 
-        return ParseResult(
-            raw_text=text,
-            extracted=obj,
-            reasoning_trace=trace,
-            tool_calls=tool_calls,
-            repaired=repaired,
-        )
+        result.json_blocks = blocks
+        result.json_data = blocks[0] if blocks else None
+        result.has_json = len(blocks) > 0
 
     # ------------------------------------------------------------------
-    # Structured extraction + validation
+    # ReAct parsing (feeds C123 ReasoningEngine)
     # ------------------------------------------------------------------
 
-    def parse_structured(
-        self,
-        text: str,
-        schema: dict[str, FieldSpec],
-        coerce: bool = True,
-        repair: bool = True,
-    ) -> ParseResult:
-        """Extract JSON and validate against *schema*."""
-        result = self.parse_json(text, repair=repair)
-        if not result.ok:
-            return result
-        if not isinstance(result.extracted, dict):
-            result.errors.append(
-                f"Expected a JSON object, got {type(result.extracted).__name__}."
-            )
-            return result
-        validated, errors = validate_schema(result.extracted, schema, coerce=coerce)
-        result.extracted = validated
-        result.errors.extend(errors)
-        return result
+    def _parse_react(self, content: str, result: ParsedResponse) -> None:
+        thought_m = self._THOUGHT_RE.search(content)
+        action_m = self._ACTION_RE.search(content)
+
+        if not thought_m and not action_m:
+            return
+
+        step = ReActStep()
+        if thought_m:
+            step.thought = thought_m.group(1).strip()
+        if action_m:
+            step.action = action_m.group(1).strip()
+        action_input_m = self._ACTION_INPUT_RE.search(content)
+        if action_input_m:
+            step.action_input = action_input_m.group(1).strip()
+        observation_m = self._OBSERVATION_RE.search(content)
+        if observation_m:
+            step.observation = observation_m.group(1).strip()
+
+        result.react_step = step
+        result.is_react = True
 
     # ------------------------------------------------------------------
-    # Plain text helpers
+    # Key-value extraction
     # ------------------------------------------------------------------
 
-    def extract_reasoning(self, text: str) -> tuple[Optional[str], str]:
-        """Return (reasoning_trace, cleaned_text)."""
-        return _extract_reasoning(text)
-
-    def extract_tool_calls(
-        self, text: str
-    ) -> tuple[list[dict[str, Any]], str]:
-        """Return (tool_calls, cleaned_text) from XML-style tool_call tags."""
-        return _extract_tool_calls(text)
-
-    def extract_code_blocks(
-        self, text: str, language: str = ""
-    ) -> list[str]:
-        """Return all fenced code block bodies for a given language tag."""
-        pattern = re.compile(
-            r"```" + re.escape(language) + r"\s*\n?([\s\S]*?)\n?```",
-            re.IGNORECASE,
-        )
-        return [m.group(1).strip() for m in pattern.finditer(text)]
-
-    def to_typed(
-        self, text: str, target: Type[T], repair: bool = True
-    ) -> tuple[Optional[T], list[str]]:
-        """Parse JSON and attempt to instantiate *target* dataclass/namedtuple.
-        Returns (instance, errors).
+    def _parse_key_values(self, content: str, result: ParsedResponse) -> None:
         """
-        result = self.parse_json(text, repair=repair)
-        if not result.ok:
-            return None, result.errors
-        try:
-            return target(**result.extracted), []  # type: ignore[call-arg]
-        except (TypeError, KeyError) as exc:
-            return None, [f"Cannot instantiate {target.__name__}: {exc}"]
+        Extracts "Key: value" pairs from prose.
+        Skips common false positives (URLs, timestamps).
+        """
+        skip_keys = {"http", "https", "ftp", "file"}
+        for m in self._KEY_VALUE_RE.finditer(content):
+            key = m.group(1).strip()
+            val = m.group(2).strip()
+            if key.lower() not in skip_keys and len(val) < 500:
+                result.key_values[key] = val
+
+    # ------------------------------------------------------------------
+    # Text cleaning
+    # ------------------------------------------------------------------
+
+    def _clean_text(self, content: str) -> str:
+        """
+        Returns content with fenced code blocks and leading/trailing
+        whitespace stripped, suitable for display or further NLP.
+        """
+        text = re.sub(r"```[\w]*\n?.*?```", "", content, flags=re.DOTALL)
+        text = text.strip()
+        return text
+
+    # ------------------------------------------------------------------
+    # Streaming accumulator
+    # ------------------------------------------------------------------
+
+    def accumulate(self, chunks) -> str:
+        """
+        Consume a streaming iterator (from C88 LLMClient.stream()) and
+        return the fully accumulated content string.
+
+        Usage:
+            content = parser.accumulate(client.stream(messages, config))
+            parsed = parser.parse_raw(content)
+        """
+        return "".join(chunks)
+
+
+# ---------------------------------------------------------------------------
+# Validation helpers
+# ---------------------------------------------------------------------------
+
+def validate_json_schema(
+    data: Dict, required_keys: List[str], types: Optional[Dict[str, type]] = None
+) -> Tuple[bool, List[str]]:
+    """
+    Lightweight schema validation for parsed JSON blocks.
+    Returns (is_valid, list_of_errors).
+
+    Example:
+        ok, errors = validate_json_schema(
+            data,
+            required_keys=["action", "target"],
+            types={"action": str, "target": str},
+        )
+    """
+    errors: List[str] = []
+    for key in required_keys:
+        if key not in data:
+            errors.append(f"Missing required key: '{key}'")
+    if types:
+        for key, expected_type in types.items():
+            if key in data and not isinstance(data[key], expected_type):
+                errors.append(
+                    f"Key '{key}' expected {expected_type.__name__}, "
+                    f"got {type(data[key]).__name__}"
+                )
+    return len(errors) == 0, errors
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton
+# ---------------------------------------------------------------------------
+_parser: Optional[LLMResponseParser] = None
+
+
+def get_parser() -> LLMResponseParser:
+    """Return the module-level shared LLMResponseParser (lazy-init singleton)."""
+    global _parser
+    if _parser is None:
+        _parser = LLMResponseParser()
+        logger.debug("[LLMResponseParser] Global parser initialised.")
+    return _parser
+
+
+def parse(llm_response: Any) -> ParsedResponse:
+    """Module-level shorthand: get_parser().parse(llm_response)"""
+    return get_parser().parse(llm_response)
+
+
+def parse_raw(content: str, **kwargs) -> ParsedResponse:
+    """Module-level shorthand: get_parser().parse_raw(content)"""
+    return get_parser().parse_raw(content, **kwargs)

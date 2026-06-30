@@ -872,6 +872,9 @@ import { wireArrowUpRecall, getLastUserMessageFromChatHistory } from './composer
       if (presetsModule.getSelectedPreset()) {
         fd.append('preset_id', presetsModule.getSelectedPreset());
       }
+      if (document.getElementById('teach-mode-toggle') && document.getElementById('teach-mode-toggle').checked) {
+        fd.append('training_mode', 'true');
+      }
 
 
       const abortCtrl = new AbortController();

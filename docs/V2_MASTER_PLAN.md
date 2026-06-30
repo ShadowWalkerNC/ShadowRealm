@@ -301,14 +301,14 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 > Goal: Full coding workspace. Open Hands as the runtime engine.
 > Dependency: Sprint 5 complete (3-panel layout needed). Shell backend already exists.
 
-- [ ] **C47** `feat: add open-hands service to docker-compose.yml`
-- [ ] **C48** `feat: embed Open Hands iframe in 3-panel IDE layout`
-- [ ] **C49** `feat: xterm.js terminal panel — wire to existing shell_routes.py backend`
-- [ ] **C50** `feat: live preview pane — subprocess dev server, renders in iframe`
-- [ ] **C51** `feat: auto-refresh preview on file save`
-- [ ] **C52** `feat: browser-use integration — AI agent browser control + DOM analysis`
-- [ ] **C53** `feat: file tree panel — open/edit/create/delete via MCP filesystem server`
-- [ ] **C54** `feat: pre-wire dev MCP bundle at onboarding — GitHub, filesystem, browser-use, Notion`
+- [x] **C47** `feat: add open-hands service to docker-compose.yml` ✅ DONE
+- [x] **C48** `feat: embed Open Hands iframe in 3-panel IDE layout` ✅ DONE
+- [x] **C49** `feat: xterm.js terminal panel — wire to existing shell_routes.py backend` ✅ DONE
+- [x] **C50** `feat: live preview pane — subprocess dev server, renders in iframe` ✅ DONE
+- [x] **C51** `feat: auto-refresh preview on file save` ✅ DONE
+- [x] **C52** `feat: browser-use integration — AI agent browser control + DOM analysis` ✅ DONE
+- [x] **C53** `feat: file tree panel — open/edit/create/delete via MCP filesystem server` ✅ DONE
+- [x] **C54** `feat: pre-wire dev MCP bundle at onboarding — GitHub, filesystem, browser-use, Notion` ✅ DONE
 
 ---
 
@@ -316,14 +316,14 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 > Goal: Real multi-agent orchestration. Three frameworks, one router, one memory layer.
 > Dependency: Sprint 6 (memory) and Sprint 7 (execution) complete.
 
-- [ ] **C55** `feat: Task Router — classifies requests to research / coding / scheduled pipeline`
-- [ ] **C56** `feat: LangGraph research pipeline — query → search → read → summarize → memory_write → report`
-- [ ] **C57** `feat: AutoGen coding pipeline — planner → coder → tester → reviewer → deployer`
-- [ ] **C58** `feat: CrewAI scheduled pipeline — watcher → analyzer → notifier`
-- [ ] **C59** `feat: Pipeline Monitor UI — live Kanban of all active agent tasks + state`
-- [ ] **C60** `feat: wire all pipelines to 5-tier memory layer`
-- [ ] **C61** `feat: wire all pipelines to Open Hands execution runtime`
-- [ ] **C62** `test: pipeline integration tests — verify Task Router dispatches all three types`
+- [x] **C55** `feat: Task Router — classifies requests to research / coding / scheduled pipeline` ✅ DONE
+- [x] **C56** `feat: LangGraph research pipeline — query → search → read → summarize → memory_write → report` ✅ DONE
+- [x] **C57** `feat: AutoGen coding pipeline — planner → coder → tester → reviewer → deployer` ✅ DONE
+- [x] **C58** `feat: CrewAI scheduled pipeline — watcher → analyzer → notifier` ✅ DONE
+- [x] **C59** `feat: Pipeline Monitor UI — live Kanban of all active agent tasks + state` ✅ DONE
+- [x] **C60** `feat: wire all pipelines to 5-tier memory layer` ✅ DONE
+- [x] **C61** `feat: wire all pipelines to Open Hands execution runtime` ✅ DONE
+- [x] **C62** `test: pipeline integration tests — verify Task Router dispatches all three types` ✅ DONE
 
 ---
 
@@ -333,26 +333,26 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 > NOTE: Skills engine, LLM-as-judge, self-edit, teacher escalation, nightly audit — ALL ALREADY SHIPPED.
 
 **Agent Bots — named personas wired to skill sets:**
-- [ ] **C63** `feat: ShadowCoder — code_write, code_review, test_run, deploy, git_ops`
-- [ ] **C64** `feat: ShadowResearcher — web_search, source_read, summarize, memory_write, report_gen`
-- [ ] **C65** `feat: ShadowOps — shell_exec, file_manage, service_monitor, cron_schedule`
-- [ ] **C66** `feat: ShadowMemory — memory_ingest, memory_compress, memory_retrieve, knowledge_sync`
-- [ ] **C67** `feat: ShadowCreative — image_gen, image_edit, doc_write, content_draft`
-- [ ] **C68** `feat: Agent Orchestrator — routes to correct bot, multi-agent collaboration`
+- [x] **C63** `feat: ShadowCoder — code_write, code_review, test_run, deploy, git_ops` ✅ DONE
+- [x] **C64** `feat: ShadowResearcher — web_search, source_read, summarize, memory_write, report_gen` ✅ DONE
+- [x] **C65** `feat: ShadowOps — shell_exec, file_manage, service_monitor, cron_schedule` ✅ DONE
+- [x] **C66** `feat: ShadowMemory — memory_ingest, memory_compress, memory_retrieve, knowledge_sync` ✅ DONE
+- [x] **C67** `feat: ShadowCreative — image_gen, image_edit, doc_write, content_draft` ✅ DONE
+- [x] **C68** `feat: Agent Orchestrator — routes to correct bot, multi-agent collaboration` ✅ DONE
 
 **Skills UI — surface what's already running:**
-- [ ] **C69** `feat: Skill Library panel — browse by agent / tag / pipeline / audit status`
-- [ ] **C70** `feat: custom skill builder UI — no-code form wired to /api/skills CRUD`
-- [ ] **C71** `feat: skill-to-agent assignment UI — drag/drop onto agent cards`
-- [ ] **C72** `feat: skill import/export UI — JSON + skills.sh URL import`
-- [ ] **C73** `feat: Skill Factory panel — run skill_creator / skill_refiner from UI with trace viewer`
+- [x] **C69** `feat: Skill Library panel — browse by agent / tag / pipeline / audit status` ✅ DONE
+- [x] **C70** `feat: custom skill builder UI — no-code form wired to /api/skills CRUD` ✅ DONE
+- [x] **C71** `feat: skill-to-agent assignment UI — drag/drop onto agent cards` ✅ DONE
+- [x] **C72** `feat: skill import/export UI — JSON + skills.sh URL import` ✅ DONE
+- [x] **C73** `feat: Skill Factory panel — run skill_creator / skill_refiner from UI with trace viewer` ✅ DONE
 
 **Teach Mode — human-guided workflow crystallization:**
-- [ ] **C74** `feat: Teach Mode toggle — activates AI observation + trace capture layer`
-- [ ] **C75** `feat: DOM/page analysis pipeline`
-- [ ] **C76** `feat: interaction capture — records workflow steps with AI annotation`
-- [ ] **C77** `feat: Teach Mode Q&A — AI asks clarifying questions per action in real time`
-- [ ] **C78** `feat: crystallize to skill — completed Teach Mode session → POST /api/skills/generate → versioned procedural skill`
+- [x] **C74** `feat: Teach Mode toggle — activates AI observation + trace capture layer` ✅ DONE
+- [x] **C75** `feat: DOM/page analysis pipeline` ✅ DONE
+- [x] **C76** `feat: interaction capture — records workflow steps with AI annotation` ✅ DONE
+- [x] **C77** `feat: Teach Mode Q&A — AI asks clarifying questions per action in real time` ✅ DONE
+- [x] **C78** `feat: crystallize to skill — completed Teach Mode session → POST /api/skills/generate → versioned procedural skill` ✅ DONE
 
 ---
 
@@ -361,21 +361,21 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 > Dependency: Sprint 8 complete. Already shipped: test runner, judge, self-edit, teacher escalation, nightly audit.
 
 **Telemetry:**
-- [ ] **C79** `feat: skill_traces table — log every execution (name, agent, tokens, latency, error_type, prompt, response)`
-- [ ] **C80** `feat: query_traces MCP tool — agents query own execution history programmatically`
-- [ ] **C81** `feat: trace dashboard — per-skill success rate, avg latency, token cost, error breakdown`
+- [x] **C79** `feat: skill_traces table — log every execution (name, agent, tokens, latency, error_type, prompt, response)` ✅ DONE
+- [x] **C80** `feat: query_traces MCP tool — agents query own execution history programmatically` ✅ DONE
+- [x] **C81** `feat: trace dashboard — per-skill success rate, avg latency, token cost, error breakdown` ✅ DONE
 
 **Review UI:**
-- [ ] **C82** `feat: self-healing review UI — diagnosis + proposed patch + approve/reject/rollback`
-- [ ] **C83** `feat: skill quarantine UI — alerts when skill fails all retries, human review queue`
-- [ ] **C84** `feat: patch rollback UI — one-click revert to any previous skill version`
+- [x] **C82** `feat: self-healing review UI — diagnosis + proposed patch + approve/reject/rollback` ✅ DONE
+- [x] **C83** `feat: skill quarantine UI — alerts when skill fails all retries, human review queue` ✅ DONE
+- [x] **C84** `feat: patch rollback UI — one-click revert to any previous skill version` ✅ DONE
 
 **ReflectionEngine + Skill Factory integration (L4–L5 scaffold):**
-- [ ] **C85** `feat: ReflectionEngine — nightly job reads 24h traces, identifies underperforming skills`
-- [ ] **C86** `feat: ReflectionEngine → skill_refiner pipeline — auto-generates improvement proposals`
-- [ ] **C87** `feat: improvement proposal queue — structured skill diffs for human review`
-- [ ] **C88** `feat: proposal review UI — approve / reject / modify before SkillRegistry commit`
-- [ ] **C89** `feat: learning mode toggle — continuous reflection when active; feeds Skill Factory loop`
+- [x] **C85** `feat: ReflectionEngine — nightly job reads 24h traces, identifies underperforming skills` ✅ DONE
+- [x] **C86** `feat: ReflectionEngine → skill_refiner pipeline — auto-generates improvement proposals` ✅ DONE
+- [x] **C87** `feat: improvement proposal queue — structured skill diffs for human review` ✅ DONE
+- [x] **C88** `feat: proposal review UI — approve / reject / modify before SkillRegistry commit` ✅ DONE
+- [x] **C89** `feat: learning mode toggle — continuous reflection when active; feeds Skill Factory loop` ✅ DONE
 
 ---
 
@@ -383,16 +383,16 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 > Goal: Zero-to-productive in under 10 minutes. Teaches the Skill Factory model on first run.
 > Dependency: Sprint 8 complete.
 
-- [ ] **C90** `feat: first-run detection — triggers wizard, gracefully skippable`
-- [ ] **C91** `feat: onboarding quiz — stack, goals, languages, hardware, model preference`
-- [ ] **C92** `feat: wire quiz to system prompt + default model selection`
-- [ ] **C93** `feat: wire quiz to default agent skill assignments + active bot selection`
-- [ ] **C94** `feat: API key setup step — guided entry with live test-connection per provider`
-- [ ] **C95** `feat: memory import step — Claude / ChatGPT / Notion / Obsidian`
-- [ ] **C96** `feat: agent activation step — choose bots, preview skill sets`
-- [ ] **C97** `feat: Skill Factory intro step — guided first skill creation during onboarding`
-- [ ] **C98** `feat: no-token path — full local Ollama setup with model recommendations by hardware`
-- [ ] **C99** `docs: ONBOARDING.md`
+- [x] **C90** `feat: first-run detection — triggers wizard, gracefully skippable` ✅ DONE
+- [x] **C91** `feat: onboarding quiz — stack, goals, languages, hardware, model preference` ✅ DONE
+- [x] **C92** `feat: wire quiz to system prompt + default model selection` ✅ DONE
+- [x] **C93** `feat: wire quiz to default agent skill assignments + active bot selection` ✅ DONE
+- [x] **C94** `feat: API key setup step — guided entry with live test-connection per provider` ✅ DONE
+- [x] **C95** `feat: memory import step — Claude / ChatGPT / Notion / Obsidian` ✅ DONE
+- [x] **C96** `feat: agent activation step — choose bots, preview skill sets` ✅ DONE
+- [x] **C97** `feat: Skill Factory intro step — guided first skill creation during onboarding` ✅ DONE
+- [x] **C98** `feat: no-token path — full local Ollama setup with model recommendations by hardware` ✅ DONE
+- [x] **C99** `docs: ONBOARDING.md` ✅ DONE
 
 ---
 

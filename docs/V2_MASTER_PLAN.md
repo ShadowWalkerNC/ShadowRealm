@@ -400,15 +400,15 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 > Goal: Full observability. Every edge smoothed. v2.0.0 tagged and merged.
 > Dependency: All previous sprints complete.
 
-- [ ] **C100** `feat: self-hosted PostHog — session tracking, event analytics, funnel views`
-- [ ] **C101** `feat: analytics dashboard — token usage, model perf, session stats, cost estimates`
-- [ ] **C102** `feat: skill execution analytics — usage, failure rates, token cost per skill`
-- [ ] **C103** `feat: Grafana + Prometheus in docker-compose.yml`
-- [ ] **C104** `fix: full QA pass — smoke test every sprint deliverable end-to-end`
-- [ ] **C105** `fix: cross-platform test — Docker, native Python, Windows, macOS`
-- [ ] **C106** `style: final polish — spacing, alignment, responsive layout, all edge cases`
-- [ ] **C107** `docs: finalize README, STATUS.md, ONBOARDING.md, ROADMAP.md, CHANGELOG.md, AGENTS.md`
-- [ ] **C108** `chore: tag v2.0.0 — merge shadowrealm-v2 → dev → main`
+- [x] **C100** `feat: self-hosted PostHog — session tracking, event analytics, funnel views` ✅ DONE
+- [x] **C101** `feat: analytics dashboard — token usage, model perf, session stats, cost estimates` ✅ DONE
+- [x] **C102** `feat: skill execution analytics — usage, failure rates, token cost per skill` ✅ DONE
+- [x] **C103** `feat: Grafana + Prometheus in docker-compose.yml` ✅ DONE
+- [x] **C104** `fix: full QA pass — smoke test every sprint deliverable end-to-end` ✅ DONE
+- [x] **C105** `fix: cross-platform test — Docker, native Python, Windows, macOS` ✅ DONE
+- [x] **C106** `style: final polish — spacing, alignment, responsive layout, all edge cases` ✅ DONE
+- [x] **C107** `docs: finalize README, STATUS.md, ONBOARDING.md, ROADMAP.md, CHANGELOG.md, AGENTS.md` ✅ DONE
+- [x] **C108** `chore: tag v2.0.0 — merge shadowrealm-v2 → dev → main` ✅ DONE
 
 ---
 

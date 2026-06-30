@@ -87,11 +87,39 @@ async function _refreshDefaultChat() {
 // synchronously; later reads should call _refreshDefaultChat() first.
 _refreshDefaultChat();
 
-async function _createDirectChatFromPreferredModel() {
+  const teachModeToggle = document.getElementById('teach-mode-toggle');
+  if (teachModeToggle) {
+    fetch('/api/learning-mode')
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.learning_mode) {
+          teachModeToggle.checked = !!d.learning_mode.enabled;
+        }
+      }).catch(err => console.error('Error fetching learning mode state:', err));
+
+    teachModeToggle.addEventListener('change', async () => {
+      const action = teachModeToggle.checked ? 'enable' : 'disable';
+      try {
+        const res = await fetch(`/api/learning-mode/${action}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ actor: 'admin' })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+          console.log(`Teach Mode is now ${teachModeToggle.checked ? 'Enabled' : 'Disabled'}`);
+        }
+      } catch (err) {
+        console.error('Failed to toggle teach mode:', err);
+      }
+    });
+  }
+
+  async function _createDirectChatFromPreferredModel() {
   if (!sessionModule) return false;
 
   const pending = sessionModule.getPendingChat && sessionModule.getPendingChat();
-  if (pending && pending.url && pending.modelId) {
+  if (pending && pending.url && pending.modelId && pending.endpointId) {
     sessionModule.createDirectChat(pending.url, pending.modelId, pending.endpointId);
     return true;
   }
@@ -99,7 +127,7 @@ async function _createDirectChatFromPreferredModel() {
   const sessions = sessionModule.getSessions();
   const currentId = sessionModule.getCurrentSessionId();
   const current = sessions.find(s => s.id === currentId);
-  if (current && current.endpoint_url && current.model) {
+  if (current && current.endpoint_url && current.model && current.endpoint_id) {
     sessionModule.createDirectChat(current.endpoint_url, current.model, current.endpoint_id);
     return true;
   }
@@ -124,6 +152,76 @@ async function _createDirectChatFromPreferredModel() {
 // EVENT LISTENERS INITIALIZATION
 // ============================================
 function initializeEventListeners() {
+  // 3-Panel IDE Panel Layout Controls (C35)
+  const toggleFileTreeBtn = el('toggle-file-tree-btn');
+  const hideFileTreeBtn = el('hide-file-tree-btn');
+  const fileTreePanel = el('file-tree-panel');
+
+  if (toggleFileTreeBtn && fileTreePanel) {
+    toggleFileTreeBtn.addEventListener('click', () => {
+      fileTreePanel.classList.toggle('hidden');
+      toggleFileTreeBtn.classList.toggle('active', !fileTreePanel.classList.contains('hidden'));
+    });
+  }
+  if (hideFileTreeBtn && fileTreePanel && toggleFileTreeBtn) {
+    hideFileTreeBtn.addEventListener('click', () => {
+      fileTreePanel.classList.add('hidden');
+      toggleFileTreeBtn.classList.remove('active');
+    });
+  }
+
+  const togglePreviewBtn = el('toggle-preview-btn');
+  const hidePreviewTerminalBtn = el('hide-preview-terminal-btn');
+  const previewTerminalPanel = el('preview-terminal-panel');
+
+  if (togglePreviewBtn && previewTerminalPanel) {
+    togglePreviewBtn.addEventListener('click', () => {
+      previewTerminalPanel.classList.toggle('hidden');
+      togglePreviewBtn.classList.toggle('active', !previewTerminalPanel.classList.contains('hidden'));
+    });
+  }
+  if (hidePreviewTerminalBtn && previewTerminalPanel && togglePreviewBtn) {
+    hidePreviewTerminalBtn.addEventListener('click', () => {
+      previewTerminalPanel.classList.add('hidden');
+      togglePreviewBtn.classList.remove('active');
+    });
+  }
+
+  // Panel tabs (Live Preview / Terminal switching)
+  const tabPreviewBtn = el('tab-preview-btn');
+  const tabTerminalBtn = el('tab-terminal-btn');
+  const tabOpenhandsBtn = el('tab-openhands-btn');
+  const previewContent = el('panel-preview-content');
+  const terminalContent = el('panel-terminal-content');
+  const openhandsContent = el('panel-openhands-content');
+
+  if (tabPreviewBtn && tabTerminalBtn && tabOpenhandsBtn && previewContent && terminalContent && openhandsContent) {
+    tabPreviewBtn.addEventListener('click', () => {
+      tabPreviewBtn.classList.add('active');
+      tabTerminalBtn.classList.remove('active');
+      tabOpenhandsBtn.classList.remove('active');
+      previewContent.classList.remove('hidden');
+      terminalContent.classList.add('hidden');
+      openhandsContent.classList.add('hidden');
+    });
+    tabTerminalBtn.addEventListener('click', () => {
+      tabTerminalBtn.classList.add('active');
+      tabPreviewBtn.classList.remove('active');
+      tabOpenhandsBtn.classList.remove('active');
+      terminalContent.classList.remove('hidden');
+      previewContent.classList.add('hidden');
+      openhandsContent.classList.add('hidden');
+    });
+    tabOpenhandsBtn.addEventListener('click', () => {
+      tabOpenhandsBtn.classList.add('active');
+      tabPreviewBtn.classList.remove('active');
+      tabTerminalBtn.classList.remove('active');
+      openhandsContent.classList.remove('hidden');
+      previewContent.classList.add('hidden');
+      terminalContent.classList.add('hidden');
+    });
+  }
+
   // Chat form submission
 //  document.getElementById('chat-form').addEventListener('submit', chatModule.handleChatSubmit);
 
@@ -2418,7 +2516,7 @@ function initializeEventListeners() {
   };
 
   // Keys hidden by default on first run (no localStorage yet)
-  const UI_VIS_DEFAULT_OFF = new Set(['models-section', 'rag-toggle-btn', 'text-emojis']);
+  const UI_VIS_DEFAULT_OFF = new Set(['models-section', 'rag-toggle-btn', 'text-emojis', 'chat-fullwidth']);
 
   // Keys that need admin to toggle off (reserved for future use)
   const UI_VIS_ADMIN_ONLY = new Set([]);
@@ -2451,6 +2549,8 @@ function initializeEventListeners() {
     applyTextEmojis(state['text-emojis'] === true);
     // Hide thinking sections toggle (show-thinking: checked=show, unchecked=hide)
     document.body.classList.toggle('hide-thinking', state['show-thinking'] === false);
+    // Fullwidth chat toggle (chat-fullwidth: checked=fullwidth, unchecked=big-padding
+    document.body.classList.toggle('fullwidth-chat', state['chat-fullwidth'] === true);
   }
 
   // Rearrange toggles in session/model sort dropdowns
@@ -4073,6 +4173,39 @@ function startOdysseusApp() {
     document.querySelectorAll('pre code:not(.hljs)').forEach(block => {
       window.hljs.highlightElement(block);
     });
+  }
+
+  // Onboarding Wizard (Sprint 9)
+  const onboardingModal = document.getElementById('onboarding-modal');
+  if (onboardingModal) {
+    const onboardingCompleted = Storage.get('onboarding_completed');
+    if (!onboardingCompleted) {
+      onboardingModal.classList.remove('hidden');
+    }
+    
+    const next1 = document.getElementById('onboarding-next-1');
+    const next2 = document.getElementById('onboarding-next-2');
+    const step1 = document.getElementById('onboarding-step-1');
+    const step2 = document.getElementById('onboarding-step-2');
+    
+    if (next1 && step1 && step2) {
+      next1.addEventListener('click', () => {
+        step1.classList.add('hidden');
+        step2.classList.remove('hidden');
+      });
+    }
+    
+    if (next2 && onboardingModal) {
+      next2.addEventListener('click', () => {
+        Storage.set('onboarding_completed', 'true');
+        onboardingModal.classList.add('hidden');
+        if (window.uiModule && window.uiModule.showToast) {
+          window.uiModule.showToast('Setup complete! Welcome to ShadowRealm.');
+        } else {
+          alert('Setup complete! Welcome to ShadowRealm.');
+        }
+      });
+    }
   }
 }
 

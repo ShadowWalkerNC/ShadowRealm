@@ -22,6 +22,16 @@ from core.middleware import require_admin
 
 logger = logging.getLogger(__name__)
 
+# Last-resort verdict extraction from a teacher/verifier model's prose (run when
+# JSON parsing fails). `["\'\s:]*` already consumes whitespace, so the original
+# trailing `\s*` made two adjacent \s-matching quantifiers that backtrack O(n^2)
+# on a `verdict` + whitespace flood in untrusted model output (CodeQL
+# py/polynomial-redos). Without it a single unbounded quantifier remains — the
+# matched text is identical, and the scan is linear.
+_VERDICT_PROSE_RE = re.compile(
+    r'verdict["\'\s:]*["\']?(pass|needs_work|fail|inconclusive)', re.I
+)
+
 
 class SkillAddRequest(BaseModel):
     # New schema (preferred)
@@ -78,6 +88,18 @@ class SkillUpdateRequest(BaseModel):
     problem: Optional[str] = None
     solution: Optional[str] = None
     steps: Optional[List[str]] = None
+
+
+class SkillGenerateRequest(BaseModel):
+    goal: str
+    trace: str
+    system_prompt: str
+    session_id: Optional[str] = None
+
+
+class SkillRefineRequest(BaseModel):
+    skill_name: str
+    failure_log: str
 
 
 def _skill_test_task(skill: dict) -> str:
@@ -196,7 +218,7 @@ async def _eval_skill_run(skill_md: str, task: str, transcript: str,
         # Last resort: pull the verdict keyword straight out of the prose so a
         # clearly-decided run isn't thrown away as "unparseable".
         if v not in _VERDICTS:
-            km = _re.search(r'verdict["\'\s:]*\s*["\']?(pass|needs_work|fail|inconclusive)', text, _re.I)
+            km = _VERDICT_PROSE_RE.search(text)
             if km:
                 v = km.group(1).lower()
                 if data is None:
@@ -1649,4 +1671,91 @@ def setup_skills_routes(skills_manager: SkillsManager) -> APIRouter:
         results = skills_manager.get_relevant_skills(query, skills, max_items=10)
         return {"skills": results, "query": query, "count": len(results)}
 
+    @router.post("/generate")
+    async def generate_skill(request: Request, body: SkillGenerateRequest):
+        require_admin(request)
+        user = _owner(request)
+        from src.endpoint_resolver import resolve_endpoint
+        from src.llm_core import llm_call_async
+        from services.memory.skill_format import Skill
+
+        url, model, headers = resolve_endpoint(model=None, owner=user)
+        messages = [
+            {"role": "system", "content": body.system_prompt},
+            {"role": "user", "content": body.trace}
+        ]
+        try:
+            reply = await llm_call_async(url, model, messages, headers=headers, session_id=body.session_id)
+            sk = Skill.from_markdown(reply)
+            sk.owner = user
+            sk.source = "learned"
+            skills_manager._write_skill(sk)
+            return {"ok": True, "skill": sk.to_dict()}
+        except Exception as e:
+            logger.error("Failed to generate skill: %s", e)
+            raise HTTPException(500, f"Failed to generate skill: {e}")
+
+    @router.post("/refine")
+    async def refine_skill(request: Request, body: SkillRefineRequest):
+        require_admin(request)
+        user = _owner(request)
+        from src.endpoint_resolver import resolve_endpoint
+        from src.llm_core import llm_call_async
+        from services.memory.skill_format import Skill
+
+        current_md = skills_manager.read_skill_md(body.skill_name, owner=user)
+        if not current_md:
+            raise HTTPException(404, f"Skill '{body.skill_name}' not found")
+
+        system_prompt = (
+            "You are refining/patching a procedural skill in SKILL.md format because it failed during execution.\n"
+            "You are given the current SKILL.md content and the FAILURE LOG / error message.\n"
+            "Identify the step that failed, improve the instructions/pitfalls/verification steps to prevent this failure, "
+            "and output the complete, updated SKILL.md content.\n"
+            "Output ONLY the raw updated SKILL.md content — no fences, no commentary."
+        )
+        user_msg = (
+            f"=== CURRENT SKILL ===\n{current_md}\n\n"
+            f"=== FAILURE LOG ===\n{body.failure_log}"
+        )
+
+        url, model, headers = resolve_endpoint(model=None, owner=user)
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_msg}
+        ]
+        try:
+            reply = await llm_call_async(url, model, messages, headers=headers)
+            sk = Skill.from_markdown(reply)
+            sk.owner = user
+            sk.source = "refined"
+            skills_manager._write_skill(sk)
+            return {"ok": True, "skill": sk.to_dict()}
+        except Exception as e:
+            logger.error("Failed to refine skill: %s", e)
+            raise HTTPException(500, f"Failed to refine skill: {e}")
+
     return router
+
+
+async def generate_skill_from_trace(payload: dict, owner: Optional[str] = None) -> dict:
+    """Helper function to auto-generate a skill from a training trace payload."""
+    from src.endpoint_resolver import resolve_endpoint
+    from src.llm_core import llm_call_async
+    from services.memory.skill_format import Skill
+    from services.memory.skills import SkillsManager
+    from src.constants import DATA_DIR
+
+    url, model, headers = resolve_endpoint(model=None, owner=owner)
+    messages = [
+        {"role": "system", "content": payload["system_prompt"]},
+        {"role": "user", "content": payload["trace"]}
+    ]
+    reply = await llm_call_async(url, model, messages, headers=headers, session_id=payload.get("session_id"))
+    sk = Skill.from_markdown(reply)
+    sk.owner = owner
+    sk.source = "learned"
+    
+    sm = SkillsManager(DATA_DIR)
+    sm._write_skill(sk)
+    return {"status": "success", "skill": sk.to_dict()}

@@ -1,70 +1,109 @@
-# ShadowRealm
+<p align="center">
+  <img src="docs/Shadow-Realm.PNG" alt="ShadowRealm" width="160">
+</p>
 
-> The orchestrator for the ShadowWalkerNC app ecosystem.
+<p align="center">
+  A self-hosted AI workspace for chat, agents, research, documents, email, notes, calendar, and local model workflows.
+</p>
 
-ShadowRealm is the central nervous system of the **ShadowRealm Network (SRN)** — a mesh of independent apps that can discover and call each other as tools.
+<p align="center">
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="docs/setup.md">Setup Guide</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="ROADMAP.md">Roadmap</a>
+</p>
 
-## What It Does
+<p align="center">
+  <img src="docs/odysseus-browser.jpg" alt="ShadowRealm interface">
+</p>
 
-- **Registry** — `SRN_REGISTRY.json` is the single source of truth listing every app in the network
-- **Health Monitor** — pings every app's `/v1/health` every 60s and reports status
-- **Manifest Fetcher** — loads every app's `/v1/manifest` on startup so it knows what each app can do
-- **Tool Dispatcher** — routes `call tool X on app Y` requests across the network
-- **Orchestrator** — chains multi-app workflows (e.g. Sigil event → Post-Pilot publish)
+---
 
-## Network Apps
+## Overview
 
-| App | Role | Stack |
-|-----|------|-------|
-| [Post-Pilot](https://github.com/ShadowWalkerNC/Post-Pilot) | Social media engine | Python/Flask |
-| [Sigil](https://github.com/ShadowWalkerNC/Sigil) | Discord bot + culinary ops | Node/Discord.js |
-| ShadowRealm *(this)* | Orchestrator | Node/Express |
-
-## Architecture
-
-```
-ShadowRealm
-├── SRN_REGISTRY.json            ← source of truth: all apps
-├── orchestrator/
-│   ├── registry.js              ← loads + caches SRN_REGISTRY.json
-│   ├── manifest_fetcher.js      ← fetches /v1/manifest from each app
-│   ├── health_monitor.js        ← polls /v1/health, reports outages
-│   └── tool_dispatcher.js       ← routes tool calls to the right app
-├── server.js                    ← Express entry point + /v1/* routes
-├── package.json
-└── .env.example
-```
+ShadowRealm is a self-hosted AI workspace that runs entirely on your own hardware or server. It connects local and cloud-hosted language models to a full suite of productivity tools — chat, agents, research, documents, email, notes, tasks, and calendar — through a single browser-based interface.
 
 ## Quick Start
 
+> `dev` is the default branch and receives changes first. Switch to [`main`](https://github.com/ShadowWalkerNC/ShadowRealm/tree/main) for the more curated, stable branch.
+
 ```bash
-npm install
+git clone https://github.com/ShadowWalkerNC/ShadowRealm.git
+cd ShadowRealm
 cp .env.example .env
-# fill in SRN_SECRET (must match all other SRN apps)
-node server.js
+docker compose up -d --build
 ```
 
-## API Endpoints
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/v1/health` | None | Liveness check |
-| `GET` | `/v1/manifest` | Bearer | ShadowRealm's own tool list |
-| `GET` | `/v1/health_status` | Bearer | Status of all SRN apps |
-| `GET` | `/v1/apps` | Bearer | All registered apps + cached tools |
-| `GET` | `/v1/find_tool?tool=name` | Bearer | Find which app owns a tool |
-| `POST` | `/v1/call_tool` | Bearer | Dispatch a tool call to any app |
-
-## Calling a Tool
+Open `http://localhost:7000` when the containers are healthy. The first admin password is printed in:
 
 ```bash
-curl -X POST https://shadowrealm.railway.app/v1/call_tool \
-  -H 'Authorization: Bearer srn_live_xxx' \
-  -H 'X-SRN-App: my-app' \
-  -H 'Content-Type: application/json' \
-  -d '{"app": "post-pilot", "tool": "publish_post", "input": {"caption": "Brisket Tacos 🔥", "platforms": ["fb","ig"]}}'
+docker compose logs shadowrealm
 ```
 
-## Status
+Native installs, GPU configuration, Windows/macOS instructions, HTTPS setup, and full configuration options are in the [setup guide](docs/setup.md).
 
-🛠️ **Building** — foundation committed. Post-Pilot Session 12 wires up the first real `/v1/` tools.
+## Features
+
+- **Chat + Agents** — local and API-hosted models with tools, MCP support, file handling, shell access, skills, and persistent memory.
+- **Cookbook** — hardware-aware model recommendations, automated downloads, and backend serving (Ollama, vLLM, SGLang, llama.cpp, LM Studio).
+- **Deep Research** — multi-step web research with source reading and structured report generation.
+- **Compare** — blind side-by-side model testing and answer synthesis.
+- **Documents** — writing-first editor with AI edits, suggestions, Markdown, HTML, CSV, and syntax highlighting.
+- **Email** — IMAP/SMTP inbox with triage, tags, summaries, reminders, and reply drafts.
+- **Notes, Tasks + Calendar** — reminders, todos, scheduled agent tasks, and CalDAV sync.
+- **Extras** — image gallery and editor, themes, file uploads, web search, presets, sessions, and 2FA.
+
+## Tech Stack
+
+| Layer | Details |
+|---|---|
+| Backend | Python (FastAPI / Uvicorn) |
+| Frontend | Vanilla JS + CSS (served via static/) |
+| AI Backends | Ollama, vLLM, SGLang, llama.cpp, LM Studio, OpenAI, Anthropic, Gemini, Groq, xAI, OpenRouter, DeepSeek |
+| Storage | File-based (`data/`) + ChromaDB for vector search |
+| Containerization | Docker + Docker Compose (CPU, NVIDIA GPU, AMD GPU variants) |
+| Protocols | IMAP/SMTP (email), CalDAV (calendar), MCP (agent tools), ntfy (notifications) |
+
+## Deployment Options
+
+- **Docker (recommended)** — `docker-compose.yml` for CPU, `docker-compose.gpu-nvidia.yml` for NVIDIA, `docker-compose.gpu-amd.yml` for AMD.
+- **Native Python** — Python 3.11+, `pip install -r requirements.txt`, run with Uvicorn.
+- **macOS App** — `build-macos-app.sh` bundles a standalone `.app`.
+- **Windows** — `launch-windows.ps1` for native launch; `build-windows-portable.ps1` for a portable build.
+- **Linux Service** — `install-service.sh` registers a systemd service.
+
+## Project Structure
+
+```
+app.py              # Main application entry point
+launcher.py         # Cross-platform launcher
+core/               # Core logic and utilities
+routes/             # API route handlers
+services/           # Background service integrations
+integrations/       # External provider adapters
+mcp_servers/        # MCP tool server definitions
+companion/          # Companion app components
+config/             # Configuration schemas
+static/             # Frontend assets (JS, CSS, HTML)
+docs/               # Setup guides and documentation
+tests/              # Test suite
+specs/              # Feature and API specifications
+```
+
+## Contributing
+
+Help is welcome. The best entry points are fresh-install smoke testing, provider setup bugs, mobile/editor polish, documentation, and small focused refactors. See [CONTRIBUTING.md](CONTRIBUTING.md) and [ROADMAP.md](ROADMAP.md).
+
+> **Auto-generated PRs:** If you are running an LLM coding agent (Cursor, Claude Code, Copilot, etc.), open an issue describing the problem first rather than submitting a PR directly.
+
+## Security
+
+ShadowRealm is a self-hosted workspace with access to powerful local tools. Keep authentication enabled, keep private data out of Git, and do not expose raw model or service ports publicly. See [SECURITY.md](SECURITY.md) and the [setup guide](docs/setup.md#security-notes) for deployment hardening guidance.
+
+## Roadmap
+
+Current high-priority areas include bug triage, fresh-install smoke testing across platforms, Cookbook reliability improvements, Deep Research model presets by hardware, agent prompt/context optimization for smaller models, and email performance. See [ROADMAP.md](ROADMAP.md) for the full list.
+
+## License
+
+AGPL-3.0-or-later — see [LICENSE](LICENSE) and [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md).

@@ -41,7 +41,7 @@ if os.name == "nt":
 from dotenv import load_dotenv
 # encoding="utf-8-sig" tolerates a UTF-8 BOM in .env — a common Windows gotcha
 # when the file is saved from Notepad. Without this, the first key parses as
-# "\ufeffAUTH_ENABLED" instead of "AUTH_ENABLED", so AUTH_ENABLED=false (etc.)
+# "﻿AUTH_ENABLED" instead of "AUTH_ENABLED", so AUTH_ENABLED=false (etc.)
 # is silently ignored and the user is unexpectedly forced to log in (issue #142).
 # utf-8-sig reads plain UTF-8 (no BOM) identically, so this is safe everywhere.
 load_dotenv(encoding="utf-8-sig")
@@ -125,11 +125,7 @@ app = FastAPI(
 
 # ========= CORS =========
 CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"]
-# ALLOWED_ORIGINS accepts a comma-separated list. On Render, set this env var
-# to your public URL e.g. https://shadowrealm.onrender.com
-# Locally, defaults to localhost variants so development still works.
-_raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost,http://127.0.0.1,http://localhost:7000,http://127.0.0.1:7000")
-allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost,http://127.0.0.1").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
@@ -613,6 +609,8 @@ memory_router = setup_memory_routes(memory_manager, session_manager, memory_vect
 app.include_router(memory_router)
 from routes.skills_routes import setup_skills_routes
 app.include_router(setup_skills_routes(skills_manager))
+from routes.agent_routes import setup_agent_routes
+app.include_router(setup_agent_routes(skills_manager))
 
 # Chat
 from routes.chat_routes import setup_chat_routes
@@ -625,7 +623,7 @@ app.include_router(setup_chat_routes(
 ))
 
 # Research (background deep-research tasks)
-from routes.research_routes import setup_research_routes
+from routes.research.research_routes import setup_research_routes
 app.include_router(setup_research_routes(research_handler, session_manager=session_manager))
 
 # History
@@ -664,10 +662,6 @@ app.include_router(setup_model_routes(model_discovery))
 from routes.copilot_routes import setup_copilot_routes
 app.include_router(setup_copilot_routes())
 
-# ChatGPT Subscription device-flow login
-from routes.chatgpt_subscription_routes import setup_chatgpt_subscription_routes
-app.include_router(setup_chatgpt_subscription_routes())
-
 # TTS
 from routes.tts_routes import setup_tts_routes
 app.include_router(setup_tts_routes(tts_service))
@@ -689,7 +683,7 @@ from routes.signature_routes import setup_signature_routes
 app.include_router(setup_signature_routes())
 
 # Gallery (image library)
-from routes.gallery_routes import setup_gallery_routes
+from routes.gallery.gallery_routes import setup_gallery_routes
 app.include_router(setup_gallery_routes())
 
 # Persisted image-editor drafts (server-backed projects)
@@ -803,6 +797,9 @@ app.include_router(setup_contacts_routes())
 from companion import setup_companion_routes
 app.include_router(setup_companion_routes())
 
+from routes.healing_routes import setup_healing_routes
+app.include_router(setup_healing_routes())
+
 # ========= ROUTES (kept in app.py) =========
 
 @app.get("/")
@@ -810,6 +807,11 @@ async def serve_index(request: Request):
     static_path = abs_join(BASE_DIR, "static/index.html")
     if os.path.exists(static_path):
         return serve_html_with_nonce(request, static_path)
+    # No static bundle — fall back to a root-level index.html if one is shipped.
+    # If neither exists, serve_html_with_nonce logs it and returns a generic 500:
+    # a missing index.html is a broken deployment (server fault), not a client
+    # "not found". This keeps the app-shell route consistent with the other
+    # bundled-template routes instead of mislabelling the fault as a 404.
     return serve_html_with_nonce(request, abs_join(BASE_DIR, "index.html"))
 
 @app.get("/notes")
@@ -820,6 +822,10 @@ async def serve_notes(request: Request):
 async def serve_calendar(request: Request):
     return await serve_index(request)
 
+# Per-tool deep-link routes — all serve the same SPA, the JS auto-opens
+# the matching modal based on window.location.pathname. Each route also
+# gets a unique favicon + page title via inline script in index.html so
+# bookmarks render with tool-specific icons.
 @app.get("/cookbook")
 async def serve_cookbook(request: Request):
     return await serve_index(request)
@@ -842,6 +848,12 @@ async def serve_tasks(request: Request):
 
 @app.get("/library")
 async def serve_library(request: Request):
+    return await serve_index(request)
+
+@app.get("/status")
+async def serve_status(request: Request):
+    """Health / system-status deep-link — serves the SPA; JS auto-opens the
+    status panel based on window.location.pathname == '/status'."""
     return await serve_index(request)
 
 @app.get("/backgrounds")
@@ -913,6 +925,8 @@ async def _startup_event():
     global upload_cleanup_task
     logger.info("Application starting up...")
     webhook_manager.set_loop(asyncio.get_running_loop())
+    # Wipe any leftover incognito sessions from previous process — they're
+    # ephemeral by design and must not survive a restart.
     try:
         from core.database import SessionLocal as _SL, Session as _DbSess, ChatMessage as _DbMsg
         _db = _SL()
@@ -928,15 +942,21 @@ async def _startup_event():
             _db.close()
     except Exception as e:
         logger.debug(f"Incognito purge skipped: {e}")
+    # Strong refs to fire-and-forget startup tasks. Without this, Python may
+    # GC tasks created with `asyncio.create_task(...)` before they finish.
     _startup_tasks: list[asyncio.Task] = getattr(app.state, "_startup_tasks", [])
     app.state._startup_tasks = _startup_tasks
     if upload_cleanup_func:
         upload_cleanup_task = asyncio.create_task(upload_cleanup_func())
+    # Always-on monitor that auto-continues the agent when a background bash
+    # job (#!bg) finishes — re-invokes the turn with the job output.
     try:
         from src.bg_monitor import start_bg_monitor
         _startup_tasks.append(start_bg_monitor())
     except Exception as _e:
         logger.warning("Failed to start background-job monitor: %s", _e)
+    # MCP servers can be slow or blocked by local tooling. Connect them after
+    # the web server is accepting traffic instead of delaying the whole UI.
     async def _startup_mcp_connections():
         try:
             from src.builtin_mcp import register_builtin_servers
@@ -952,6 +972,11 @@ async def _startup_event():
 
     _startup_tasks.append(asyncio.create_task(_startup_mcp_connections()))
 
+    # Pre-warm the RAG tool index off the request path. Loading the local
+    # embedding model + opening ChromaDB + indexing the built-in tools is a
+    # one-time ~1-3s cost that otherwise lands on the user's FIRST message
+    # (showing up as a big `tool_selection` time). Doing it here makes the
+    # first turn as fast as subsequent ones (warm embed ≈ a few ms).
     async def _warmup_tool_index():
         try:
             from src.tool_index import get_tool_index
@@ -963,10 +988,14 @@ async def _startup_event():
             logger.warning(f"Tool index warmup failed (non-critical): {type(e).__name__}: {e}")
 
     _startup_tasks.append(asyncio.create_task(_warmup_tool_index()))
-
+    # Warmup: ping all known LLM endpoints to prime connections
     async def _warmup_endpoints():
         try:
             import httpx
+            # model_discovery has no get_endpoints(); that call raised
+            # AttributeError every run and silently disabled warmup/keepalive.
+            # Resolve the /models probe URLs via the real discovery API, off the
+            # event loop since discovery does a blocking port scan.
             urls = (
                 await asyncio.to_thread(model_discovery.warmup_ping_urls)
                 if model_discovery else []
@@ -983,6 +1012,7 @@ async def _startup_event():
 
     _startup_tasks.append(asyncio.create_task(_warmup_endpoints()))
 
+    # Keep-alive: ping endpoints every 60 seconds to prevent cold starts
     async def _keepalive_loop():
         while True:
             try:
@@ -990,11 +1020,12 @@ async def _startup_event():
                 await _warmup_endpoints()
             except Exception as e:
                 logger.warning(f"Keepalive loop error: {e}")
-                await asyncio.sleep(300)
+                await asyncio.sleep(300)  # Back off on error
 
     _startup_tasks.append(asyncio.create_task(_keepalive_loop()))
 
     async def _ensure_default_tasks():
+        # Create/reconcile default automation tasks + personal assistant for every user.
         owners = set()
         try:
             import json as _json
@@ -1004,6 +1035,10 @@ async def _startup_event():
             owners.update(users.keys())
         except Exception as e:
             logger.debug(f"Default task auth-owner scan: {e}")
+
+        # Also reconcile owners already present in scheduled_tasks. This cleans
+        # up stale/demo/deleted-user built-ins that are no longer in auth.json;
+        # otherwise their old scheduled rows can keep firing forever.
         try:
             from core.database import SessionLocal, ScheduledTask
             from src.task_scheduler import HOUSEKEEPING_DEFAULTS
@@ -1022,6 +1057,7 @@ async def _startup_event():
                 db_seed.close()
         except Exception as e:
             logger.debug(f"Default task existing-owner scan: {e}")
+
         try:
             for uname in sorted(owners):
                 try:
@@ -1031,8 +1067,13 @@ async def _startup_event():
         except Exception as e:
             logger.debug(f"Default tasks: {e}")
 
+    # Reconcile built-in tasks before the runner starts. Otherwise legacy
+    # scheduled built-ins can fire once before being converted to event tasks.
     await _ensure_default_tasks()
 
+    # Disk-backed skills are not covered by the DB legacy-owner sweep. Repair
+    # ownerless or deleted/test-owner SKILL.md files so strict owner filtering
+    # does not make an existing library look empty after auth/account changes.
     try:
         import json as _json
         auth_path = AUTH_FILE
@@ -1052,6 +1093,9 @@ async def _startup_event():
     except Exception as e:
         logger.debug(f"Skill owner backfill skipped: {e}")
 
+    # Start scheduled task runner — skip when running under a cron-driven
+    # deployment where an external worker drives task firing. Mirrors
+    # `ODYSSEUS_INPROCESS_POLLERS` from the email pollers.
     _tasks_inprocess = os.environ.get("ODYSSEUS_INPROCESS_TASKS", "1").strip().lower()
     if _tasks_inprocess not in ("0", "false", "no", "off", ""):
         await task_scheduler.start()
@@ -1060,7 +1104,9 @@ async def _startup_event():
             "In-process task scheduler disabled (ODYSSEUS_INPROCESS_TASKS=0); "
             "drive task firing externally (e.g. cron)."
         )
-
+    # Periodic null-owner sweep — re-runs the legacy-owner assignment hourly
+    # so any data created while auth was disabled / localhost-bypassed gets
+    # claimed by the admin instead of staying world-visible (M19).
     async def _null_owner_sweep_loop():
         while True:
             try:
@@ -1073,6 +1119,39 @@ async def _startup_event():
 
     _startup_tasks.append(asyncio.create_task(_null_owner_sweep_loop()))
 
+    # Periodic memory consolidation worker loop (C41)
+    async def _memory_consolidation_loop():
+        # Delay initial run slightly to not block server start
+        await asyncio.sleep(45)
+        while True:
+            try:
+                logger.info("Starting periodic memory consolidation sweep...")
+                from core.database import SessionLocal
+                from core.models import User
+                
+                with SessionLocal() as db:
+                    users = db.query(User).all()
+                    
+                for user in users:
+                    username = user.username
+                    logger.info(f"Consolidating memory items for owner: {username}")
+                    # Trigger the primary memory.json deduplication/merge
+                    removed = memory_manager.merge_duplicates(owner=username)
+                    if removed > 0:
+                        logger.info(f"Consolidated and merged {removed} duplicates for {username}")
+                
+                await asyncio.sleep(1800)  # run every 30 minutes
+            except Exception as e:
+                logger.warning(f"Memory consolidation loop encountered an error: {e}")
+                await asyncio.sleep(1800)
+
+    _startup_tasks.append(asyncio.create_task(_memory_consolidation_loop()))
+
+    # Nightly skill audit — at ~02:00 local, test + judge a batch of the
+    # least-recently-checked skills, auto-fixing/escalating weak ones (never
+    # deletes). Rotates through the library so each night covers different
+    # skills. Gated by the `skill_audit_nightly` setting (default on); hour via
+    # `skill_audit_hour` (default 2), batch size via `skill_audit_batch` (8).
     async def _skill_audit_nightly_loop():
         from datetime import timedelta
         while True:
@@ -1098,6 +1177,12 @@ async def _startup_event():
 
     _startup_tasks.append(asyncio.create_task(_skill_audit_nightly_loop()))
 
+    # Cookbook serve lifecycle — kills scheduler-launched serves whose
+    # window-end has passed. Paired with the cookbook_serve builtin
+    # action; both are no-ops unless a scheduled task actually launches
+    # something with end_after_min set. Removing this line + the
+    # cookbook_serve entry in BUILTIN_ACTIONS + src/cookbook_serve_lifecycle.py
+    # removes the feature.
     from src.cookbook_serve_lifecycle import cookbook_serve_lifecycle_loop
     _startup_tasks.append(asyncio.create_task(cookbook_serve_lifecycle_loop()))
 
@@ -1111,14 +1196,17 @@ async def _shutdown_event():
             await upload_cleanup_task
         except asyncio.CancelledError:
             pass
+    # Stop task scheduler (no-op if it never started under the gate)
     try:
         await task_scheduler.stop()
     except Exception:
         pass
+    # Close webhook manager
     try:
         await webhook_manager.close()
     except Exception as e:
         logger.warning(f"Webhook manager shutdown error: {e}")
+    # Disconnect all MCP servers
     try:
         await mcp_manager.disconnect_all()
     except Exception as e:
@@ -1129,11 +1217,7 @@ async def _shutdown_event():
 if __name__ == "__main__":
     import uvicorn
 
-    # Render (and most cloud hosts) inject PORT. Fall back to APP_PORT for
-    # docker-compose setups, then to 7000 for local bare-Python runs.
-    bind_port = int(os.getenv("PORT") or os.getenv("APP_PORT") or "7000")
-    # Bind to all interfaces so the host/Render proxy can reach the container.
-    # 127.0.0.1 only works for local dev — cloud hosts need 0.0.0.0.
-    bind_host = os.getenv("APP_BIND", "0.0.0.0")
+    bind_host = os.getenv("APP_BIND", "127.0.0.1")
+    bind_port = int(os.getenv("APP_PORT", "7000"))
 
     uvicorn.run(app, host=bind_host, port=bind_port, log_level="info")

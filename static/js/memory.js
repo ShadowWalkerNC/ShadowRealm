@@ -6,11 +6,13 @@ import sessionModule from './sessions.js';
 import spinnerModule from './spinner.js';
 import { makeWindowDraggable } from './windowDrag.js';
 import { snapModalToZone } from './tileManager.js';
+import { topPortalZ } from './toolWindowZOrder.js';
 
 var escapeHtml = uiModule.esc;
 
 let memories = [];
 let activeCategory = 'all';
+let activeTierFilter = null;
 let sortOrder = 'newest';
 let selectMode = false;
 let selectedIds = new Set();
@@ -654,6 +656,14 @@ function getFilteredMemories() {
     filtered = filtered.filter(m => (m.category || 'fact') === activeCategory);
   }
 
+  if (activeTierFilter) {
+    if (activeTierFilter === 'hot') {
+      filtered = [];
+    } else {
+      filtered = filtered.filter(m => (m.tier || 'cool') === activeTierFilter);
+    }
+  }
+
   const sortSelect = document.getElementById('memory-sort');
   const sort = sortSelect ? sortSelect.value : sortOrder;
   if (sort === 'newest') {
@@ -865,7 +875,13 @@ export function renderMemoryList() {
         dropdown.style.top = rect.bottom + 2 + 'px';
         dropdown.style.right = (window.innerWidth - rect.right) + 'px';
         dropdown.style.left = 'auto';
-        dropdown.style.zIndex = '10001';
+        // Portaled to <body>, so it must outrank the Brain modal it belongs to.
+        // Tool modals get a monotonically increasing z-index from modalManager's
+        // bring-to-front counter, which climbs unbounded over a long session —
+        // once it passed the old hardcoded 10001 the menu rendered behind the
+        // panel (#4720). topPortalZ() derives the value from the live tool-window
+        // stack so the menu always sits just above, however high it has climbed.
+        dropdown.style.zIndex = String(topPortalZ());
         dropdown.style.display = 'block';
         document.body.appendChild(dropdown);
         // Keep on-screen (mobile): flip above the button if it overflows the
@@ -1057,6 +1073,27 @@ async function saveInlineEdit(id, newText, newCategory) {
 export function updateMemoryCount() {
   const h2Count = document.getElementById('memory-count-h2');
   const tabCount = document.getElementById('memory-count'); // optional (may be absent)
+  
+  // Tiers breakdown updates (C43)
+  fetch(`${window.location.origin}/api/memory/tiers`)
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.tiers) {
+        const tiers = data.tiers;
+        const hotEl = document.getElementById('tier-count-hot');
+        if (hotEl) {
+          const chatHist = document.getElementById('chat-history');
+          const hotCount = chatHist ? chatHist.querySelectorAll('.msg').length : 0;
+          hotEl.textContent = hotCount;
+        }
+        for (const tier of ['warm', 'cool', 'episodic', 'procedural']) {
+          const el = document.getElementById(`tier-count-${tier}`);
+          if (el) el.textContent = tiers[tier] || 0;
+        }
+      }
+    })
+    .catch(err => console.warn('Failed to fetch memory tiers:', err));
+
   if (!h2Count && !tabCount) return;
 
   const searchInput = document.getElementById('memory-search');
@@ -1069,6 +1106,13 @@ export function updateMemoryCount() {
   }
   if (activeCategory !== 'all') {
     visible = visible.filter(m => (m.category || 'fact') === activeCategory);
+  }
+  if (activeTierFilter) {
+    if (activeTierFilter === 'hot') {
+      visible = [];
+    } else {
+      visible = visible.filter(m => (m.tier || 'cool') === activeTierFilter);
+    }
   }
 
   const num = visible.length === scopeTotal ? `${scopeTotal}` : `${visible.length}/${scopeTotal}`;
@@ -1442,6 +1486,23 @@ var showError = uiModule.showError;
 document.addEventListener('DOMContentLoaded', () => {
   _wireMemoryDrag();
 
+  // Memory modal tier cards click listeners (C43)
+  document.querySelectorAll('.memory-tier-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const tier = card.dataset.tier;
+      if (card.classList.contains('active')) {
+        card.classList.remove('active');
+        activeTierFilter = null;
+      } else {
+        document.querySelectorAll('.memory-tier-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        activeTierFilter = tier;
+      }
+      renderMemoryList();
+      updateMemoryCount();
+    });
+  });
+
   // Memory modal tabs
   document.querySelectorAll('.memory-tab[data-memory-tab]').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -1453,6 +1514,12 @@ document.addEventListener('DOMContentLoaded', () => {
       // Lazy-load skills tab (cascade=true → play the domino-in entrance)
       if (target === 'skills') {
         import('./skills.js').then(m => { if (m.loadSkills) m.loadSkills(true); else if (m.default?.loadSkills) m.default.loadSkills(true); });
+      }
+      if (target === 'pipelines') {
+        loadPipelineTasks();
+      }
+      if (target === 'analytics') {
+        loadAnalyticsStats();
       }
     });
   });
@@ -1507,6 +1574,89 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+export async function loadPipelineTasks() {
+  try {
+    const res = await fetch(`${window.location.origin}/api/agent/pipelines/tasks`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const tasks = data.tasks || [];
+    
+    const columns = {
+      todo: document.getElementById('kanban-todo'),
+      in_progress: document.getElementById('kanban-in_progress'),
+      done: document.getElementById('kanban-done')
+    };
+    
+    for (const key in columns) {
+      if (columns[key]) columns[key].innerHTML = '';
+    }
+    
+    tasks.forEach(task => {
+      const col = columns[task.status] || columns.todo;
+      if (!col) return;
+      
+      const card = document.createElement('div');
+      card.className = 'kanban-task-card';
+      card.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:11px;display:flex;flex-direction:column;gap:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);';
+      
+      const stepsHtml = (task.steps || []).map(s => `
+        <div style="display:flex;align-items:center;gap:4px;font-size:9px;opacity:0.8;">
+          <span style="width:6px;height:6px;border-radius:50%;background:${s.status === 'completed' ? '#10b981' : s.status === 'running' ? '#ffcc00' : s.status === 'failed' ? '#ff3b30' : '#888'}"></span>
+          <span>${s.name}</span>
+        </div>
+      `).join('');
+      
+      card.innerHTML = `
+        <div style="font-weight:600;color:var(--accent-primary,#7b5cf0);">${task.name}</div>
+        <div style="font-size:10px;opacity:0.7;">Current: ${task.current_step || 'None'}</div>
+        <div style="display:flex;flex-direction:column;gap:2px;margin-top:4px;">${stepsHtml}</div>
+      `;
+      col.appendChild(card);
+    });
+  } catch (err) {
+    console.error('Failed to load pipeline tasks:', err);
+  }
+}
+
+export async function loadAnalyticsStats() {
+  try {
+    const res = await fetch(`${window.location.origin}/api/healing/traces`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const traces = data.traces || [];
+    
+    // Update counters
+    document.getElementById('analytics-total-calls').innerText = traces.length;
+    const totalTokens = traces.reduce((acc, t) => acc + (t.tokens || 0), 0);
+    document.getElementById('analytics-total-tokens').innerText = totalTokens;
+    
+    const errors = traces.filter(t => t.error_type).length;
+    const rate = traces.length ? Math.round(((traces.length - errors) / traces.length) * 100) : 100;
+    document.getElementById('analytics-success-rate').innerText = `${rate}%`;
+    
+    // Render list
+    const list = document.getElementById('analytics-traces-list');
+    if (list) {
+      list.innerHTML = '';
+      traces.forEach(t => {
+        const item = document.createElement('div');
+        item.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:11px;display:flex;flex-direction:column;gap:4px;';
+        item.innerHTML = `
+          <div style="display:flex;justify-content:space-between;">
+            <span style="font-weight:600;color:${t.error_type ? 'var(--color-error,#ff3b30)' : 'var(--accent-primary,#7b5cf0)'}">${t.name}</span>
+            <span style="font-size:9px;opacity:0.6;">${new Date(t.created_at).toLocaleTimeString()}</span>
+          </div>
+          <div style="font-size:10px;opacity:0.8;">Agent: ${t.agent} | Tokens: ${t.tokens} | Duration: ${t.duration.toFixed(2)}s</div>
+          ${t.error_type ? `<div style="font-size:9px;color:var(--color-error,#ff3b30);font-weight:600;">Error: ${t.error_type}</div>` : ''}
+        `;
+        list.appendChild(item);
+      });
+    }
+  } catch (err) {
+    console.error('Failed to load analytics stats:', err);
+  }
+}
+
 const memoryModule = {
   loadMemories,
   renderMemoryList,
@@ -1518,7 +1668,9 @@ const memoryModule = {
   buildCategoryChips,
   tidyMemories,
   importMemories,
-  exportMemories
+  exportMemories,
+  loadPipelineTasks,
+  loadAnalyticsStats
 };
 
 export default memoryModule;

@@ -240,18 +240,18 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 - [x] **C17** `feat: skill_template.md — canonical template enforcing progressive disclosure contract` ✅ DONE
 
 **Agent Harness:**
-- [ ] **C18** `feat: SkillRegistry — loads skills/*.md, progressive disclosure (name+desc only in context)`
-- [ ] **C19** `feat: AgentHarness — session mgmt, skill injection, tool routing, token tracking`
-- [ ] **C20** `feat: Training Interface — training_mode flag, trace capture, guided workflow recording`
+- [x] **C18** `feat: SkillRegistry — loads skills/*.md, progressive disclosure (name+desc only in context)` ✅ DONE
+- [x] **C19** `feat: AgentHarness — session mgmt, skill injection, tool routing, token tracking` ✅ DONE
+- [x] **C20** `feat: Training Interface — training_mode flag, trace capture, guided workflow recording` ✅ DONE
 
 **API Harnesses:**
-- [ ] **C21** `feat: /api/agent/chat — trainable agent entry point, streaming, session mgmt`
-- [ ] **C22** `feat: /api/skills/generate — POST trace → agent writes skill from own context`
-- [ ] **C23** `feat: /api/skills/refine — POST failure_log + skill_name → skill_refiner patches skill`
-- [ ] **C24** `feat: /api/skills CRUD — list, get, create, update, delete, version history`
+- [x] **C21** `feat: /api/agent/chat — trainable agent entry point, streaming, session mgmt` ✅ DONE
+- [x] **C22** `feat: /api/skills/generate — POST trace → agent writes skill from own context` ✅ DONE
+- [x] **C23** `feat: /api/skills/refine — POST failure_log + skill_name → skill_refiner patches skill` ✅ DONE
+- [x] **C24** `feat: /api/skills CRUD — list, get, create, update, delete, version history` ✅ DONE
 
 **Tests:**
-- [ ] **C25** `test: Sprint 3 — SkillRegistry progressive disclosure, AgentHarness routing, skill_creator output validation`
+- [x] **C25** `test: Sprint 3 — SkillRegistry progressive disclosure, AgentHarness routing, skill_creator output validation` ✅ DONE
 
 ---
 

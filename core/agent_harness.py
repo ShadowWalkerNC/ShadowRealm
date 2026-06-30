@@ -69,7 +69,7 @@ class AgentHarness:
     def _load_token_counter():
         try:
             from core.token_counter import TokenCounter
-            return TokenCounter()
+            return TokenCounter.get()
         except Exception as e:
             logger.debug(f"TokenCounter unavailable: {e}")
             return None
@@ -234,9 +234,10 @@ class AgentHarness:
             try:
                 self._token_counter.record(
                     session_id=self._session_id,
-                    tokens=tokens_used,
-                    skill=nm,
-                    source=source,
+                    tokens_in=tokens_used,
+                    tokens_out=0,
+                    model="unknown",
+                    source=f"skill:{nm}" if nm else source,
                 )
             except Exception as e:
                 logger.debug(f"TokenCounter.record failed: {e}")

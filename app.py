@@ -609,6 +609,8 @@ memory_router = setup_memory_routes(memory_manager, session_manager, memory_vect
 app.include_router(memory_router)
 from routes.skills_routes import setup_skills_routes
 app.include_router(setup_skills_routes(skills_manager))
+from routes.agent_routes import setup_agent_routes
+app.include_router(setup_agent_routes(skills_manager))
 
 # Chat
 from routes.chat_routes import setup_chat_routes

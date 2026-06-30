@@ -5384,4 +5384,208 @@
       opacity: 0.6;
       cursor: not-allowed;
     }
+
+/* ========================================================================== */
+/* 3-Panel IDE Layout (C35) & Redesigned Sidebar Widgets (C36)                */
+/* ========================================================================== */
+
+.ide-workspace {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.ide-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  height: 100%;
+  overflow: hidden;
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+#file-tree-panel {
+  width: 260px;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+#chat-container {
+  flex: 1;
+  min-width: 300px;
+}
+
+#preview-terminal-panel {
+  width: 500px;
+  min-width: 300px;
+  max-width: 900px;
+  border-left: 1px solid var(--border);
+  border-right: none;
+}
+
+.ide-panel.hidden {
+  display: none !important;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: color-mix(in srgb, var(--panel) 92%, white);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  height: 38px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.panel-header h5 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg);
+  font-size: 12px;
+}
+
+.panel-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--color-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.panel-toggle-btn:hover {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+}
+
+.panel-body {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sidebar Redesigned Widgets (C36) */
+.sidebar-project-panel {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.project-switcher-wrap {
+  width: 100%;
+}
+
+.project-select {
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+
+.project-select:focus {
+  border-color: var(--accent-primary);
+}
+
+.sidebar-status-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar-memory-indicator,
+.sidebar-agent-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.memory-tier-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.memory-tier-dot.hot { background-color: #ff3b30; }
+.memory-tier-dot.warm { background-color: #ffcc00; }
+.memory-tier-dot.cool { background-color: #00E5FF; }
+
+.status-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #00E5FF;
+  display: inline-block;
+  box-shadow: 0 0 8px #00E5FF;
+}
+
+.status-pulse-dot.idle {
+  background-color: var(--color-muted);
+  box-shadow: none;
+}
+
+.status-pulse-dot.running {
+  animation: pulse-active 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse-active {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 10px #00E5FF; }
+  100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+.panel-layout-controls {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.panel-layout-controls .layout-toggle-btn {
+  flex: 1;
+  padding: 4px 6px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+
+.panel-layout-controls .layout-toggle-btn:hover {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border-color: var(--accent-primary);
+}
+
+.panel-layout-controls .layout-toggle-btn.active {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #fff;
+}
+
     

@@ -272,13 +272,13 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 > Goal: Looks and feels like ShadowRealm.
 > Dependency: Sprint 4 complete.
 
-- [ ] **C32** `style: design tokens — all colors, typography, spacing as CSS custom properties`
-- [ ] **C33** `style: ShadowRealm palette — #0D0D0F base / #7B5CF0 primary / #00E5FF active`
-- [ ] **C34** `style: typography — JetBrains Mono for code panels, Inter for UI chrome`
-- [ ] **C35** `feat: 3-panel IDE layout — file tree / agent chat / preview+terminal`
-- [ ] **C36** `style: redesign sidebar — project switcher, memory tier indicator, agent status badges`
-- [ ] **C37** `style: motion + feedback layer — streaming animation, save confirms, loading states`
-- [ ] **C38** `style: replace all upstream Odysseus images with ShadowRealm branded assets`
+- [x] **C32** `style: design tokens — all colors, typography, spacing as CSS custom properties` ✅ DONE
+- [x] **C33** `style: ShadowRealm palette — #0D0D0F base / #7B5CF0 primary / #00E5FF active` ✅ DONE
+- [x] **C34** `style: typography — JetBrains Mono for code panels, Inter for UI chrome` ✅ DONE
+- [x] **C35** `feat: 3-panel IDE layout — file tree / agent chat / preview+terminal` ✅ DONE
+- [x] **C36** `style: redesign sidebar — project switcher, memory tier indicator, agent status badges` ✅ DONE
+- [x] **C37** `style: motion + feedback layer — streaming animation, save confirms, loading states` ✅ DONE
+- [x] **C38** `style: replace all upstream Odysseus images with ShadowRealm branded assets` ✅ DONE
 
 ---
 

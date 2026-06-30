@@ -2,7 +2,7 @@
 
 > Last updated: 2026-06-29
 > Branch: `shadowrealm-v2`
-> **88 / 129 components complete**
+> **90 / 129 components complete**
 
 Legend: ✅ Shipped · 🔄 In Progress · ⬜ Queued
 
@@ -155,11 +155,11 @@ Legend: ✅ Shipped · 🔄 In Progress · ⬜ Queued
 
 ---
 
-## Block 13 — AI / LLM Integration (C88–C90) 🔄
+## Block 13 — AI / LLM Integration (C88–C90) ✅
 
-- [ ] C88 `core/llm_client.py` — Unified API: OpenAI / Anthropic / Gemini / Ollama + streaming
+- [x] C88 `core/llm_client.py` — Unified API: OpenAI / Anthropic / Gemini / Ollama + streaming
 - [x] C89 `core/tool_registry.py` — OpenAI function-calling spec tool definitions
-- [ ] C90 `core/llm_response_parser.py` — Structured output extraction + validation
+- [x] C90 `core/llm_response_parser.py` — Structured output extraction + validation
 
 ---
 

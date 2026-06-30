@@ -82,6 +82,11 @@ _BUILTIN_NPX_SERVERS = {
         "name": "Built-in: Browser",
         "command": "npx",
         "args": ["-y", "@playwright/mcp@latest", "--headless", "--caps", "vision"],
+    },
+    "builtin_notion": {
+        "name": "Built-in: Notion",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-notion"],
     }
 }
 

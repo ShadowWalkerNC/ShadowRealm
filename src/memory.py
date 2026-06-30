@@ -147,6 +147,29 @@ class MemoryManager:
             self.save(entries)
             logger.info("Claimed %d ownerless memories for %s", claimed, owner)
     
+    def auto_tag_tier(self, entry: Dict) -> str:
+        """Auto-tag a memory entry with its tier: warm, cool, episodic, or procedural (C42)."""
+        category = str(entry.get("category", "")).lower()
+        text = str(entry.get("text", "")).lower()
+        
+        # Episodic
+        if category == "episodic" or "session summary" in text or "episode" in text:
+            return "episodic"
+        # Procedural
+        if category == "procedural" or category == "skill" or "procedure" in text or "workflow" in text:
+            return "procedural"
+        # Warm (project/workspace specific: contains code patterns, paths, folder keywords, or workspace metadata)
+        is_warm = (
+            entry.get("workspace_path") is not None or
+            entry.get("project") is not None or
+            any(p in text for p in ["/", "\\", ".py", ".js", ".json", "git", "repo", "directory", "project", "build", "workspace", "codebase"])
+        )
+        if is_warm:
+            return "warm"
+        
+        # Default/Cool
+        return "cool"
+
     def _validate_entries(self, entries: List[Dict]) -> List[Dict]:
         """Ensure all entries have required fields."""
         validated = []
@@ -163,6 +186,8 @@ class MemoryManager:
                 entry["category"] = "fact"
             if "uses" not in entry:
                 entry["uses"] = 0
+            if "tier" not in entry:
+                entry["tier"] = self.auto_tag_tier(entry)
             validated.append(entry)
         return validated
     
@@ -205,6 +230,8 @@ class MemoryManager:
                 entry["source"] = "user"
             if "category" not in entry:
                 entry["category"] = "fact"
+            if "tier" not in entry:
+                entry["tier"] = self.auto_tag_tier(entry)
         
         # Use atomic write
         tmp_file = self.memory_file + ".tmp"
@@ -225,6 +252,7 @@ class MemoryManager:
             "category": category,
             "uses": 0,
         }
+        entry["tier"] = self.auto_tag_tier(entry)
         if owner:
             entry["owner"] = owner
         return entry
@@ -385,3 +413,47 @@ class MemoryManager:
         # Sort by final score (descending) and return top matches
         relevant.sort(key=lambda x: x[0], reverse=True)
         return [mem for _, mem in relevant[:max_items]]
+
+    def merge_duplicates(self, owner: str = None) -> int:
+        """Merge near-duplicate memory entries in memory.json. Returns count removed (C41)."""
+        entries = self.load_all()
+        if owner:
+            user_entries = [e for e in entries if e.get("owner") == owner]
+            other_entries = [e for e in entries if e.get("owner") != owner]
+        else:
+            user_entries = entries
+            other_entries = []
+
+        removed = 0
+        merged_ids = set()
+        cleaned_entries = []
+
+        # Jaccard threshold for merging
+        THRESHOLD = 0.85
+
+        for i, a in enumerate(user_entries):
+            if a["id"] in merged_ids:
+                continue
+            
+            # Find duplicate matches
+            for b in user_entries[i + 1:]:
+                if b["id"] in merged_ids:
+                    continue
+                similarity = get_text_similarity(a["text"], b["text"])
+                if similarity >= THRESHOLD:
+                    # Merge b into a: keep the one with higher usage, or the more recent one
+                    if b.get("uses", 0) > a.get("uses", 0):
+                        a["text"] = b["text"]
+                        a["timestamp"] = max(a["timestamp"], b["timestamp"])
+                        a["uses"] = max(a.get("uses", 0), b.get("uses", 0))
+                    merged_ids.add(b["id"])
+                    removed += 1
+            
+            cleaned_entries.append(a)
+
+        if removed > 0:
+            self.save(cleaned_entries + other_entries)
+            logger.info("Merged %d duplicate memory entries for owner %s", removed, owner)
+            
+        return removed
+

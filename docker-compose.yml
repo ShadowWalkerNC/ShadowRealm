@@ -158,6 +158,18 @@ services:
       - NTFY_BASE_URL=${NTFY_BASE_URL:-http://localhost:8091}
     restart: unless-stopped
 
+  openhands:
+    image: docker.io/all-in-one-ai/openhands:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${APP_DATA_DIR:-./data}/openhands:/app/workspace
+    environment:
+      - SANDBOX_USER_ID=1000
+      - WORKSPACE_BASE=${APP_DATA_DIR:-./data}/openhands
+    restart: unless-stopped
+
 volumes:
   searxng-data:
   chromadb-data:

@@ -2223,10 +2223,77 @@ async def action_cookbook_serve(
     return f"Launched {repo_id} (session {sid})", True
 
 
+async def action_index_obsidian_vault(owner: str, vault_path: str = "", **kwargs) -> Tuple[str, bool]:
+    """Index an Obsidian vault folder, adding new markdown notes into cool-tier searchable memory (C44)."""
+    try:
+        import os
+        from src.constants import DATA_DIR
+        from src.memory import MemoryManager
+        
+        path = (vault_path or "").strip()
+        if not path:
+            return "Error: Obsidian vault path cannot be empty", False
+            
+        real_path = os.path.realpath(os.path.expanduser(path))
+        if not os.path.exists(real_path) or not os.path.isdir(real_path):
+            return f"Error: Path '{path}' is not a valid directory on the host", False
+            
+        memory_manager = MemoryManager(DATA_DIR)
+        existing_memories = memory_manager.load_all()
+        
+        indexed_count = 0
+        added_count = 0
+        
+        for root, _, files in os.walk(real_path):
+            for file in files:
+                if file.endswith(".md"):
+                    indexed_count += 1
+                    file_path = os.path.join(root, file)
+                    try:
+                        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                            content = f.read(5000)  # load up to 5000 characters
+                        
+                        # Grab first few paragraphs or snippet
+                        snippet = content.strip()
+                        if not snippet:
+                            continue
+                            
+                        # Format memory entry
+                        note_name = os.path.splitext(file)[0]
+                        text = f"Obsidian note [{note_name}]: {snippet}"
+                        
+                        # Simple duplicate check
+                        if any(m.get("text") == text for m in existing_memories if m.get("owner") == owner):
+                            continue
+                            
+                        entry = memory_manager.add_entry(
+                            text=text,
+                            source="obsidian_sync",
+                            category="fact",
+                            owner=owner
+                        )
+                        entry["tier"] = "cool"
+                        entry["metadata"] = {"obsidian_path": file_path}
+                        
+                        existing_memories.append(entry)
+                        added_count += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to read Obsidian note {file}: {e}")
+                        
+        if added_count > 0:
+            memory_manager.save(existing_memories)
+            
+        return f"Successfully scanned {indexed_count} markdown files. Added {added_count} new memory entries.", True
+    except Exception as e:
+        logger.error(f"action_index_obsidian_vault failed: {e}")
+        return str(e), False
+
+
 BUILTIN_ACTIONS = {
     "tidy_sessions": action_tidy_sessions,
     "tidy_documents": action_tidy_documents,
     "consolidate_memory": action_consolidate_memory,
+    "index_obsidian_vault": action_index_obsidian_vault,
     "tidy_research": action_tidy_research,
     "summarize_emails": action_summarize_emails,
     "draft_email_replies": action_draft_email_replies,
@@ -2251,6 +2318,7 @@ BUILTIN_ACTION_INFO = {
     "tidy_sessions": "Clean up empty chat sessions and auto-sort into folders",
     "tidy_documents": "Remove junk/empty documents",
     "consolidate_memory": "Remove duplicate memories",
+    "index_obsidian_vault": "Index an Obsidian vault folder, indexing notes into cool-tier memories",
     "tidy_research": "Remove orphaned research files (sessions that were deleted)",
     "summarize_emails": "Pre-generate AI summaries for new inbox emails",
     "draft_email_replies": "Pre-draft AI reply suggestions for new inbox emails",

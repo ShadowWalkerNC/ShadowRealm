@@ -1,195 +1,371 @@
-"""PluginRegistry — Versioned plugin manifest + dependency resolver (C85).
-
-Tracks installed plugins with versioned manifests, resolves load order
-via dependency graph, and enforces compatibility constraints.
-
-Plugin manifest keys:
-  name        str   unique plugin identifier
-  version     str   semver string e.g. "1.2.3"
-  entry       str   dotted import path to plugin class/function
-  depends_on  list  ["other_plugin>=1.0.0", ...]
-  api_version str   min ShadowRealm core API version required
-  description str
-  enabled     bool
-
-Features:
-  - Register / unregister plugins with manifest validation
-  - Semver-aware dependency resolution (no external deps)
-  - Circular dependency detection
-  - Topological load order via Kahn's algorithm
-  - Enable / disable without unregistering
-  - List plugins filtered by state
-  - SQLite persistence or in-memory
-
-Public API:
-  pr = PluginRegistry(db_path=":memory:")
-  pr.register(manifest: dict) -> str          # returns plugin name
-  pr.unregister(name)
-  pr.enable(name) / pr.disable(name)
-  pr.resolve_load_order() -> list[str]
-  pr.get(name) -> dict | None
-  pr.list(enabled_only=False) -> list[dict]
 """
+C85 · plugin_registry.py
+Versioned plugin manifest store with dependency resolver.
+
+Responsibilities
+----------------
+* Register plugins with semantic-versioned manifests.
+* Resolve load order via topological sort of declared dependencies.
+* Detect version conflicts and circular dependency chains.
+* Enable / disable plugins at runtime without restart.
+* Emit lifecycle events (registered, enabled, disabled, removed) via EventBus (C4).
+
+Design constraints
+------------------
+* stdlib only — no external packages.
+* Thread-safe: all mutations guarded by RLock.
+"""
+
 from __future__ import annotations
-import json, logging, re, sqlite3, threading
-from typing import Dict, List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
+import re
+import threading
+import time
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Dict, List, Optional, Set, Tuple
 
-_SEMVER_RE = re.compile(r'^(\d+)\.(\d+)\.(\d+)')
-_DEP_RE    = re.compile(r'^([\w\-]+)(?:>=(\d+\.\d+\.\d+))?$')
+
+# ---------------------------------------------------------------------------
+# Version helpers
+# ---------------------------------------------------------------------------
+
+_SEMVER_RE = re.compile(
+    r"^(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)"
+    r"(?:-(?P<pre>[\w.]+))?(?:\+(?P<build>[\w.]+))?$"
+)
 
 
-def _parse_version(v: str) -> Tuple[int, int, int]:
-    m = _SEMVER_RE.match(v or "0.0.0")
-    return (int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else (0, 0, 0)
+@dataclass(frozen=True, order=True)
+class Version:
+    major: int
+    minor: int
+    patch: int
+    pre: str = ""
 
+    @classmethod
+    def parse(cls, s: str) -> "Version":
+        m = _SEMVER_RE.match(s.strip())
+        if not m:
+            raise ValueError(f"Invalid semver: {s!r}")
+        return cls(
+            major=int(m.group("major")),
+            minor=int(m.group("minor")),
+            patch=int(m.group("patch")),
+            pre=m.group("pre") or "",
+        )
+
+    def __str__(self) -> str:
+        base = f"{self.major}.{self.minor}.{self.patch}"
+        return f"{base}-{self.pre}" if self.pre else base
+
+    def compatible_with(self, required: "Version") -> bool:
+        """True when self satisfies ^required (same major, >= minor.patch)."""
+        if self.major != required.major:
+            return False
+        if self.minor != required.minor:
+            return self.minor > required.minor
+        return self.patch >= required.patch
+
+
+# ---------------------------------------------------------------------------
+# Manifest & state
+# ---------------------------------------------------------------------------
+
+class PluginState(Enum):
+    REGISTERED = "registered"
+    ENABLED = "enabled"
+    DISABLED = "disabled"
+    REMOVED = "removed"
+
+
+@dataclass
+class PluginManifest:
+    """Declarative description of a plugin."""
+    name: str
+    version: Version
+    entry_point: str                        # dotted module path
+    description: str = ""
+    author: str = ""
+    requires: Dict[str, Version] = field(default_factory=dict)  # name -> min version
+    tags: List[str] = field(default_factory=list)
+    metadata: Dict = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "PluginManifest":
+        requires = {
+            k: Version.parse(v) for k, v in d.get("requires", {}).items()
+        }
+        return cls(
+            name=d["name"],
+            version=Version.parse(d["version"]),
+            entry_point=d["entry_point"],
+            description=d.get("description", ""),
+            author=d.get("author", ""),
+            requires=requires,
+            tags=d.get("tags", []),
+            metadata=d.get("metadata", {}),
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "name": self.name,
+            "version": str(self.version),
+            "entry_point": self.entry_point,
+            "description": self.description,
+            "author": self.author,
+            "requires": {k: str(v) for k, v in self.requires.items()},
+            "tags": self.tags,
+            "metadata": self.metadata,
+        }
+
+
+@dataclass
+class PluginRecord:
+    manifest: PluginManifest
+    state: PluginState = PluginState.REGISTERED
+    registered_at: float = field(default_factory=time.time)
+    enabled_at: Optional[float] = None
+    disabled_at: Optional[float] = None
+    instance: object = None  # loaded object set by extension_loader
+
+
+# ---------------------------------------------------------------------------
+# Exceptions
+# ---------------------------------------------------------------------------
+
+class PluginRegistryError(Exception):
+    pass
+
+class DuplicatePluginError(PluginRegistryError):
+    pass
+
+class PluginNotFoundError(PluginRegistryError):
+    pass
+
+class VersionConflictError(PluginRegistryError):
+    pass
+
+class CircularDependencyError(PluginRegistryError):
+    pass
+
+
+# ---------------------------------------------------------------------------
+# Registry
+# ---------------------------------------------------------------------------
 
 class PluginRegistry:
-    """Versioned plugin manifest store with dependency-aware load ordering."""
+    """
+    Central store for plugin manifests.
 
-    _DDL = """
-        CREATE TABLE IF NOT EXISTS plugins (
-            name        TEXT PRIMARY KEY,
-            version     TEXT NOT NULL,
-            entry       TEXT NOT NULL,
-            depends_on  TEXT NOT NULL DEFAULT '[]',
-            api_version TEXT NOT NULL DEFAULT '0.0.0',
-            description TEXT NOT NULL DEFAULT '',
-            enabled     INTEGER NOT NULL DEFAULT 1
-        );
+    Usage
+    -----
+    registry = PluginRegistry()
+    registry.register(PluginManifest.from_dict({...}))
+    order = registry.resolve_load_order()   # topologically sorted names
+    registry.enable("my_plugin")
     """
 
-    _REQUIRED = {"name", "version", "entry"}
-
-    def __init__(self, db_path: str = ":memory:"):
-        self._db   = sqlite3.connect(db_path, check_same_thread=False)
-        self._lock = threading.Lock()
-        with self._lock:
-            self._db.execute(self._DDL)
-            self._db.commit()
+    def __init__(self, event_bus=None) -> None:
+        self._plugins: Dict[str, PluginRecord] = {}
+        self._lock = threading.RLock()
+        self._bus = event_bus  # optional C4 EventBus
 
     # ------------------------------------------------------------------
     # Registration
     # ------------------------------------------------------------------
 
-    def register(self, manifest: Dict) -> str:
-        missing = self._REQUIRED - manifest.keys()
-        if missing:
-            raise ValueError(f"PluginRegistry: missing manifest keys: {missing}")
-        name = manifest["name"]
+    def register(self, manifest: PluginManifest) -> PluginRecord:
+        """Register a new plugin. Raises DuplicatePluginError if already present."""
         with self._lock:
-            self._db.execute(
-                "INSERT OR REPLACE INTO plugins VALUES(?,?,?,?,?,?,?)",
-                (
-                    name,
-                    manifest["version"],
-                    manifest["entry"],
-                    json.dumps(manifest.get("depends_on", [])),
-                    manifest.get("api_version", "0.0.0"),
-                    manifest.get("description", ""),
-                    int(manifest.get("enabled", True)),
-                )
-            )
-            self._db.commit()
-        logger.info(f"PluginRegistry: registered '{name}' v{manifest['version']}")
-        return name
+            if manifest.name in self._plugins:
+                existing = self._plugins[manifest.name]
+                if existing.state != PluginState.REMOVED:
+                    raise DuplicatePluginError(
+                        f"Plugin {manifest.name!r} already registered "
+                        f"(version {existing.manifest.version})."
+                    )
+            record = PluginRecord(manifest=manifest)
+            self._plugins[manifest.name] = record
+            self._emit("plugin.registered", {"name": manifest.name, "version": str(manifest.version)})
+            return record
 
-    def unregister(self, name: str) -> bool:
+    def update(self, manifest: PluginManifest) -> PluginRecord:
+        """Replace an existing plugin's manifest (e.g. after hot-reload)."""
         with self._lock:
-            c = self._db.execute("DELETE FROM plugins WHERE name=?", (name,))
-            self._db.commit()
-        return c.rowcount > 0
+            if manifest.name not in self._plugins:
+                raise PluginNotFoundError(manifest.name)
+            old = self._plugins[manifest.name]
+            record = PluginRecord(
+                manifest=manifest,
+                state=old.state,
+                registered_at=old.registered_at,
+                instance=old.instance,
+            )
+            self._plugins[manifest.name] = record
+            self._emit("plugin.updated", {"name": manifest.name, "version": str(manifest.version)})
+            return record
+
+    def remove(self, name: str) -> None:
+        """Mark plugin as removed (soft delete)."""
+        with self._lock:
+            record = self._get_or_raise(name)
+            record.state = PluginState.REMOVED
+            record.instance = None
+            self._emit("plugin.removed", {"name": name})
+
+    # ------------------------------------------------------------------
+    # Lifecycle
+    # ------------------------------------------------------------------
 
     def enable(self, name: str) -> None:
-        self._set_enabled(name, True)
+        with self._lock:
+            record = self._get_or_raise(name)
+            record.state = PluginState.ENABLED
+            record.enabled_at = time.time()
+            self._emit("plugin.enabled", {"name": name})
 
     def disable(self, name: str) -> None:
-        self._set_enabled(name, False)
+        with self._lock:
+            record = self._get_or_raise(name)
+            record.state = PluginState.DISABLED
+            record.disabled_at = time.time()
+            self._emit("plugin.disabled", {"name": name})
 
     # ------------------------------------------------------------------
-    # Query
+    # Queries
     # ------------------------------------------------------------------
 
-    def get(self, name: str) -> Optional[Dict]:
+    def get(self, name: str) -> PluginRecord:
         with self._lock:
-            row = self._db.execute(
-                "SELECT * FROM plugins WHERE name=?", (name,)
-            ).fetchone()
-        return self._hydrate(row) if row else None
+            return self._get_or_raise(name)
 
-    def list(self, *, enabled_only: bool = False) -> List[Dict]:
-        q = "SELECT * FROM plugins"
-        if enabled_only:
-            q += " WHERE enabled=1"
+    def list_all(self, state: Optional[PluginState] = None) -> List[PluginRecord]:
         with self._lock:
-            rows = self._db.execute(q).fetchall()
-        return [self._hydrate(r) for r in rows]
+            records = list(self._plugins.values())
+            if state:
+                records = [r for r in records if r.state == state]
+            return records
+
+    def is_enabled(self, name: str) -> bool:
+        with self._lock:
+            if name not in self._plugins:
+                return False
+            return self._plugins[name].state == PluginState.ENABLED
+
+    def set_instance(self, name: str, instance: object) -> None:
+        """Called by extension_loader (C87) after loading."""
+        with self._lock:
+            self._get_or_raise(name).instance = instance
 
     # ------------------------------------------------------------------
     # Dependency resolution
     # ------------------------------------------------------------------
 
-    def resolve_load_order(self) -> List[str]:
-        """Return topologically sorted plugin names (Kahn's algorithm)."""
-        plugins  = {p["name"]: p for p in self.list(enabled_only=True)}
-        in_degree: Dict[str, int] = {n: 0 for n in plugins}
-        graph:     Dict[str, List[str]] = {n: [] for n in plugins}
-
-        for name, plugin in plugins.items():
-            for dep_str in plugin["depends_on"]:
-                m = _DEP_RE.match(dep_str.strip())
-                if not m:
-                    continue
-                dep_name, dep_min = m.group(1), m.group(2)
-                if dep_name not in plugins:
-                    raise RuntimeError(
-                        f"PluginRegistry: '{name}' requires '{dep_name}' which is not registered"
-                    )
-                if dep_min:
-                    installed = _parse_version(plugins[dep_name]["version"])
-                    required  = _parse_version(dep_min)
-                    if installed < required:
-                        raise RuntimeError(
-                            f"PluginRegistry: '{name}' needs '{dep_name}>={dep_min}' "
-                            f"but {plugins[dep_name]['version']} is installed"
-                        )
-                graph[dep_name].append(name)
-                in_degree[name] += 1
-
-        queue  = [n for n, d in in_degree.items() if d == 0]
-        order: List[str] = []
-        while queue:
-            node = queue.pop(0)
-            order.append(node)
-            for successor in graph[node]:
-                in_degree[successor] -= 1
-                if in_degree[successor] == 0:
-                    queue.append(successor)
-
-        if len(order) != len(plugins):
-            cycle = set(plugins) - set(order)
-            raise RuntimeError(f"PluginRegistry: circular dependency detected: {cycle}")
-        return order
-
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
-
-    def _set_enabled(self, name: str, state: bool) -> None:
+    def validate_dependencies(self) -> List[str]:
+        """
+        Check all registered (non-removed) plugins satisfy their declared
+        dependencies.  Returns list of error strings (empty = all OK).
+        """
         with self._lock:
-            self._db.execute(
-                "UPDATE plugins SET enabled=? WHERE name=?",
-                (int(state), name)
-            )
-            self._db.commit()
+            errors: List[str] = []
+            active = {
+                n: r for n, r in self._plugins.items()
+                if r.state != PluginState.REMOVED
+            }
+            for name, record in active.items():
+                for dep_name, min_ver in record.manifest.requires.items():
+                    if dep_name not in active:
+                        errors.append(
+                            f"{name} requires {dep_name} which is not registered."
+                        )
+                    else:
+                        dep_ver = active[dep_name].manifest.version
+                        if not dep_ver.compatible_with(min_ver):
+                            errors.append(
+                                f"{name} requires {dep_name}>={min_ver} "
+                                f"but found {dep_ver}."
+                            )
+            return errors
+
+    def resolve_load_order(self) -> List[str]:
+        """
+        Topological sort of non-removed plugins by declared dependencies.
+        Raises CircularDependencyError on cycles.
+        Returns ordered list of plugin names (dependencies first).
+        """
+        with self._lock:
+            active = [
+                n for n, r in self._plugins.items()
+                if r.state != PluginState.REMOVED
+            ]
+            deps: Dict[str, Set[str]] = {
+                n: set(self._plugins[n].manifest.requires.keys()) & set(active)
+                for n in active
+            }
+            return self._topo_sort(active, deps)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _get_or_raise(self, name: str) -> PluginRecord:
+        if name not in self._plugins:
+            raise PluginNotFoundError(f"Plugin {name!r} not found.")
+        return self._plugins[name]
 
     @staticmethod
-    def _hydrate(row: tuple) -> Dict:
-        return {
-            "name":        row[0], "version":     row[1],
-            "entry":       row[2],
-            "depends_on":  json.loads(row[3]),
-            "api_version": row[4], "description": row[5],
-            "enabled":     bool(row[6]),
-        }
+    def _topo_sort(nodes: List[str], deps: Dict[str, Set[str]]) -> List[str]:
+        """Kahn's algorithm."""
+        in_degree = {n: 0 for n in nodes}
+        for n in nodes:
+            for dep in deps.get(n, set()):
+                in_degree[n] = in_degree.get(n, 0)  # dep already counted below
+        # rebuild properly
+        in_degree = {n: 0 for n in nodes}
+        reverse: Dict[str, List[str]] = {n: [] for n in nodes}
+        for n in nodes:
+            for dep in deps.get(n, set()):
+                if dep in reverse:
+                    reverse[dep].append(n)
+                    in_degree[n] += 1
+
+        queue = [n for n in nodes if in_degree[n] == 0]
+        queue.sort()  # deterministic
+        result: List[str] = []
+        while queue:
+            node = queue.pop(0)
+            result.append(node)
+            for dependent in sorted(reverse[node]):
+                in_degree[dependent] -= 1
+                if in_degree[dependent] == 0:
+                    queue.append(dependent)
+
+        if len(result) != len(nodes):
+            remaining = set(nodes) - set(result)
+            raise CircularDependencyError(
+                f"Circular dependency detected among: {sorted(remaining)}"
+            )
+        return result
+
+    def _emit(self, event: str, payload: dict) -> None:
+        if self._bus is not None:
+            try:
+                self._bus.publish(event, payload)
+            except Exception:
+                pass
+
+    # ------------------------------------------------------------------
+    # Representation
+    # ------------------------------------------------------------------
+
+    def __repr__(self) -> str:  # pragma: no cover
+        with self._lock:
+            counts = {s: 0 for s in PluginState}
+            for r in self._plugins.values():
+                counts[r.state] += 1
+            return (
+                f"<PluginRegistry total={len(self._plugins)} "
+                + " ".join(f"{s.value}={counts[s]}" for s in PluginState)
+                + ">"
+            )

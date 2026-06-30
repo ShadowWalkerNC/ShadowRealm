@@ -1785,8 +1785,20 @@ def _migrate_seed_email_account():
 
 # WARNING: Foreign-key enforcement is enabled globally for all SQLite connections.
 # Any future migrations or schema changes that temporarily violate foreign-key
-# constraints will fail. To perform such operations, foreign_keys must be
-# temporarily disabled around the migration workflow.
+class SkillTrace(Base, TimestampMixin):
+    __tablename__ = "skill_traces"
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    agent = Column(String, nullable=False)
+    tokens = Column(Integer, default=0)
+    latency = Column(DateTime, default=utcnow_naive, nullable=True)  # Store execution time
+    from sqlalchemy import Float
+    duration = Column(Float, default=0.0)  # Execution duration in seconds
+    error_type = Column(String, nullable=True)
+    prompt = Column(Text, nullable=True)
+    response = Column(Text, nullable=True)
+    owner = Column(String, nullable=True)
+
 def init_db():
     """
     Initialize the database by creating all tables.

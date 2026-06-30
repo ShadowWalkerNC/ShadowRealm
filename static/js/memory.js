@@ -1515,6 +1515,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (target === 'skills') {
         import('./skills.js').then(m => { if (m.loadSkills) m.loadSkills(true); else if (m.default?.loadSkills) m.default.loadSkills(true); });
       }
+      if (target === 'pipelines') {
+        loadPipelineTasks();
+      }
+      if (target === 'analytics') {
+        loadAnalyticsStats();
+      }
     });
   });
 
@@ -1568,6 +1574,89 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+export async function loadPipelineTasks() {
+  try {
+    const res = await fetch(`${window.location.origin}/api/agent/pipelines/tasks`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const tasks = data.tasks || [];
+    
+    const columns = {
+      todo: document.getElementById('kanban-todo'),
+      in_progress: document.getElementById('kanban-in_progress'),
+      done: document.getElementById('kanban-done')
+    };
+    
+    for (const key in columns) {
+      if (columns[key]) columns[key].innerHTML = '';
+    }
+    
+    tasks.forEach(task => {
+      const col = columns[task.status] || columns.todo;
+      if (!col) return;
+      
+      const card = document.createElement('div');
+      card.className = 'kanban-task-card';
+      card.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:11px;display:flex;flex-direction:column;gap:4px;box-shadow:0 1px 3px rgba(0,0,0,0.1);';
+      
+      const stepsHtml = (task.steps || []).map(s => `
+        <div style="display:flex;align-items:center;gap:4px;font-size:9px;opacity:0.8;">
+          <span style="width:6px;height:6px;border-radius:50%;background:${s.status === 'completed' ? '#10b981' : s.status === 'running' ? '#ffcc00' : s.status === 'failed' ? '#ff3b30' : '#888'}"></span>
+          <span>${s.name}</span>
+        </div>
+      `).join('');
+      
+      card.innerHTML = `
+        <div style="font-weight:600;color:var(--accent-primary,#7b5cf0);">${task.name}</div>
+        <div style="font-size:10px;opacity:0.7;">Current: ${task.current_step || 'None'}</div>
+        <div style="display:flex;flex-direction:column;gap:2px;margin-top:4px;">${stepsHtml}</div>
+      `;
+      col.appendChild(card);
+    });
+  } catch (err) {
+    console.error('Failed to load pipeline tasks:', err);
+  }
+}
+
+export async function loadAnalyticsStats() {
+  try {
+    const res = await fetch(`${window.location.origin}/api/healing/traces`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const traces = data.traces || [];
+    
+    // Update counters
+    document.getElementById('analytics-total-calls').innerText = traces.length;
+    const totalTokens = traces.reduce((acc, t) => acc + (t.tokens || 0), 0);
+    document.getElementById('analytics-total-tokens').innerText = totalTokens;
+    
+    const errors = traces.filter(t => t.error_type).length;
+    const rate = traces.length ? Math.round(((traces.length - errors) / traces.length) * 100) : 100;
+    document.getElementById('analytics-success-rate').innerText = `${rate}%`;
+    
+    // Render list
+    const list = document.getElementById('analytics-traces-list');
+    if (list) {
+      list.innerHTML = '';
+      traces.forEach(t => {
+        const item = document.createElement('div');
+        item.style.cssText = 'background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:11px;display:flex;flex-direction:column;gap:4px;';
+        item.innerHTML = `
+          <div style="display:flex;justify-content:space-between;">
+            <span style="font-weight:600;color:${t.error_type ? 'var(--color-error,#ff3b30)' : 'var(--accent-primary,#7b5cf0)'}">${t.name}</span>
+            <span style="font-size:9px;opacity:0.6;">${new Date(t.created_at).toLocaleTimeString()}</span>
+          </div>
+          <div style="font-size:10px;opacity:0.8;">Agent: ${t.agent} | Tokens: ${t.tokens} | Duration: ${t.duration.toFixed(2)}s</div>
+          ${t.error_type ? `<div style="font-size:9px;color:var(--color-error,#ff3b30);font-weight:600;">Error: ${t.error_type}</div>` : ''}
+        `;
+        list.appendChild(item);
+      });
+    }
+  } catch (err) {
+    console.error('Failed to load analytics stats:', err);
+  }
+}
+
 const memoryModule = {
   loadMemories,
   renderMemoryList,
@@ -1579,7 +1668,9 @@ const memoryModule = {
   buildCategoryChips,
   tidyMemories,
   importMemories,
-  exportMemories
+  exportMemories,
+  loadPipelineTasks,
+  loadAnalyticsStats
 };
 
 export default memoryModule;

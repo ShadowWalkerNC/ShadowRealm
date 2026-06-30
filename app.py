@@ -797,6 +797,9 @@ app.include_router(setup_contacts_routes())
 from companion import setup_companion_routes
 app.include_router(setup_companion_routes())
 
+from routes.healing_routes import setup_healing_routes
+app.include_router(setup_healing_routes())
+
 # ========= ROUTES (kept in app.py) =========
 
 @app.get("/")

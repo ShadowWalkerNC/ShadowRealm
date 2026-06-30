@@ -232,6 +232,48 @@ def setup_agent_routes(skills_manager: SkillsManager) -> APIRouter:
             "estimated_tokens": harness._registry.estimated_tokens(owner=owner),
         }
 
+    @router.post("/pipelines/run")
+    async def run_pipeline(request: Request, body: Dict[str, Any]):
+        owner = _owner(request) or "admin"
+        query = body.get("query", "").strip()
+        if not query:
+            raise HTTPException(400, "query is required")
+            
+        import asyncio
+        from core.agent_pipeline import TaskRouter, LangGraphResearchPipeline, AutoGenCodingPipeline, CrewAIScheduledPipeline
+        
+        category = TaskRouter.route(query)
+        task_id = str(uuid.uuid4())
+        
+        async def _run_bg():
+            try:
+                if category == "research":
+                    pipe = LangGraphResearchPipeline(query, owner=owner, task_id=task_id)
+                    await pipe.execute()
+                elif category == "coding":
+                    pipe = AutoGenCodingPipeline(query, owner=owner, task_id=task_id)
+                    await pipe.execute()
+                else:
+                    pipe = CrewAIScheduledPipeline(query, owner=owner, task_id=task_id)
+                    await pipe.execute()
+            except Exception as e:
+                logger.error(f"Pipeline background execution error: {e}")
+                
+        asyncio.create_task(_run_bg())
+        
+        return {
+            "task_id": task_id,
+            "category": category,
+            "status": "todo"
+        }
+
+    @router.get("/pipelines/tasks")
+    async def get_pipeline_tasks(request: Request):
+        from core.agent_pipeline import active_pipeline_tasks
+        return {
+            "tasks": list(active_pipeline_tasks.values())
+        }
+
     return router
 
 def _base_prompt() -> str:

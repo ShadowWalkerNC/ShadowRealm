@@ -87,7 +87,35 @@ async function _refreshDefaultChat() {
 // synchronously; later reads should call _refreshDefaultChat() first.
 _refreshDefaultChat();
 
-async function _createDirectChatFromPreferredModel() {
+  const teachModeToggle = document.getElementById('teach-mode-toggle');
+  if (teachModeToggle) {
+    fetch('/api/learning-mode')
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.learning_mode) {
+          teachModeToggle.checked = !!d.learning_mode.enabled;
+        }
+      }).catch(err => console.error('Error fetching learning mode state:', err));
+
+    teachModeToggle.addEventListener('change', async () => {
+      const action = teachModeToggle.checked ? 'enable' : 'disable';
+      try {
+        const res = await fetch(`/api/learning-mode/${action}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ actor: 'admin' })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+          console.log(`Teach Mode is now ${teachModeToggle.checked ? 'Enabled' : 'Disabled'}`);
+        }
+      } catch (err) {
+        console.error('Failed to toggle teach mode:', err);
+      }
+    });
+  }
+
+  async function _createDirectChatFromPreferredModel() {
   if (!sessionModule) return false;
 
   const pending = sessionModule.getPendingChat && sessionModule.getPendingChat();
@@ -4145,6 +4173,39 @@ function startOdysseusApp() {
     document.querySelectorAll('pre code:not(.hljs)').forEach(block => {
       window.hljs.highlightElement(block);
     });
+  }
+
+  // Onboarding Wizard (Sprint 9)
+  const onboardingModal = document.getElementById('onboarding-modal');
+  if (onboardingModal) {
+    const onboardingCompleted = Storage.get('onboarding_completed');
+    if (!onboardingCompleted) {
+      onboardingModal.classList.remove('hidden');
+    }
+    
+    const next1 = document.getElementById('onboarding-next-1');
+    const next2 = document.getElementById('onboarding-next-2');
+    const step1 = document.getElementById('onboarding-step-1');
+    const step2 = document.getElementById('onboarding-step-2');
+    
+    if (next1 && step1 && step2) {
+      next1.addEventListener('click', () => {
+        step1.classList.add('hidden');
+        step2.classList.remove('hidden');
+      });
+    }
+    
+    if (next2 && onboardingModal) {
+      next2.addEventListener('click', () => {
+        Storage.set('onboarding_completed', 'true');
+        onboardingModal.classList.add('hidden');
+        if (window.uiModule && window.uiModule.showToast) {
+          window.uiModule.showToast('Setup complete! Welcome to ShadowRealm.');
+        } else {
+          alert('Setup complete! Welcome to ShadowRealm.');
+        }
+      });
+    }
   }
 }
 

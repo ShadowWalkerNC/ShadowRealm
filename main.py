@@ -181,6 +181,17 @@ def _init_agent_registry(memory_mgr, bus) -> object:
         except ImportError:
             log.debug("agents.planner_agent not found — skipping registration")
 
+        try:
+            from agents.shadow_bots import ShadowCoder, ShadowResearcher, ShadowOps, ShadowMemory, ShadowCreative, AgentOrchestrator
+            registry.register("ShadowCoder", ShadowCoder)
+            registry.register("ShadowResearcher", ShadowResearcher)
+            registry.register("ShadowOps", ShadowOps)
+            registry.register("ShadowMemory", ShadowMemory)
+            registry.register("ShadowCreative", ShadowCreative)
+            registry.register("AgentOrchestrator", AgentOrchestrator)
+        except ImportError as e:
+            log.debug(f"agents.shadow_bots not found — skipping registration: {e}")
+
         log.info("AgentRegistry ready (%d agents)", len(registry))
         return registry
     except Exception as exc:  # noqa: BLE001

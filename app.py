@@ -1110,6 +1110,34 @@ async def _startup_event():
 
     _startup_tasks.append(asyncio.create_task(_null_owner_sweep_loop()))
 
+    # Periodic memory consolidation worker loop (C41)
+    async def _memory_consolidation_loop():
+        # Delay initial run slightly to not block server start
+        await asyncio.sleep(45)
+        while True:
+            try:
+                logger.info("Starting periodic memory consolidation sweep...")
+                from core.database import SessionLocal
+                from core.models import User
+                
+                with SessionLocal() as db:
+                    users = db.query(User).all()
+                    
+                for user in users:
+                    username = user.username
+                    logger.info(f"Consolidating memory items for owner: {username}")
+                    # Trigger the primary memory.json deduplication/merge
+                    removed = memory_manager.merge_duplicates(owner=username)
+                    if removed > 0:
+                        logger.info(f"Consolidated and merged {removed} duplicates for {username}")
+                
+                await asyncio.sleep(1800)  # run every 30 minutes
+            except Exception as e:
+                logger.warning(f"Memory consolidation loop encountered an error: {e}")
+                await asyncio.sleep(1800)
+
+    _startup_tasks.append(asyncio.create_task(_memory_consolidation_loop()))
+
     # Nightly skill audit — at ~02:00 local, test + judge a batch of the
     # least-recently-checked skills, auto-fixing/escalating weak ones (never
     # deletes). Rotates through the library so each night covers different

@@ -162,21 +162,35 @@ function initializeEventListeners() {
   // Panel tabs (Live Preview / Terminal switching)
   const tabPreviewBtn = el('tab-preview-btn');
   const tabTerminalBtn = el('tab-terminal-btn');
+  const tabOpenhandsBtn = el('tab-openhands-btn');
   const previewContent = el('panel-preview-content');
   const terminalContent = el('panel-terminal-content');
+  const openhandsContent = el('panel-openhands-content');
 
-  if (tabPreviewBtn && tabTerminalBtn && previewContent && terminalContent) {
+  if (tabPreviewBtn && tabTerminalBtn && tabOpenhandsBtn && previewContent && terminalContent && openhandsContent) {
     tabPreviewBtn.addEventListener('click', () => {
       tabPreviewBtn.classList.add('active');
       tabTerminalBtn.classList.remove('active');
+      tabOpenhandsBtn.classList.remove('active');
       previewContent.classList.remove('hidden');
       terminalContent.classList.add('hidden');
+      openhandsContent.classList.add('hidden');
     });
     tabTerminalBtn.addEventListener('click', () => {
       tabTerminalBtn.classList.add('active');
       tabPreviewBtn.classList.remove('active');
+      tabOpenhandsBtn.classList.remove('active');
       terminalContent.classList.remove('hidden');
       previewContent.classList.add('hidden');
+      openhandsContent.classList.add('hidden');
+    });
+    tabOpenhandsBtn.addEventListener('click', () => {
+      tabOpenhandsBtn.classList.add('active');
+      tabPreviewBtn.classList.remove('active');
+      tabTerminalBtn.classList.remove('active');
+      openhandsContent.classList.remove('hidden');
+      previewContent.classList.add('hidden');
+      terminalContent.classList.add('hidden');
     });
   }
 

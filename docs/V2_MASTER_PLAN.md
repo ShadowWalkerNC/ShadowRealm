@@ -286,14 +286,14 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 > Goal: The AI knows you, your projects, and your history — intelligently and cheaply.
 > Dependency: Sprint 2 complete (compression needed before expanding memory).
 
-- [ ] **C39** `feat: scaffold 5-tier memory — hot / warm / cool / episodic / procedural layers`
-- [ ] **C40** `feat: integrate mem0 over existing memory_server.py + ChromaDB`
-- [ ] **C41** `feat: per-project memory namespacing — isolate context per repo/workspace`
-- [ ] **C42** `feat: episodic summarizer — auto-generates session recap on conversation close`
-- [ ] **C43** `feat: Notion MCP server — live-sync Notion pages as cool-tier indexed memory`
-- [ ] **C44** `feat: Obsidian vault integration — index local vault folder as searchable knowledge`
-- [ ] **C45** `feat: memory import — JSON from Claude, ChatGPT, or custom format`
-- [ ] **C46** `feat: memory tier visualizer panel — UI showing what is stored at each tier`
+- [x] **C39** `feat: scaffold 5-tier memory — hot / warm / cool / episodic / procedural layers` ✅ DONE
+- [x] **C40** `feat: integrate mem0 over existing memory_server.py + ChromaDB` ✅ DONE
+- [x] **C41** `feat: per-project memory namespacing — isolate context per repo/workspace` ✅ DONE
+- [x] **C42** `feat: episodic summarizer — auto-generates session recap on conversation close` ✅ DONE
+- [x] **C43** `feat: Notion MCP server — live-sync Notion pages as cool-tier indexed memory` ✅ DONE
+- [x] **C44** `feat: Obsidian vault integration — index local vault folder as searchable knowledge` ✅ DONE
+- [x] **C45** `feat: memory import — JSON from Claude, ChatGPT, or custom format` ✅ DONE
+- [x] **C46** `feat: memory tier visualizer panel — UI showing what is stored at each tier` ✅ DONE
 
 ---
 

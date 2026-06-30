@@ -31626,3 +31626,61 @@ body.research-panel-view #research-divider { display:none; }
   .research-sb-dot { animation: none; }
 }
 
+/* Memory Tier Grid & Cards (C43) */
+.memory-tier-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin: 12px 0;
+  user-select: none;
+}
+
+.memory-tier-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.memory-tier-card:hover {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg));
+  transform: translateY(-1px);
+}
+
+.memory-tier-card.active {
+  border-color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 15%, var(--bg));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent-primary) 30%, transparent);
+}
+
+.tier-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.tier-indicator.hot { background-color: #ff3b30; }
+.tier-indicator.warm { background-color: #ffcc00; }
+.tier-indicator.cool { background-color: #00E5FF; }
+.tier-indicator.episodic { background-color: #a855f7; }
+.tier-indicator.procedural { background-color: #10b981; }
+
+.tier-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-muted);
+}
+
+.tier-count {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--fg);
+}
+
+

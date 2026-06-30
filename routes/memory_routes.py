@@ -135,6 +135,29 @@ def setup_memory_routes(memory_manager: MemoryManager, session_manager: SessionM
         user = _owner(request)
         return {"memory": memory_manager.load(owner=user)}
 
+    @router.get("/tiers")
+    def get_memory_tiers(request: Request):
+        """Get memory count breakdown by tier (C43)."""
+        user = _owner(request)
+        memories = memory_manager.load(owner=user)
+        breakdown = {
+            "hot": 0,
+            "warm": 0,
+            "cool": 0,
+            "episodic": 0,
+            "procedural": 0
+        }
+        for m in memories:
+            tier = m.get("tier", "cool")
+            if tier in breakdown:
+                breakdown[tier] += 1
+            else:
+                breakdown["cool"] += 1
+        return {
+            "tiers": breakdown,
+            "total": len(memories)
+        }
+
     @router.post("/search")
     def search_memories(request: Request, query: str = Form(...), session_id: str = Form(None), category: str = Form(None)):
         """Search across all memories with optional filters."""

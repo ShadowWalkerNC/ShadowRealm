@@ -12,6 +12,7 @@ var escapeHtml = uiModule.esc;
 
 let memories = [];
 let activeCategory = 'all';
+let activeTierFilter = null;
 let sortOrder = 'newest';
 let selectMode = false;
 let selectedIds = new Set();
@@ -655,6 +656,14 @@ function getFilteredMemories() {
     filtered = filtered.filter(m => (m.category || 'fact') === activeCategory);
   }
 
+  if (activeTierFilter) {
+    if (activeTierFilter === 'hot') {
+      filtered = [];
+    } else {
+      filtered = filtered.filter(m => (m.tier || 'cool') === activeTierFilter);
+    }
+  }
+
   const sortSelect = document.getElementById('memory-sort');
   const sort = sortSelect ? sortSelect.value : sortOrder;
   if (sort === 'newest') {
@@ -1064,6 +1073,27 @@ async function saveInlineEdit(id, newText, newCategory) {
 export function updateMemoryCount() {
   const h2Count = document.getElementById('memory-count-h2');
   const tabCount = document.getElementById('memory-count'); // optional (may be absent)
+  
+  // Tiers breakdown updates (C43)
+  fetch(`${window.location.origin}/api/memory/tiers`)
+    .then(r => r.json())
+    .then(data => {
+      if (data && data.tiers) {
+        const tiers = data.tiers;
+        const hotEl = document.getElementById('tier-count-hot');
+        if (hotEl) {
+          const chatHist = document.getElementById('chat-history');
+          const hotCount = chatHist ? chatHist.querySelectorAll('.msg').length : 0;
+          hotEl.textContent = hotCount;
+        }
+        for (const tier of ['warm', 'cool', 'episodic', 'procedural']) {
+          const el = document.getElementById(`tier-count-${tier}`);
+          if (el) el.textContent = tiers[tier] || 0;
+        }
+      }
+    })
+    .catch(err => console.warn('Failed to fetch memory tiers:', err));
+
   if (!h2Count && !tabCount) return;
 
   const searchInput = document.getElementById('memory-search');
@@ -1076,6 +1106,13 @@ export function updateMemoryCount() {
   }
   if (activeCategory !== 'all') {
     visible = visible.filter(m => (m.category || 'fact') === activeCategory);
+  }
+  if (activeTierFilter) {
+    if (activeTierFilter === 'hot') {
+      visible = [];
+    } else {
+      visible = visible.filter(m => (m.tier || 'cool') === activeTierFilter);
+    }
   }
 
   const num = visible.length === scopeTotal ? `${scopeTotal}` : `${visible.length}/${scopeTotal}`;
@@ -1448,6 +1485,23 @@ var showError = uiModule.showError;
 // Event listeners
 document.addEventListener('DOMContentLoaded', () => {
   _wireMemoryDrag();
+
+  // Memory modal tier cards click listeners (C43)
+  document.querySelectorAll('.memory-tier-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const tier = card.dataset.tier;
+      if (card.classList.contains('active')) {
+        card.classList.remove('active');
+        activeTierFilter = null;
+      } else {
+        document.querySelectorAll('.memory-tier-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        activeTierFilter = tier;
+      }
+      renderMemoryList();
+      updateMemoryCount();
+    });
+  });
 
   // Memory modal tabs
   document.querySelectorAll('.memory-tab[data-memory-tab]').forEach(tab => {

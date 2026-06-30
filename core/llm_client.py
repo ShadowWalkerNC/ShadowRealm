@@ -1,298 +1,473 @@
-"""
-C88 — LLM Client
-Unified interface for OpenAI, Anthropic, Gemini, and Ollama.
-Supports sync complete(), async acomplete(), and streaming.
+"""C88 — LLM Client
+
+Unified API adapter for OpenAI, Anthropic, Google Gemini, and Ollama (local).
+Supports both streaming and non-streaming responses, automatic retries,
+timeout handling, and per-provider token counting.
+
+All calls are stdlib-only at the transport shim layer; actual HTTP is
+delegated to core/http_client.py (C67) so this module stays zero-dep.
 """
 from __future__ import annotations
 
-import asyncio
+import json
 import time
+import uuid
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Iterator, Optional
+from enum import Enum
+from typing import Any, Callable, Generator, Iterator, Optional
+
+from core.http_client import HttpClient
+from core.structured_logger import get_logger
+from core.circuit_breaker import CircuitBreaker
+from core.retry_policy import RetryPolicy
+from core.rate_limiter_core import RateLimiter
+
+log = get_logger(__name__)
+
+
+class Provider(str, Enum):
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
+    OLLAMA = "ollama"
 
 
 @dataclass
 class LLMMessage:
-    role: str  # 'system' | 'user' | 'assistant' | 'tool'
+    role: str  # "system" | "user" | "assistant" | "tool"
     content: str
     tool_call_id: Optional[str] = None
     name: Optional[str] = None
 
 
 @dataclass
-class TokenUsage:
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    total_tokens: int = 0
+class LLMToolCall:
+    id: str
+    name: str
+    arguments: dict[str, Any]
 
 
 @dataclass
 class LLMResponse:
-    content: str
+    id: str
+    provider: Provider
     model: str
-    usage: TokenUsage = field(default_factory=TokenUsage)
+    content: str
+    tool_calls: list[LLMToolCall] = field(default_factory=list)
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
     finish_reason: str = "stop"
-    tool_calls: list[dict] = field(default_factory=list)
-    raw: Any = None
+    latency_ms: float = 0.0
+    raw: dict[str, Any] = field(default_factory=dict)
 
 
-class LLMError(Exception):
-    pass
+@dataclass
+class LLMRequest:
+    messages: list[LLMMessage]
+    model: str
+    provider: Provider
+    temperature: float = 0.7
+    max_tokens: int = 4096
+    stream: bool = False
+    tools: list[dict[str, Any]] = field(default_factory=list)
+    tool_choice: str = "auto"
+    timeout: float = 60.0
+    request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
-class RateLimitError(LLMError):
-    pass
+class _ProviderAdapter:
+    """Base adapter — subclasses normalise provider-specific wire formats."""
+
+    BASE_URL: str = ""
+
+    def __init__(self, api_key: str, http: HttpClient) -> None:
+        self._api_key = api_key
+        self._http = http
+
+    def build_payload(self, req: LLMRequest) -> tuple[str, dict, dict]:
+        """Return (url, headers, body)."""
+        raise NotImplementedError
+
+    def parse_response(self, provider: Provider, model: str,
+                       raw: dict, latency_ms: float) -> LLMResponse:
+        raise NotImplementedError
+
+    def iter_stream(self, provider: Provider, model: str,
+                    url: str, headers: dict, body: dict) -> Iterator[str]:
+        raise NotImplementedError
+
+
+class _OpenAIAdapter(_ProviderAdapter):
+    BASE_URL = "https://api.openai.com/v1/chat/completions"
+
+    def build_payload(self, req: LLMRequest) -> tuple[str, dict, dict]:
+        headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Content-Type": "application/json",
+        }
+        messages = [
+            {"role": m.role, "content": m.content,
+             **(({"tool_call_id": m.tool_call_id} if m.tool_call_id else {}))}
+            for m in req.messages
+        ]
+        body: dict[str, Any] = {
+            "model": req.model,
+            "messages": messages,
+            "temperature": req.temperature,
+            "max_tokens": req.max_tokens,
+            "stream": req.stream,
+        }
+        if req.tools:
+            body["tools"] = req.tools
+            body["tool_choice"] = req.tool_choice
+        return self.BASE_URL, headers, body
+
+    def parse_response(self, provider: Provider, model: str,
+                       raw: dict, latency_ms: float) -> LLMResponse:
+        choice = raw["choices"][0]
+        msg = choice["message"]
+        tool_calls = [
+            LLMToolCall(
+                id=tc["id"],
+                name=tc["function"]["name"],
+                arguments=json.loads(tc["function"]["arguments"]),
+            )
+            for tc in msg.get("tool_calls", [])
+        ]
+        usage = raw.get("usage", {})
+        return LLMResponse(
+            id=raw.get("id", str(uuid.uuid4())),
+            provider=provider,
+            model=model,
+            content=msg.get("content") or "",
+            tool_calls=tool_calls,
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+            total_tokens=usage.get("total_tokens", 0),
+            finish_reason=choice.get("finish_reason", "stop"),
+            latency_ms=latency_ms,
+            raw=raw,
+        )
+
+    def iter_stream(self, provider: Provider, model: str,
+                    url: str, headers: dict, body: dict) -> Iterator[str]:
+        # Yields content delta strings; full SSE parsing handled by http_client.
+        for chunk in self._http.stream_post(url, headers=headers, json=body):
+            data = chunk.lstrip("data: ").strip()
+            if data in ("", "[DONE]"):
+                continue
+            try:
+                obj = json.loads(data)
+                delta = obj["choices"][0]["delta"].get("content") or ""
+                if delta:
+                    yield delta
+            except (KeyError, json.JSONDecodeError):
+                continue
+
+
+class _AnthropicAdapter(_ProviderAdapter):
+    BASE_URL = "https://api.anthropic.com/v1/messages"
+
+    def build_payload(self, req: LLMRequest) -> tuple[str, dict, dict]:
+        headers = {
+            "x-api-key": self._api_key,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+        }
+        system = next(
+            (m.content for m in req.messages if m.role == "system"), None
+        )
+        messages = [
+            {"role": m.role, "content": m.content}
+            for m in req.messages if m.role != "system"
+        ]
+        body: dict[str, Any] = {
+            "model": req.model,
+            "messages": messages,
+            "max_tokens": req.max_tokens,
+            "temperature": req.temperature,
+            "stream": req.stream,
+        }
+        if system:
+            body["system"] = system
+        if req.tools:
+            body["tools"] = req.tools
+        return self.BASE_URL, headers, body
+
+    def parse_response(self, provider: Provider, model: str,
+                       raw: dict, latency_ms: float) -> LLMResponse:
+        content_blocks = raw.get("content", [])
+        text = "".join(
+            b.get("text", "") for b in content_blocks if b.get("type") == "text"
+        )
+        tool_calls = [
+            LLMToolCall(
+                id=b.get("id", str(uuid.uuid4())),
+                name=b["name"],
+                arguments=b.get("input", {}),
+            )
+            for b in content_blocks if b.get("type") == "tool_use"
+        ]
+        usage = raw.get("usage", {})
+        return LLMResponse(
+            id=raw.get("id", str(uuid.uuid4())),
+            provider=provider,
+            model=model,
+            content=text,
+            tool_calls=tool_calls,
+            prompt_tokens=usage.get("input_tokens", 0),
+            completion_tokens=usage.get("output_tokens", 0),
+            total_tokens=usage.get("input_tokens", 0) + usage.get("output_tokens", 0),
+            finish_reason=raw.get("stop_reason", "stop"),
+            latency_ms=latency_ms,
+            raw=raw,
+        )
+
+    def iter_stream(self, provider: Provider, model: str,
+                    url: str, headers: dict, body: dict) -> Iterator[str]:
+        for chunk in self._http.stream_post(url, headers=headers, json=body):
+            if not chunk.startswith("data:"):
+                continue
+            data = chunk[5:].strip()
+            try:
+                obj = json.loads(data)
+                if obj.get("type") == "content_block_delta":
+                    delta = obj.get("delta", {}).get("text") or ""
+                    if delta:
+                        yield delta
+            except json.JSONDecodeError:
+                continue
+
+
+class _GeminiAdapter(_ProviderAdapter):
+    BASE_URL = (
+        "https://generativelanguage.googleapis.com/v1beta/models"
+        "/{model}:generateContent?key={key}"
+    )
+
+    def build_payload(self, req: LLMRequest) -> tuple[str, dict, dict]:
+        url = self.BASE_URL.format(model=req.model, key=self._api_key)
+        headers = {"Content-Type": "application/json"}
+        parts = [
+            {"text": m.content}
+            for m in req.messages if m.role in ("user", "assistant")
+        ]
+        body: dict[str, Any] = {
+            "contents": [{"parts": parts}],
+            "generationConfig": {
+                "temperature": req.temperature,
+                "maxOutputTokens": req.max_tokens,
+            },
+        }
+        return url, headers, body
+
+    def parse_response(self, provider: Provider, model: str,
+                       raw: dict, latency_ms: float) -> LLMResponse:
+        candidate = raw["candidates"][0]
+        text = "".join(
+            p.get("text", "")
+            for p in candidate["content"].get("parts", [])
+        )
+        usage = raw.get("usageMetadata", {})
+        return LLMResponse(
+            id=str(uuid.uuid4()),
+            provider=provider,
+            model=model,
+            content=text,
+            prompt_tokens=usage.get("promptTokenCount", 0),
+            completion_tokens=usage.get("candidatesTokenCount", 0),
+            total_tokens=usage.get("totalTokenCount", 0),
+            finish_reason=candidate.get("finishReason", "STOP").lower(),
+            latency_ms=latency_ms,
+            raw=raw,
+        )
+
+    def iter_stream(self, provider, model, url, headers, body):
+        # Gemini streaming uses newline-delimited JSON objects.
+        for line in self._http.stream_post(url, headers=headers, json=body):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                text = "".join(
+                    p.get("text", "")
+                    for p in obj["candidates"][0]["content"].get("parts", [])
+                )
+                if text:
+                    yield text
+            except (KeyError, json.JSONDecodeError):
+                continue
+
+
+class _OllamaAdapter(_ProviderAdapter):
+    """Ollama local inference (default base http://localhost:11434)."""
+
+    BASE_URL = "http://localhost:11434/api/chat"
+
+    def build_payload(self, req: LLMRequest) -> tuple[str, dict, dict]:
+        headers = {"Content-Type": "application/json"}
+        messages = [
+            {"role": m.role, "content": m.content} for m in req.messages
+        ]
+        body: dict[str, Any] = {
+            "model": req.model,
+            "messages": messages,
+            "stream": req.stream,
+            "options": {
+                "temperature": req.temperature,
+                "num_predict": req.max_tokens,
+            },
+        }
+        return self.BASE_URL, headers, body
+
+    def parse_response(self, provider: Provider, model: str,
+                       raw: dict, latency_ms: float) -> LLMResponse:
+        msg = raw.get("message", {})
+        return LLMResponse(
+            id=str(uuid.uuid4()),
+            provider=provider,
+            model=model,
+            content=msg.get("content", ""),
+            prompt_tokens=raw.get("prompt_eval_count", 0),
+            completion_tokens=raw.get("eval_count", 0),
+            total_tokens=raw.get("prompt_eval_count", 0) + raw.get("eval_count", 0),
+            finish_reason="stop" if raw.get("done") else "length",
+            latency_ms=latency_ms,
+            raw=raw,
+        )
+
+    def iter_stream(self, provider, model, url, headers, body):
+        for line in self._http.stream_post(url, headers=headers, json=body):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                delta = obj.get("message", {}).get("content") or ""
+                if delta:
+                    yield delta
+            except json.JSONDecodeError:
+                continue
+
+
+_ADAPTER_MAP: dict[Provider, type[_ProviderAdapter]] = {
+    Provider.OPENAI: _OpenAIAdapter,
+    Provider.ANTHROPIC: _AnthropicAdapter,
+    Provider.GEMINI: _GeminiAdapter,
+    Provider.OLLAMA: _OllamaAdapter,
+}
 
 
 class LLMClient:
-    """
-    Unified LLM client. Provider detected from model prefix or explicit provider arg.
-    Supported providers: openai, anthropic, gemini, ollama.
-    """
+    """Unified LLM client — create once, call any provider.
 
-    PROVIDER_PREFIXES = {
-        "gpt": "openai",
-        "o1": "openai",
-        "o3": "openai",
-        "claude": "anthropic",
-        "gemini": "gemini",
-        "llama": "ollama",
-        "mistral": "ollama",
-        "phi": "ollama",
-    }
+    Usage::
+
+        client = LLMClient()
+        client.register(Provider.OPENAI, api_key="sk-...")
+        response = client.complete(LLMRequest(
+            provider=Provider.OPENAI,
+            model="gpt-4o",
+            messages=[LLMMessage(role="user", content="Hello!")],
+        ))
+        print(response.content)
+    """
 
     def __init__(
         self,
-        model: str = "gpt-4o",
-        provider: Optional[str] = None,
-        api_key: Optional[str] = None,
+        http: Optional[HttpClient] = None,
+        retry: Optional[RetryPolicy] = None,
+    ) -> None:
+        self._http = http or HttpClient()
+        self._retry = retry or RetryPolicy(max_attempts=3, base_delay=1.0)
+        self._adapters: dict[Provider, _ProviderAdapter] = {}
+        self._breakers: dict[Provider, CircuitBreaker] = {}
+        self._limiters: dict[Provider, RateLimiter] = {}
+
+    # ------------------------------------------------------------------
+    # Registration
+    # ------------------------------------------------------------------
+
+    def register(
+        self,
+        provider: Provider,
+        api_key: str = "",
         base_url: Optional[str] = None,
-        temperature: float = 0.7,
-        max_tokens: int = 4096,
-        timeout: float = 60.0,
-        max_retries: int = 3,
-        retry_base_delay: float = 1.0,
-    ):
-        self.model = model
-        self.provider = provider or self._detect_provider(model)
-        self.api_key = api_key
-        self.base_url = base_url
-        self.temperature = temperature
-        self.max_tokens = max_tokens
-        self.timeout = timeout
-        self.max_retries = max_retries
-        self.retry_base_delay = retry_base_delay
-        self._client = None
+        rpm: int = 60,
+    ) -> None:
+        """Register a provider with its API key and optional rate limit."""
+        cls = _ADAPTER_MAP[provider]
+        adapter = cls(api_key=api_key, http=self._http)
+        if base_url and hasattr(adapter, "BASE_URL"):
+            adapter.BASE_URL = base_url  # type: ignore[attr-defined]
+        self._adapters[provider] = adapter
+        self._breakers[provider] = CircuitBreaker(name=f"llm:{provider.value}")
+        self._limiters[provider] = RateLimiter(rate=rpm, per=60.0)
+        log.info("llm_client.registered", provider=provider.value)
 
-    def _detect_provider(self, model: str) -> str:
-        lower = model.lower()
-        for prefix, provider in self.PROVIDER_PREFIXES.items():
-            if lower.startswith(prefix):
-                return provider
-        return "openai"
+    # ------------------------------------------------------------------
+    # Core call
+    # ------------------------------------------------------------------
 
-    def _get_client(self):
-        if self._client is not None:
-            return self._client
-        if self.provider == "openai":
-            from openai import OpenAI
-            kwargs = {}
-            if self.api_key:
-                kwargs["api_key"] = self.api_key
-            if self.base_url:
-                kwargs["base_url"] = self.base_url
-            self._client = OpenAI(**kwargs)
-        elif self.provider == "anthropic":
-            import anthropic
-            self._client = anthropic.Anthropic(api_key=self.api_key)
-        elif self.provider == "gemini":
-            import google.generativeai as genai
-            if self.api_key:
-                genai.configure(api_key=self.api_key)
-            self._client = genai.GenerativeModel(self.model)
-        elif self.provider == "ollama":
-            from openai import OpenAI
-            self._client = OpenAI(
-                base_url=self.base_url or "http://localhost:11434/v1",
-                api_key="ollama",
+    def complete(self, req: LLMRequest) -> LLMResponse:
+        """Execute a blocking (non-streaming) LLM call."""
+        adapter = self._get_adapter(req.provider)
+        url, headers, body = adapter.build_payload(req)
+        self._limiters[req.provider].acquire()
+
+        t0 = time.monotonic()
+        raw = self._breakers[req.provider].call(
+            lambda: self._retry.execute(
+                lambda: self._http.post_json(url, headers=headers, json=body,
+                                             timeout=req.timeout)
             )
-        else:
-            raise LLMError(f"Unsupported provider: {self.provider}")
-        return self._client
-
-    def _messages_to_openai(self, messages: list[LLMMessage]) -> list[dict]:
-        result = []
-        for m in messages:
-            entry: dict = {"role": m.role, "content": m.content}
-            if m.tool_call_id:
-                entry["tool_call_id"] = m.tool_call_id
-            if m.name:
-                entry["name"] = m.name
-            result.append(entry)
-        return result
-
-    def _messages_to_anthropic(self, messages: list[LLMMessage]) -> tuple[str, list[dict]]:
-        system = ""
-        chat = []
-        for m in messages:
-            if m.role == "system":
-                system = m.content
-            else:
-                chat.append({"role": m.role, "content": m.content})
-        return system, chat
-
-    def complete(
-        self,
-        messages: list[LLMMessage],
-        tools: Optional[list[dict]] = None,
-        **kwargs,
-    ) -> LLMResponse:
-        last_exc = None
-        for attempt in range(self.max_retries):
-            try:
-                return self._complete_once(messages, tools, **kwargs)
-            except RateLimitError as e:
-                last_exc = e
-                delay = self.retry_base_delay * (2 ** attempt)
-                time.sleep(delay)
-            except LLMError:
-                raise
-        raise last_exc or LLMError("Max retries exceeded")
-
-    def _complete_once(
-        self,
-        messages: list[LLMMessage],
-        tools: Optional[list[dict]] = None,
-        **kwargs,
-    ) -> LLMResponse:
-        client = self._get_client()
-
-        if self.provider in ("openai", "ollama"):
-            params: dict = {
-                "model": self.model,
-                "messages": self._messages_to_openai(messages),
-                "temperature": kwargs.get("temperature", self.temperature),
-                "max_tokens": kwargs.get("max_tokens", self.max_tokens),
-            }
-            if tools:
-                params["tools"] = tools
-            resp = client.chat.completions.create(**params)
-            choice = resp.choices[0]
-            tool_calls = []
-            if choice.message.tool_calls:
-                for tc in choice.message.tool_calls:
-                    tool_calls.append({
-                        "id": tc.id,
-                        "name": tc.function.name,
-                        "arguments": tc.function.arguments,
-                    })
-            return LLMResponse(
-                content=choice.message.content or "",
-                model=resp.model,
-                usage=TokenUsage(
-                    prompt_tokens=resp.usage.prompt_tokens,
-                    completion_tokens=resp.usage.completion_tokens,
-                    total_tokens=resp.usage.total_tokens,
-                ),
-                finish_reason=choice.finish_reason or "stop",
-                tool_calls=tool_calls,
-                raw=resp,
-            )
-
-        elif self.provider == "anthropic":
-            system, chat = self._messages_to_anthropic(messages)
-            params = {
-                "model": self.model,
-                "max_tokens": kwargs.get("max_tokens", self.max_tokens),
-                "messages": chat,
-            }
-            if system:
-                params["system"] = system
-            if tools:
-                params["tools"] = tools
-            resp = client.messages.create(**params)
-            content_text = ""
-            tool_calls = []
-            for block in resp.content:
-                if hasattr(block, "text"):
-                    content_text += block.text
-                elif block.type == "tool_use":
-                    tool_calls.append({
-                        "id": block.id,
-                        "name": block.name,
-                        "arguments": block.input,
-                    })
-            return LLMResponse(
-                content=content_text,
-                model=resp.model,
-                usage=TokenUsage(
-                    prompt_tokens=resp.usage.input_tokens,
-                    completion_tokens=resp.usage.output_tokens,
-                    total_tokens=resp.usage.input_tokens + resp.usage.output_tokens,
-                ),
-                finish_reason=resp.stop_reason or "stop",
-                tool_calls=tool_calls,
-                raw=resp,
-            )
-
-        elif self.provider == "gemini":
-            prompt = "\n".join(f"{m.role}: {m.content}" for m in messages)
-            resp = client.generate_content(prompt)
-            return LLMResponse(
-                content=resp.text,
-                model=self.model,
-                raw=resp,
-            )
-
-        raise LLMError(f"Provider not handled: {self.provider}")
-
-    async def acomplete(
-        self,
-        messages: list[LLMMessage],
-        tools: Optional[list[dict]] = None,
-        **kwargs,
-    ) -> LLMResponse:
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            None, lambda: self.complete(messages, tools, **kwargs)
         )
+        latency_ms = (time.monotonic() - t0) * 1000
+
+        response = adapter.parse_response(req.provider, req.model, raw, latency_ms)
+        log.info(
+            "llm_client.complete",
+            provider=req.provider.value,
+            model=req.model,
+            total_tokens=response.total_tokens,
+            latency_ms=round(latency_ms, 1),
+            request_id=req.request_id,
+        )
+        return response
 
     def stream(
-        self,
-        messages: list[LLMMessage],
-        **kwargs,
-    ) -> Iterator[str]:
-        client = self._get_client()
-        if self.provider in ("openai", "ollama"):
-            params = {
-                "model": self.model,
-                "messages": self._messages_to_openai(messages),
-                "temperature": kwargs.get("temperature", self.temperature),
-                "max_tokens": kwargs.get("max_tokens", self.max_tokens),
-                "stream": True,
-            }
-            for chunk in client.chat.completions.create(**params):
-                delta = chunk.choices[0].delta.content
-                if delta:
-                    yield delta
-        elif self.provider == "anthropic":
-            system, chat = self._messages_to_anthropic(messages)
-            params = {
-                "model": self.model,
-                "max_tokens": kwargs.get("max_tokens", self.max_tokens),
-                "messages": chat,
-            }
-            if system:
-                params["system"] = system
-            with client.messages.stream(**params) as stream:
-                for text in stream.text_stream:
-                    yield text
-        else:
-            resp = self.complete(messages, **kwargs)
-            yield resp.content
+        self, req: LLMRequest
+    ) -> Generator[str, None, None]:
+        """Yield content delta strings as the model produces them."""
+        req.stream = True
+        adapter = self._get_adapter(req.provider)
+        url, headers, body = adapter.build_payload(req)
+        self._limiters[req.provider].acquire()
+        yield from self._breakers[req.provider].call(
+            lambda: adapter.iter_stream(req.provider, req.model, url, headers, body)
+        )
 
-    async def astream(self, messages: list[LLMMessage], **kwargs) -> AsyncIterator[str]:
-        loop = asyncio.get_event_loop()
-        chunks = await loop.run_in_executor(None, lambda: list(self.stream(messages, **kwargs)))
-        for chunk in chunks:
-            yield chunk
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _get_adapter(self, provider: Provider) -> _ProviderAdapter:
+        if provider not in self._adapters:
+            raise RuntimeError(
+                f"Provider '{provider.value}' not registered. "
+                "Call client.register() first."
+            )
+        return self._adapters[provider]
+
+    def available_providers(self) -> list[Provider]:
+        return list(self._adapters.keys())
+
+    def health(self) -> dict[str, str]:
+        return {
+            p.value: (
+                "open" if self._breakers[p].is_closed else "tripped"
+            )
+            for p in self._adapters
+        }

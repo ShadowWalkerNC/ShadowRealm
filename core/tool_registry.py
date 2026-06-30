@@ -1,233 +1,367 @@
-"""
-C89 — Tool Registry
-Stores tool schemas, dispatches calls, and exports provider-specific formats.
+"""C89 — Tool Registry
+
+Maintains a catalogue of callable tools expressed as OpenAI function-calling
+spec JSON schemas. Supports tool registration, lookup, validation of
+incoming tool-call arguments, and execution dispatch.
+
+Design principles
+-----------------
+* Zero external dependencies (stdlib only at the schema/dispatch layer).
+* Tools are plain Python callables decorated with ``@tool_registry.register``.
+* Schema is auto-derived from the decorator, or can be supplied manually.
+* Argument validation uses jsonschema-lite (built-in ``types`` module) so no
+  third-party package is required at runtime — full jsonschema validation
+  is opt-in via a plugin hook.
 """
 from __future__ import annotations
 
 import inspect
 import json
+import time
+import traceback
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
+
+from core.structured_logger import get_logger
+from core.audit_logger import AuditLogger
+
+log = get_logger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Type-hint → JSON Schema primitive map
+# ---------------------------------------------------------------------------
+_PY_TO_JSON: dict[type, str] = {
+    str: "string",
+    int: "integer",
+    float: "number",
+    bool: "boolean",
+    list: "array",
+    dict: "object",
+}
+
+
+def _annotation_to_json_type(annotation: Any) -> str:
+    """Best-effort type annotation → JSON Schema type string."""
+    if annotation is inspect.Parameter.empty:
+        return "string"
+    origin = getattr(annotation, "__origin__", None)
+    if origin is list:
+        return "array"
+    if origin is dict:
+        return "object"
+    return _PY_TO_JSON.get(annotation, "string")
+
+
+def _derive_schema(fn: Callable) -> dict[str, Any]:
+    """Auto-derive an OpenAI function-calling spec schema from a callable."""
+    sig = inspect.signature(fn)
+    doc = (fn.__doc__ or "").strip().splitlines()[0] if fn.__doc__ else ""
+    properties: dict[str, Any] = {}
+    required: list[str] = []
+
+    for name, param in sig.parameters.items():
+        if name in ("self", "cls"):
+            continue
+        json_type = _annotation_to_json_type(param.annotation)
+        prop: dict[str, Any] = {"type": json_type}
+        # Pull inline description from param default if it is a ToolParam
+        if isinstance(param.default, ToolParam):
+            prop["description"] = param.default.description
+            if param.default.enum:
+                prop["enum"] = param.default.enum
+        else:
+            if param.default is inspect.Parameter.empty:
+                required.append(name)
+        properties[name] = prop
+
+    return {
+        "type": "function",
+        "function": {
+            "name": fn.__name__,
+            "description": doc,
+            "parameters": {
+                "type": "object",
+                "properties": properties,
+                "required": required,
+            },
+        },
+    }
+
+
+@dataclass
+class ToolParam:
+    """Metadata for a tool parameter; use as a default value in signatures."""
+    description: str = ""
+    enum: list[str] = field(default_factory=list)
+    default: Any = inspect.Parameter.empty
 
 
 @dataclass
 class ToolDefinition:
     name: str
-    description: str
-    parameters: dict  # JSON Schema object
-    handler: Callable
-    category: str = "general"
-    requires_confirmation: bool = False
+    fn: Callable
+    schema: dict[str, Any]
+    tags: list[str] = field(default_factory=list)
+    enabled: bool = True
 
 
-class ToolValidationError(Exception):
-    pass
-
-
-class ToolNotFoundError(Exception):
-    pass
+@dataclass
+class ToolResult:
+    name: str
+    call_id: str
+    output: Any
+    error: Optional[str] = None
+    latency_ms: float = 0.0
+    success: bool = True
 
 
 class ToolRegistry:
-    """
-    Central registry for agent tools.
-    Supports decorator registration, direct registration, validation, and dispatch.
+    """Central registry for all callable tools.
+
+    Usage::
+
+        registry = ToolRegistry()
+
+        @registry.register(tags=["search"])
+        def web_search(query: str, max_results: int = 5) -> list[dict]:
+            \"\"\"Search the web and return a list of results.\"\"\"
+            ...
+
+        # Get schema list for LLM
+        tools_json = registry.list_schemas()
+
+        # Dispatch a tool call from LLM output
+        result = registry.call("web_search", {"query": "python typing"}, call_id="tc_1")
     """
 
-    def __init__(self):
+    def __init__(self, audit: Optional[AuditLogger] = None) -> None:
         self._tools: dict[str, ToolDefinition] = {}
+        self._audit = audit
+
+    # ------------------------------------------------------------------
+    # Registration
+    # ------------------------------------------------------------------
 
     def register(
         self,
-        name: str,
-        description: str,
-        parameters: dict,
-        handler: Callable,
-        category: str = "general",
-        requires_confirmation: bool = False,
-    ) -> ToolDefinition:
-        defn = ToolDefinition(
-            name=name,
-            description=description,
-            parameters=parameters,
-            handler=handler,
-            category=category,
-            requires_confirmation=requires_confirmation,
-        )
-        self._tools[name] = defn
-        return defn
-
-    def tool(
-        self,
+        fn: Optional[Callable] = None,
+        *,
         name: Optional[str] = None,
-        description: str = "",
-        parameters: Optional[dict] = None,
-        category: str = "general",
-        requires_confirmation: bool = False,
-    ):
-        """Decorator for registering a function as a tool."""
-        def decorator(fn: Callable) -> Callable:
-            tool_name = name or fn.__name__
-            tool_desc = description or (inspect.getdoc(fn) or "")
-            tool_params = parameters or self._infer_parameters(fn)
-            self.register(
+        schema: Optional[dict[str, Any]] = None,
+        tags: Optional[list[str]] = None,
+        enabled: bool = True,
+    ) -> Callable:
+        """Decorator / direct registration.
+
+        Can be used as::
+
+            @registry.register
+            def my_tool(): ...
+
+            @registry.register(tags=["io"])
+            def my_tool(): ...
+
+            registry.register(my_fn, schema=my_schema)
+        """
+        def _inner(func: Callable) -> Callable:
+            tool_name = name or func.__name__
+            tool_schema = schema or _derive_schema(func)
+            defn = ToolDefinition(
                 name=tool_name,
-                description=tool_desc,
-                parameters=tool_params,
-                handler=fn,
-                category=category,
-                requires_confirmation=requires_confirmation,
+                fn=func,
+                schema=tool_schema,
+                tags=tags or [],
+                enabled=enabled,
             )
-            return fn
-        return decorator
+            self._tools[tool_name] = defn
+            log.debug("tool_registry.registered", tool=tool_name)
+            return func
 
-    def _infer_parameters(self, fn: Callable) -> dict:
-        """Build a minimal JSON Schema from function annotations."""
-        sig = inspect.signature(fn)
-        properties: dict = {}
-        required: list = []
-        type_map = {
-            str: "string",
-            int: "integer",
-            float: "number",
-            bool: "boolean",
-            list: "array",
-            dict: "object",
-        }
-        for param_name, param in sig.parameters.items():
-            if param_name == "self":
+        if fn is not None:
+            return _inner(fn)
+        return _inner
+
+    def unregister(self, name: str) -> None:
+        self._tools.pop(name, None)
+        log.debug("tool_registry.unregistered", tool=name)
+
+    def enable(self, name: str) -> None:
+        self._tools[name].enabled = True
+
+    def disable(self, name: str) -> None:
+        self._tools[name].enabled = False
+
+    # ------------------------------------------------------------------
+    # Schema access
+    # ------------------------------------------------------------------
+
+    def list_schemas(
+        self,
+        tags: Optional[list[str]] = None,
+        enabled_only: bool = True,
+    ) -> list[dict[str, Any]]:
+        """Return a list of JSON schemas suitable for the LLM 'tools' parameter."""
+        out = []
+        for defn in self._tools.values():
+            if enabled_only and not defn.enabled:
                 continue
-            ann = param.annotation
-            json_type = type_map.get(ann, "string")
-            properties[param_name] = {"type": json_type}
-            if param.default is inspect.Parameter.empty:
-                required.append(param_name)
-        return {
-            "type": "object",
-            "properties": properties,
-            "required": required,
-        }
+            if tags and not any(t in defn.tags for t in tags):
+                continue
+            out.append(defn.schema)
+        return out
 
-    def get(self, name: str) -> ToolDefinition:
+    def get_schema(self, name: str) -> dict[str, Any]:
+        return self._tools[name].schema
+
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
+
+    def validate_arguments(
+        self, name: str, arguments: dict[str, Any]
+    ) -> list[str]:
+        """Return a list of validation error strings (empty == valid)."""
         if name not in self._tools:
-            raise ToolNotFoundError(f"Tool '{name}' not registered")
-        return self._tools[name]
+            return [f"Unknown tool: {name}"]
+        errors: list[str] = []
+        params_schema = (
+            self._tools[name]
+            .schema["function"]["parameters"]
+        )
+        required = params_schema.get("required", [])
+        properties = params_schema.get("properties", {})
 
-    def list_names(self, category: Optional[str] = None) -> list[str]:
-        if category:
-            return [n for n, t in self._tools.items() if t.category == category]
-        return list(self._tools.keys())
+        for req_field in required:
+            if req_field not in arguments:
+                errors.append(f"Missing required argument: '{req_field}'")
 
-    def list_tools(self, category: Optional[str] = None) -> list[ToolDefinition]:
-        if category:
-            return [t for t in self._tools.values() if t.category == category]
-        return list(self._tools.values())
-
-    def validate_arguments(self, name: str, arguments: dict) -> None:
-        defn = self.get(name)
-        schema = defn.parameters
-        required = schema.get("required", [])
-        properties = schema.get("properties", {})
-
-        for req in required:
-            if req not in arguments:
-                raise ToolValidationError(
-                    f"Tool '{name}' missing required argument: '{req}'"
+        for arg_name, arg_value in arguments.items():
+            if arg_name not in properties:
+                errors.append(f"Unexpected argument: '{arg_name}'")
+                continue
+            expected_type = properties[arg_name].get("type")
+            actual_type = _PY_TO_JSON.get(type(arg_value), "string")
+            if expected_type and expected_type != actual_type:
+                # Allow int where number expected
+                if not (expected_type == "number" and actual_type == "integer"):
+                    errors.append(
+                        f"Argument '{arg_name}' expected type '{expected_type}', "
+                        f"got '{actual_type}'"
+                    )
+            enum_vals = properties[arg_name].get("enum")
+            if enum_vals and arg_value not in enum_vals:
+                errors.append(
+                    f"Argument '{arg_name}' value {arg_value!r} not in "
+                    f"allowed values: {enum_vals}"
                 )
 
-        for arg_name, value in arguments.items():
-            if arg_name in properties:
-                expected_type = properties[arg_name].get("type")
-                if expected_type and not self._check_type(value, expected_type):
-                    raise ToolValidationError(
-                        f"Tool '{name}' argument '{arg_name}' expected {expected_type}, "
-                        f"got {type(value).__name__}"
-                    )
+        return errors
 
-    def _check_type(self, value: Any, json_type: str) -> bool:
-        type_checks = {
-            "string": lambda v: isinstance(v, str),
-            "integer": lambda v: isinstance(v, int) and not isinstance(v, bool),
-            "number": lambda v: isinstance(v, (int, float)) and not isinstance(v, bool),
-            "boolean": lambda v: isinstance(v, bool),
-            "array": lambda v: isinstance(v, list),
-            "object": lambda v: isinstance(v, dict),
-        }
-        checker = type_checks.get(json_type)
-        return checker(value) if checker else True
+    # ------------------------------------------------------------------
+    # Execution
+    # ------------------------------------------------------------------
 
-    def dispatch(self, name: str, arguments: dict) -> Any:
-        self.validate_arguments(name, arguments)
-        defn = self.get(name)
-        return defn.handler(**arguments)
-
-    async def adispatch(self, name: str, arguments: dict) -> Any:
-        import asyncio
-        self.validate_arguments(name, arguments)
-        defn = self.get(name)
-        if inspect.iscoroutinefunction(defn.handler):
-            return await defn.handler(**arguments)
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(None, lambda: defn.handler(**arguments))
-
-    def as_openai_tools(
+    def call(
         self,
-        category: Optional[str] = None,
-        names: Optional[list[str]] = None,
-    ) -> list[dict]:
-        tools = self._filter(category, names)
-        return [
-            {
-                "type": "function",
-                "function": {
-                    "name": t.name,
-                    "description": t.description,
-                    "parameters": t.parameters,
-                },
-            }
-            for t in tools
-        ]
+        name: str,
+        arguments: dict[str, Any],
+        call_id: str = "",
+        validate: bool = True,
+    ) -> ToolResult:
+        """Execute a tool by name with the given arguments."""
+        call_id = call_id or f"tc_{int(time.time_ns())}"
+        if name not in self._tools:
+            return ToolResult(
+                name=name, call_id=call_id,
+                output=None, error=f"Tool '{name}' not found.", success=False,
+            )
+        defn = self._tools[name]
+        if not defn.enabled:
+            return ToolResult(
+                name=name, call_id=call_id,
+                output=None, error=f"Tool '{name}' is disabled.", success=False,
+            )
+        if validate:
+            errs = self.validate_arguments(name, arguments)
+            if errs:
+                return ToolResult(
+                    name=name, call_id=call_id,
+                    output=None, error=" | ".join(errs), success=False,
+                )
+        t0 = time.monotonic()
+        try:
+            output = defn.fn(**arguments)
+            latency = (time.monotonic() - t0) * 1000
+            if self._audit:
+                self._audit.record(
+                    action="tool_call",
+                    subject=name,
+                    metadata={"call_id": call_id, "latency_ms": round(latency, 1)},
+                )
+            log.info(
+                "tool_registry.called",
+                tool=name, call_id=call_id, latency_ms=round(latency, 1),
+            )
+            return ToolResult(
+                name=name, call_id=call_id,
+                output=output, latency_ms=latency, success=True,
+            )
+        except Exception as exc:  # noqa: BLE001
+            latency = (time.monotonic() - t0) * 1000
+            tb = traceback.format_exc()
+            log.error(
+                "tool_registry.error",
+                tool=name, call_id=call_id, error=str(exc),
+            )
+            return ToolResult(
+                name=name, call_id=call_id,
+                output=None,
+                error=f"{exc}\n{tb}",
+                latency_ms=latency,
+                success=False,
+            )
 
-    def as_anthropic_tools(
+    def call_from_llm(
         self,
-        category: Optional[str] = None,
-        names: Optional[list[str]] = None,
-    ) -> list[dict]:
-        tools = self._filter(category, names)
-        return [
-            {
-                "name": t.name,
-                "description": t.description,
-                "input_schema": t.parameters,
-            }
-            for t in tools
-        ]
+        tool_calls: list[dict[str, Any]],
+        validate: bool = True,
+    ) -> list[ToolResult]:
+        """Dispatch a list of tool calls as returned by an LLM response.
 
-    def as_gemini_tools(self) -> list[dict]:
-        return [
-            {
-                "function_declarations": [
-                    {
-                        "name": t.name,
-                        "description": t.description,
-                        "parameters": t.parameters,
-                    }
-                ]
-            }
-            for t in self._tools.values()
-        ]
+        Expected format (OpenAI-compatible)::
 
-    def _filter(
-        self,
-        category: Optional[str],
-        names: Optional[list[str]],
-    ) -> list[ToolDefinition]:
-        tools = list(self._tools.values())
-        if category:
-            tools = [t for t in tools if t.category == category]
-        if names:
-            tools = [t for t in tools if t.name in names]
-        return tools
+            [
+                {"id": "tc_1", "function": {"name": "...", "arguments": "{..."}}
+            ]
+        """
+        results = []
+        for tc in tool_calls:
+            name = tc["function"]["name"]
+            raw_args = tc["function"]["arguments"]
+            call_id = tc.get("id", "")
+            if isinstance(raw_args, str):
+                try:
+                    arguments = json.loads(raw_args)
+                except json.JSONDecodeError as exc:
+                    results.append(ToolResult(
+                        name=name, call_id=call_id,
+                        output=None,
+                        error=f"Invalid JSON in arguments: {exc}",
+                        success=False,
+                    ))
+                    continue
+            else:
+                arguments = raw_args
+            results.append(self.call(name, arguments, call_id=call_id, validate=validate))
+        return results
+
+    # ------------------------------------------------------------------
+    # Introspection
+    # ------------------------------------------------------------------
+
+    def names(self) -> list[str]:
+        return list(self._tools.keys())
 
     def __len__(self) -> int:
         return len(self._tools)

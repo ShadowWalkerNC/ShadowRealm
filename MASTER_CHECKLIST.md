@@ -2,7 +2,7 @@
 
 > Last updated: 2026-06-29
 > Branch: `shadowrealm-v2`
-> **81 / 129 components complete**
+> **84 / 129 components complete**
 
 Legend: ✅ Shipped · 🔄 In Progress · ⬜ Queued
 
@@ -139,11 +139,11 @@ Legend: ✅ Shipped · 🔄 In Progress · ⬜ Queued
 
 ---
 
-## Block 11 — Permission & Policy (C82–C84) ⬜
+## Block 11 — Permission & Policy (C82–C84) ✅
 
-- [ ] C82 `core/permission_manager.py` — Fine-grained permission graph
-- [ ] C83 `core/policy_engine.py` — Declarative allow/deny rule evaluation
-- [ ] C84 `core/access_control_list.py` — Per-resource ACL with inheritance
+- [x] C82 `core/permission_manager.py` — Fine-grained permission graph
+- [x] C83 `core/policy_engine.py` — Declarative allow/deny rule evaluation
+- [x] C84 `core/access_control_list.py` — Per-resource ACL with inheritance
 
 ---
 

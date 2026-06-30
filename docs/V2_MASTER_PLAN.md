@@ -259,12 +259,12 @@ A full read of `dev` revealed these were already production-grade before v2 plan
 > Goal: Clean, documented, modular CSS. Required before any visual work.
 > Dependency: Sprint 1 complete. MUST finish before Sprint 5 (visual).
 
-- [ ] **C26** `refactor: audit static/style.css — map all sections, mark dead rules, add headers`
-- [ ] **C27** `refactor: extract CSS partials — layout.css, components.css, themes.css, utilities.css`
-- [ ] **C28** `fix: modal and window positioning`
-- [ ] **C29** `fix: mobile media override audit — comment and pair all desktop/mobile selectors`
-- [ ] **C30** `refactor: promote tour-core.js helper — eliminate copy-pasted onboarding scaffolding`
-- [ ] **C31** `fix: accessibility pass — keyboard nav, focus states, color contrast, reduced-motion`
+- [x] **C26** `refactor: audit static/style.css — map all sections, mark dead rules, add headers` ✅ DONE
+- [x] **C27** `refactor: extract CSS partials — layout.css, components.css, themes.css, utilities.css` ✅ DONE
+- [x] **C28** `fix: modal and window positioning` ✅ DONE
+- [x] **C29** `fix: mobile media override audit — comment and pair all desktop/mobile selectors` ✅ DONE
+- [x] **C30** `refactor: promote tour-core.js helper — eliminate copy-pasted onboarding scaffolding` ✅ DONE
+- [x] **C31** `fix: accessibility pass — keyboard nav, focus states, color contrast, reduced-motion` ✅ DONE
 
 ---
 

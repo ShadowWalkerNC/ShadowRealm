@@ -6,6 +6,12 @@ timeout handling, and per-provider token counting.
 
 All calls are stdlib-only at the transport shim layer; actual HTTP is
 delegated to core/http_client.py (C67) so this module stays zero-dep.
+
+Architecture invariants honoured:
+  - Every call is logged to AuditLogger (C71) BEFORE dispatch.
+  - Forward stubs for PromptNormalizer (C121) and ReasoningEngine (C123)
+    are wired in; swap out stubs for real imports when Blocks 24 land.
+  - reasoning_trace field carried on every LLMResponse.
 """
 from __future__ import annotations
 
@@ -25,12 +31,20 @@ from core.rate_limiter_core import RateLimiter
 log = get_logger(__name__)
 
 
-class Provider(str, Enum):
-    OPENAI = "openai"
-    ANTHROPIC = "anthropic"
-    GEMINI = "gemini"
-    OLLAMA = "ollama"
+# ---------------------------------------------------------------------------
+# Enums
+# ---------------------------------------------------------------------------
 
+class Provider(str, Enum):
+    OPENAI    = "openai"
+    ANTHROPIC = "anthropic"
+    GEMINI    = "gemini"
+    OLLAMA    = "ollama"
+
+
+# ---------------------------------------------------------------------------
+# Data models
+# ---------------------------------------------------------------------------
 
 @dataclass
 class LLMMessage:
@@ -60,6 +74,8 @@ class LLMResponse:
     finish_reason: str = "stop"
     latency_ms: float = 0.0
     raw: dict[str, Any] = field(default_factory=dict)
+    # Invariant #9: every response carries a reasoning_trace (populated by C123)
+    reasoning_trace: Optional[str] = None
 
 
 @dataclass
@@ -74,7 +90,55 @@ class LLMRequest:
     tool_choice: str = "auto"
     timeout: float = 60.0
     request_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    # Forward-stub flags — set True by the respective modules when they land
+    _normalised: bool = False
+    _react_prepared: bool = False
 
+
+# ---------------------------------------------------------------------------
+# Forward stubs — Block 24 (C121 / C123)
+# ---------------------------------------------------------------------------
+
+def _apply_prompt_normalizer(req: LLMRequest) -> LLMRequest:
+    """
+    Stub for PromptNormalizer (C121).
+    Replace body with real call once Block 24 lands:
+        from core.prompt_normalizer import PromptNormalizer
+        return PromptNormalizer.instance().normalise(req)
+    """
+    req._normalised = True
+    return req
+
+
+def _apply_reasoning_engine(req: LLMRequest) -> tuple[LLMRequest, Optional[str]]:
+    """
+    Stub for ReasoningEngine ReAct loop (C123).
+    Replace body with real call once Block 24 lands:
+        from core.reasoning_engine import ReasoningEngine
+        return ReasoningEngine.instance().prepare(req)
+    Returns (prepared_request, reasoning_trace_or_None).
+    """
+    req._react_prepared = True
+    trace = "[ReAct stub — C123 not yet installed]"
+    return req, trace
+
+
+# ---------------------------------------------------------------------------
+# Audit helper — C71
+# ---------------------------------------------------------------------------
+
+def _audit(action: str, payload: dict[str, Any]) -> None:
+    """Write to AuditLogger (C71). Gracefully degrades if module not loaded."""
+    try:
+        from core.audit_logger import AuditLogger  # type: ignore
+        AuditLogger.instance().record(action=action, payload=payload)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Provider adapters
+# ---------------------------------------------------------------------------
 
 class _ProviderAdapter:
     """Base adapter — subclasses normalise provider-specific wire formats."""
@@ -152,7 +216,6 @@ class _OpenAIAdapter(_ProviderAdapter):
 
     def iter_stream(self, provider: Provider, model: str,
                     url: str, headers: dict, body: dict) -> Iterator[str]:
-        # Yields content delta strings; full SSE parsing handled by http_client.
         for chunk in self._http.stream_post(url, headers=headers, json=body):
             data = chunk.lstrip("data: ").strip()
             if data in ("", "[DONE]"):
@@ -284,7 +347,6 @@ class _GeminiAdapter(_ProviderAdapter):
         )
 
     def iter_stream(self, provider, model, url, headers, body):
-        # Gemini streaming uses newline-delimited JSON objects.
         for line in self._http.stream_post(url, headers=headers, json=body):
             line = line.strip()
             if not line:
@@ -353,12 +415,16 @@ class _OllamaAdapter(_ProviderAdapter):
 
 
 _ADAPTER_MAP: dict[Provider, type[_ProviderAdapter]] = {
-    Provider.OPENAI: _OpenAIAdapter,
+    Provider.OPENAI:    _OpenAIAdapter,
     Provider.ANTHROPIC: _AnthropicAdapter,
-    Provider.GEMINI: _GeminiAdapter,
-    Provider.OLLAMA: _OllamaAdapter,
+    Provider.GEMINI:    _GeminiAdapter,
+    Provider.OLLAMA:    _OllamaAdapter,
 }
 
+
+# ---------------------------------------------------------------------------
+# LLMClient — public API
+# ---------------------------------------------------------------------------
 
 class LLMClient:
     """Unified LLM client — create once, call any provider.
@@ -373,6 +439,7 @@ class LLMClient:
             messages=[LLMMessage(role="user", content="Hello!")],
         ))
         print(response.content)
+        print(response.reasoning_trace)   # set by C123 when live
     """
 
     def __init__(
@@ -380,11 +447,11 @@ class LLMClient:
         http: Optional[HttpClient] = None,
         retry: Optional[RetryPolicy] = None,
     ) -> None:
-        self._http = http or HttpClient()
-        self._retry = retry or RetryPolicy(max_attempts=3, base_delay=1.0)
+        self._http    = http or HttpClient()
+        self._retry   = retry or RetryPolicy(max_attempts=3, base_delay=1.0)
         self._adapters: dict[Provider, _ProviderAdapter] = {}
-        self._breakers: dict[Provider, CircuitBreaker] = {}
-        self._limiters: dict[Provider, RateLimiter] = {}
+        self._breakers: dict[Provider, CircuitBreaker]   = {}
+        self._limiters: dict[Provider, RateLimiter]      = {}
 
     # ------------------------------------------------------------------
     # Registration
@@ -398,7 +465,7 @@ class LLMClient:
         rpm: int = 60,
     ) -> None:
         """Register a provider with its API key and optional rate limit."""
-        cls = _ADAPTER_MAP[provider]
+        cls     = _ADAPTER_MAP[provider]
         adapter = cls(api_key=api_key, http=self._http)
         if base_url and hasattr(adapter, "BASE_URL"):
             adapter.BASE_URL = base_url  # type: ignore[attr-defined]
@@ -407,15 +474,59 @@ class LLMClient:
         self._limiters[provider] = RateLimiter(rate=rpm, per=60.0)
         log.info("llm_client.registered", provider=provider.value)
 
+    @classmethod
+    def from_env(cls) -> "LLMClient":
+        """Build a client pre-loaded from environment variables:
+
+            SR_OPENAI_API_KEY, SR_OPENAI_BASE_URL
+            SR_ANTHROPIC_API_KEY
+            SR_GEMINI_API_KEY
+            SR_OLLAMA_BASE_URL  (defaults to http://localhost:11434)
+        """
+        import os
+        client = cls()
+        if key := os.getenv("SR_OPENAI_API_KEY"):
+            client.register(Provider.OPENAI, api_key=key,
+                            base_url=os.getenv("SR_OPENAI_BASE_URL"))
+        if key := os.getenv("SR_ANTHROPIC_API_KEY"):
+            client.register(Provider.ANTHROPIC, api_key=key)
+        if key := os.getenv("SR_GEMINI_API_KEY"):
+            client.register(Provider.GEMINI, api_key=key)
+        client.register(
+            Provider.OLLAMA,
+            base_url=os.getenv("SR_OLLAMA_BASE_URL", "http://localhost:11434"),
+        )
+        return client
+
+    # ------------------------------------------------------------------
+    # Internal pipeline: normalise → ReAct → audit → dispatch
+    # ------------------------------------------------------------------
+
+    def _prepare(self, req: LLMRequest) -> tuple[LLMRequest, Optional[str]]:
+        """Run C121 normalisation stub + C123 ReAct stub."""
+        req = _apply_prompt_normalizer(req)
+        req, trace = _apply_reasoning_engine(req)
+        return req, trace
+
     # ------------------------------------------------------------------
     # Core call
     # ------------------------------------------------------------------
 
     def complete(self, req: LLMRequest) -> LLMResponse:
         """Execute a blocking (non-streaming) LLM call."""
-        adapter = self._get_adapter(req.provider)
+        req, trace = self._prepare(req)
+        adapter    = self._get_adapter(req.provider)
         url, headers, body = adapter.build_payload(req)
         self._limiters[req.provider].acquire()
+
+        # Invariant #2: audit BEFORE execution
+        _audit("llm_call_start", {
+            "request_id": req.request_id,
+            "provider":   req.provider.value,
+            "model":      req.model,
+            "messages":   len(req.messages),
+            "stream":     False,
+        })
 
         t0 = time.monotonic()
         raw = self._breakers[req.provider].call(
@@ -427,6 +538,14 @@ class LLMClient:
         latency_ms = (time.monotonic() - t0) * 1000
 
         response = adapter.parse_response(req.provider, req.model, raw, latency_ms)
+        response.reasoning_trace = trace  # Invariant #9
+
+        _audit("llm_call_end", {
+            "request_id":      req.request_id,
+            "finish_reason":   response.finish_reason,
+            "total_tokens":    response.total_tokens,
+            "latency_ms":      round(latency_ms, 1),
+        })
         log.info(
             "llm_client.complete",
             provider=req.provider.value,
@@ -441,13 +560,23 @@ class LLMClient:
         self, req: LLMRequest
     ) -> Generator[str, None, None]:
         """Yield content delta strings as the model produces them."""
-        req.stream = True
-        adapter = self._get_adapter(req.provider)
+        req.stream  = True
+        req, trace  = self._prepare(req)
+        adapter     = self._get_adapter(req.provider)
         url, headers, body = adapter.build_payload(req)
         self._limiters[req.provider].acquire()
+
+        _audit("llm_stream_start", {
+            "request_id": req.request_id,
+            "provider":   req.provider.value,
+            "model":      req.model,
+        })
+
         yield from self._breakers[req.provider].call(
             lambda: adapter.iter_stream(req.provider, req.model, url, headers, body)
         )
+
+        _audit("llm_stream_end", {"request_id": req.request_id})
 
     # ------------------------------------------------------------------
     # Helpers
@@ -457,7 +586,7 @@ class LLMClient:
         if provider not in self._adapters:
             raise RuntimeError(
                 f"Provider '{provider.value}' not registered. "
-                "Call client.register() first."
+                "Call client.register() or use LLMClient.from_env()."
             )
         return self._adapters[provider]
 
@@ -466,8 +595,21 @@ class LLMClient:
 
     def health(self) -> dict[str, str]:
         return {
-            p.value: (
-                "open" if self._breakers[p].is_closed else "tripped"
-            )
+            p.value: ("open" if self._breakers[p].is_closed else "tripped")
             for p in self._adapters
         }
+
+
+# ---------------------------------------------------------------------------
+# Module-level singleton
+# ---------------------------------------------------------------------------
+
+_default_client: Optional[LLMClient] = None
+
+
+def get_client() -> LLMClient:
+    """Return the module-level default client, initialised from env on first call."""
+    global _default_client
+    if _default_client is None:
+        _default_client = LLMClient.from_env()
+    return _default_client

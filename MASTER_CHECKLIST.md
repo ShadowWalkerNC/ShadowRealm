@@ -2,7 +2,7 @@
 
 > Last updated: 2026-06-29
 > Branch: `shadowrealm-v2`
-> **84 / 129 components complete**
+> **87 / 129 components complete**
 
 Legend: ✅ Shipped · 🔄 In Progress · ⬜ Queued
 
@@ -147,11 +147,11 @@ Legend: ✅ Shipped · 🔄 In Progress · ⬜ Queued
 
 ---
 
-## Block 12 — Plugin & Extension (C85–C87) ⬜
+## Block 12 — Plugin & Extension (C85–C87) ✅
 
-- [ ] C85 `core/plugin_registry.py` — Versioned manifest + dependency resolver
-- [ ] C86 `core/plugin_sandbox.py` — Isolated execution for untrusted plugins
-- [ ] C87 `core/extension_loader.py` — Hot-reload without restart
+- [x] C85 `core/plugin_registry.py` — Versioned manifest + dependency resolver
+- [x] C86 `core/plugin_sandbox.py` — Isolated execution for untrusted plugins
+- [x] C87 `core/extension_loader.py` — Hot-reload without restart
 
 ---
 

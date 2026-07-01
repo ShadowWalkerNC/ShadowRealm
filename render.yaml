@@ -1,0 +1,103 @@
+# render.yaml — ShadowRealm Render Blueprint
+# One-click deploy: https://render.com/deploy
+# Provisions: 1 Web Service (Docker) + 1 Postgres DB + 1 Persistent Disk
+#
+# Secrets that MUST be set manually in the Render dashboard
+# (they are listed here as sync: false so Render prompts you):
+#   - SHADOWREALM_ADMIN_PASSWORD
+#   - ANTHROPIC_API_KEY  (or whichever LLM keys you use)
+#   - OPENAI_API_KEY
+#   - GEMINI_API_KEY
+#   - GROQ_API_KEY
+# Everything else is wired automatically from the database and disk below.
+
+services:
+  - type: web
+    name: shadowrealm
+    runtime: docker
+    branch: shadowrealm-v2
+    dockerfilePath: ./Dockerfile
+    # Render free tier sleeps after 15 min inactivity.
+    # Upgrade to starter ($7/mo) to keep it always-on.
+    plan: starter
+    # Health-check — Render will restart the container if this path stops 200-ing.
+    healthCheckPath: /health
+    # Render injects PORT but uvicorn is hardcoded to 7000 in the Dockerfile.
+    # We override it here so Render's proxy routes correctly.
+    port: 7000
+    disk:
+      name: shadowrealm-data
+      mountPath: /app/data
+      sizeGB: 10
+    envVars:
+      # ── Binding ───────────────────────────────────────────────────────────
+      - key: APP_BIND
+        value: 0.0.0.0
+      - key: APP_PORT
+        value: 7000
+      # ── Database (auto-wired from the postgres service below) ─────────────
+      - key: DATABASE_URL
+        fromDatabase:
+          name: shadowrealm-db
+          property: connectionString
+      # ── Persistent data & logs (on the mounted disk) ──────────────────────
+      - key: SHADOWREALM_DATA_DIR
+        value: /app/data
+      - key: APP_DATA_DIR
+        value: /app/data
+      - key: APP_LOGS_DIR
+        value: /app/data/logs
+      # ── Security ──────────────────────────────────────────────────────────
+      - key: SECURE_COOKIES
+        value: "true"
+      - key: LOCALHOST_BYPASS
+        value: "false"
+      - key: AUTH_ENABLED
+        value: "true"
+      - key: ALLOWED_ORIGINS
+        value: https://shadowrealm.onrender.com
+      # ── Admin password (set in dashboard, never commit a real value) ───────
+      - key: SHADOWREALM_ADMIN_PASSWORD
+        sync: false
+      # ── LLM API keys (add/remove as needed, all sync: false) ──────────────
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: XAI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      # ── Embeddings (uses OpenAI text-embedding-3-small if OPENAI_API_KEY set)
+      # Switch EMBEDDING_URL / EMBEDDING_MODEL if you prefer a different backend.
+      - key: EMBEDDING_URL
+        value: https://api.openai.com/v1/embeddings
+      - key: EMBEDDING_MODEL
+        value: text-embedding-3-small
+      # ── SearXNG (disabled by default — set to your own instance URL) ───────
+      # - key: SEARXNG_INSTANCE
+      #   value: https://your-searxng.example.com
+      # ── ChromaDB (disabled by default — set to your own instance) ──────────
+      # - key: CHROMADB_HOST
+      #   value: your-chromadb-host
+      # - key: CHROMADB_PORT
+      #   value: "8000"
+      # ── Misc ──────────────────────────────────────────────────────────────
+      - key: CLEANUP_INTERVAL_HOURS
+        value: "24"
+      - key: SHADOWREALM_INPROCESS_POLLERS
+        value: "1"
+      - key: SHADOWREALM_INPROCESS_TASKS
+        value: "1"
+
+databases:
+  - name: shadowrealm-db
+    plan: free
+    databaseName: shadowrealm
+    user: shadowrealm

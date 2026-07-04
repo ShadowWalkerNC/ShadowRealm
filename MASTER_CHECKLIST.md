@@ -1,8 +1,8 @@
 # ShadowRealm v2 — Master Checklist
 
-> Last updated: 2026-06-29
+> Last updated: 2026-07-04
 > Branch: `shadowrealm-v2`
-> **90 / 129 components complete**
+> **129 / 129 components complete**
 
 Legend: ✅ Shipped · 🔄 In Progress · ⬜ Queued
 
@@ -163,114 +163,114 @@ Legend: ✅ Shipped · 🔄 In Progress · ⬜ Queued
 
 ---
 
-## Block 14 — Workflow Engine (C91–C93) ⬜
+## Block 14 — Workflow Engine (C91–C93) ✅
 
-- [ ] C91 `core/workflow_definition.py` — Trigger → condition → action node graph
-- [ ] C92 `core/workflow_executor.py` — DAG execution: branch, loop, parallel nodes
-- [ ] C93 `core/workflow_registry.py` — Store, version, activate/deactivate workflows
-
----
-
-## Block 15 — Data Pipeline (C94–C96) ⬜
-
-- [ ] C94 `core/pipeline_builder.py` — Composable ETL step chain
-- [ ] C95 `core/data_transformer.py` — Map/filter/reduce/join operations
-- [ ] C96 `core/pipeline_scheduler.py` — Schedule + monitor pipelines
+- [x] C91 `core/workflow_definition.py` — Trigger → condition → action node graph
+- [x] C92 `core/workflow_executor.py` — DAG execution: branch, loop, parallel nodes
+- [x] C93 `core/workflow_registry.py` — Store, version, activate/deactivate workflows
 
 ---
 
-## Block 16 — Multimodal & Media (C97–C99) ⬜
+## Block 15 — Data Pipeline (C94–C96) ✅
 
-- [ ] C97 `core/media_processor.py` — Image/audio/video metadata + format conversion
-- [ ] C98 `core/transcription_adapter.py` — Speech-to-text bridge (Whisper + backends)
-- [ ] C99 `core/vision_adapter.py` — Image understanding (vision model API wrapper)
-
----
-
-## Block 17 — Testing Infrastructure (C100–C102) ⬜
-
-- [ ] C100 `core/test_harness.py` — Agent behavior test runner
-- [ ] C101 `core/mock_tool_registry.py` — Deterministic mock tools for isolated testing
-- [ ] C102 `core/regression_tracker.py` — Capability regression tracking across versions
+- [x] C94 `core/pipeline_builder.py` — Composable ETL step chain
+- [x] C95 `core/data_transformer.py` — Map/filter/reduce/join operations
+- [x] C96 `core/pipeline_scheduler.py` — Schedule + monitor pipelines
 
 ---
 
-## Block 18 — Deployment & DevOps (C103–C105) ⬜
+## Block 16 — Multimodal & Media (C97–C99) ✅
 
-- [ ] C103 `core/deployment_manager.py` — Blue/green deploy + rollback
-- [ ] C104 `core/config_drift_detector.py` — Detect + alert on config drift
-- [ ] C105 `core/release_gate.py` — Automated pre-release checks
-
----
-
-## Block 19 — Integration Adapters (C106–C108) ⬜
-
-- [ ] C106 `integrations/github_adapter.py` — GitHub API: repos, issues, PRs, commits
-- [ ] C107 `integrations/calendar_adapter.py` — Calendar read/write
-- [ ] C108 `integrations/browser_adapter.py` — Headless browser automation
+- [x] C97 `core/media_processor.py` — Image/audio/video metadata + format conversion
+- [x] C98 `core/transcription_adapter.py` — Speech-to-text bridge (Whisper + backends)
+- [x] C99 `core/vision_adapter.py` — Image understanding (vision model API wrapper)
 
 ---
 
-## Block 20 — Agent Identity Layer (C109–C111) ⬜
+## Block 17 — Testing Infrastructure (C100–C102) ✅
+
+- [x] C100 `core/test_harness.py` — Agent behavior test runner
+- [x] C101 `core/mock_tool_registry.py` — Deterministic mock tools for isolated testing
+- [x] C102 `core/regression_tracker.py` — Capability regression tracking across versions
+
+---
+
+## Block 18 — Deployment & DevOps (C103–C105) ✅
+
+- [x] C103 `core/deployment_manager.py` — Blue/green deploy + rollback
+- [x] C104 `core/config_drift_detector.py` — Detect + alert on config drift
+- [x] C105 `core/release_gate.py` — Automated pre-release checks
+
+---
+
+## Block 19 — Integration Adapters (C106–C108) ✅
+
+- [x] C106 `integrations/github_adapter.py` — GitHub API: repos, issues, PRs, commits
+- [x] C107 `integrations/calendar_adapter.py` — Calendar read/write
+- [x] C108 `integrations/browser_adapter.py` — Headless browser automation
+
+---
+
+## Block 20 — Agent Identity Layer (C109–C111) ✅
 *Principle: Every agent has a defined identity, purpose, and model tier. Source: IBM watsonx, Hermes soul.md*
 
-- [ ] C109 `core/soul_loader.py` — Parse + validate soul.md persona blueprints
-- [ ] C110 `core/agent_identity.py` — Runtime identity injected into every LLM call
-- [ ] C111 `core/pantheon_router.py` — Score + route tasks to best-fit agent/model (MIT reward model)
+- [x] C109 `core/soul_loader.py` — Parse + validate soul.md persona blueprints
+- [x] C110 `core/agent_identity.py` — Runtime identity injected into every LLM call
+- [x] C111 `core/pantheon_router.py` — Score + route tasks to best-fit agent/model (MIT reward model)
 
 ---
 
-## Block 21 — Memory Vault (C112–C114) ⬜
+## Block 21 — Memory Vault (C112–C114) ✅
 *Principle: Memory compounds across sessions. Working → episodic → semantic layers. Source: Mem0, Hermes*
 
-- [ ] C112 `core/memory_vault.py` — Unified markdown + SQLite + vector memory with context-injection API
-- [ ] C113 `core/context_compressor.py` — LLM summarisation + /compress trigger + budget auto-compress
-- [ ] C114 `core/memory_sync_agent.py` — Scheduled GitHub snapshot of full memory state
+- [x] C112 `core/memory_vault.py` — Unified markdown + SQLite + vector memory with context-injection API
+- [x] C113 `core/context_compressor.py` — LLM summarisation + /compress trigger + budget auto-compress
+- [x] C114 `core/memory_sync_agent.py` — Scheduled GitHub snapshot of full memory state
 
 ---
 
-## Block 22 — Operational Controls (C115–C117) ⬜
+## Block 22 — Operational Controls (C115–C117) ✅
 *Principle: User controls the agent runtime explicitly. Source: Hermes, AutoGen event-driven runtime*
 
-- [ ] C115 `core/command_parser.py` — /q /background /reset /compress /model /stop parser
-- [ ] C116 `core/goal_budget.py` — N-turn loops · power/balanced/economy modes · auto-compress
-- [ ] C117 `core/sub_agent_orchestrator.py` — Parallel sub-agents · isolated contexts · solvability scoring
+- [x] C115 `core/command_parser.py` — /q /background /reset /compress /model /stop parser
+- [x] C116 `core/goal_budget.py` — N-turn loops · power/balanced/economy modes · auto-compress
+- [x] C117 `core/sub_agent_orchestrator.py` — Parallel sub-agents · isolated contexts · solvability scoring
 
 ---
 
-## Block 23 — Model & Channel Routing (C118–C120) ⬜
+## Block 23 — Model & Channel Routing (C118–C120) ✅
 *Principle: One brain, many interfaces. Any model, any channel. Source: Hermes, Gemini, AutoGen*
 
-- [ ] C118 `core/model_router.py` — Cost-aware dynamic LLM routing + Ollama offline fallback
-- [ ] C119 `core/channel_router.py` — Telegram / Discord / Slack / WhatsApp / Matrix / Web adapter
-- [ ] C120 `core/os_action_executor.py` — Sandboxed OS actions + permission gates + audit
+- [x] C118 `core/model_router.py` — Cost-aware dynamic LLM routing + Ollama offline fallback
+- [x] C119 `core/channel_router.py` — Telegram / Discord / Slack / WhatsApp / Matrix / Web adapter
+- [x] C120 `core/os_action_executor.py` — Sandboxed OS actions + permission gates + audit
 
 ---
 
-## Block 24 — Input Intelligence (C121–C123) ⬜
+## Block 24 — Input Intelligence (C121–C123) ✅
 *Principle: Clean input before routing. Reason before acting. Source: ReAct (Yao 2023), query rewriting research*
 
-- [ ] C121 `core/prompt_normalizer.py` — Raw input → grammar fix → de-ambiguate → clean reconstructed query
-- [ ] C122 `core/intent_classifier.py` — Intent type → tool / skill / agent / model routing decision
-- [ ] C123 `core/reasoning_engine.py` — ReAct loop: Thought→Action→Observation + stored reasoning trace panel
+- [x] C121 `core/prompt_normalizer.py` — Raw input → grammar fix → de-ambiguate → clean reconstructed query
+- [x] C122 `core/intent_classifier.py` — Intent type → tool / skill / agent / model routing decision
+- [x] C123 `core/reasoning_engine.py` — ReAct loop: Thought→Action→Observation + stored reasoning trace panel
 
 ---
 
-## Block 25 — Self-Healing & Learning (C124–C126) ⬜
+## Block 25 — Self-Healing & Learning (C124–C126) ✅
 *Principle: Errors feed the reflection loop. The system gets smarter from failures. Source: CodeMender, Bloom's*
 
-- [ ] C124 `core/self_reflection_loop.py` — Error detect → fix generate → sandbox validate → plugin register
-- [ ] C125 `core/token_budget_manager.py` — Per-session token economy: power / balanced / economy modes
-- [ ] C126 `core/domain_model_registry.py` — Route to domain models: law / science / psychology / physics / code
+- [x] C124 `core/self_reflection_loop.py` — Error detect → fix generate → sandbox validate → plugin register
+- [x] C125 `core/token_budget_manager.py` — Per-session token economy: power / balanced / economy modes
+- [x] C126 `core/domain_model_registry.py` — Route to domain models: law / science / psychology / physics / code
 
 ---
 
-## Block 26 — Ecosystem & Portability (C127–C129) ⬜
+## Block 26 — Ecosystem & Portability (C127–C129) ✅
 *Principle: Everything is portable, sharable, and teachable. Source: IBM export, federated learning, Bloom's mastery*
 
-- [ ] C127 `core/workspace_exporter.py` — Export full context (agents, skills, memory, prefs) as portable ZIP
-- [ ] C128 `core/community_skill_library.py` — Opt-in anonymised skill submission + versioned community library
-- [ ] C129 `core/skill_trainer.py` — 3-stage mastery: Show (observe) → Practice (guided) → Demonstrate (independent)
+- [x] C127 `core/workspace_exporter.py` — Export full context (agents, skills, memory, prefs) as portable ZIP
+- [x] C128 `core/community_skill_library.py` — Opt-in anonymised skill submission + versioned community library
+- [x] C129 `core/skill_trainer.py` — 3-stage mastery: Show (observe) → Practice (guided) → Demonstrate (independent)
 
 ---
 

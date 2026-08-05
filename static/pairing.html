@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShadowRealm Mobile Tailscale Pairing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0d0d0f;
+      color: #e0e0e0;
+      font-family: 'Inter', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .card {
+      background-color: #16161a;
+      border: 1px solid #232329;
+      border-radius: 20px;
+      padding: 30px;
+      max-width: 480px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(90deg, #7B5CF0, #00E5FF);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    p {
+      color: #888890;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    .ip-badge {
+      display: inline-block;
+      background-color: rgba(123, 92, 240, 0.15);
+      border: 1px solid rgba(123, 92, 240, 0.4);
+      color: #00E5FF;
+      padding: 6px 14px;
+      border-radius: 12px;
+      font-family: monospace;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+    .qr-container {
+      display: flex;
+      justify-content: space-around;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .qr-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .qr-box img {
+      width: 160px;
+      height: 160px;
+      border-radius: 12px;
+      border: 4px solid #fff;
+    }
+    .qr-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>Mobile Remote Pairing</h1>
+    <p>Scan with your iPhone or Android camera over Tailscale or local network</p>
+
+    <div class="ip-badge">Tailscale IP: <span id="ipVal">Detecting...</span></div>
+
+    <div class="qr-container">
+      <div class="qr-box">
+        <img id="qrIphone" src="" alt="iPhone QR Code">
+        <div class="qr-label">📱 iPhone iOS</div>
+      </div>
+      <div class="qr-box">
+        <img id="qrAndroid" src="" alt="Android QR Code">
+        <div class="qr-label">🤖 Android</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function loadPairing() {
+      try {
+        const res = await fetch('/api/remote/pairing');
+        const data = await res.json();
+        document.getElementById('ipVal').innerText = data.tailscale_ip;
+        document.getElementById('qrIphone').src = data.qr_iphone_api;
+        document.getElementById('qrAndroid').src = data.qr_android_api;
+      } catch (err) {
+        document.getElementById('ipVal').innerText = '127.0.0.1 (Offline)';
+      }
+    }
+    loadPairing();
+  </script>
+</body>
+</html>

@@ -1,158 +1,104 @@
-"""SkillRegistry — Progressive Disclosure Layer (C18).
+"""SkillRegistry — loads skills/*.md, progressive disclosure (name+desc only in context)."""
 
-Enforces the ShadowRealm contract:
-  - Only `name + description` (~53 tokens per skill) is kept in
-    context at all times.  Full Instructions / Examples / Failure
-    Modes are injected ON-DEMAND when a skill is selected for the
-    current task.
-  - Wraps the existing SkillsManager so no storage logic is
-    duplicated here.
-
-Public surface:
-  SkillRegistry.compact_index(owner)  → [{name, description, category}] — always-on
-  SkillRegistry.select(name, owner)   → full SKILL.md string or None
-  SkillRegistry.search(query, owner)  → [{name, description, category}]
-  SkillRegistry.prompt_block(owner)   → compact index formatted for system-prompt injection
-"""
-
-from __future__ import annotations
-
+import os
+import re
+import yaml
 import logging
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Token budget: name(~20) + description(~30) + overhead(~3)
-_TOKENS_PER_SKILL = 53
-_MAX_COMPACT_SKILLS = 40  # hard cap to prevent context overflow on huge libraries
-
-
 class SkillRegistry:
-    """Progressive disclosure wrapper around SkillsManager.
+    """Registry managing skills with Progressive Disclosure.
 
-    Thread-safe for read operations. Writes go through SkillsManager;
-    call `invalidate()` if the skill library changes outside this instance.
+    Contract:
+      - Startup: Load only name + description into memory (~53 tokens per skill).
+      - On-Demand: Load full instructions, triggers, examples, and failure modes when active.
     """
 
-    def __init__(self, skills_manager):
-        """Args:
-            skills_manager: an instance of services.memory.skills.SkillsManager
-        """
-        self._sm = skills_manager
+    def __init__(self, skills_dir: Optional[str] = None):
+        if skills_dir:
+            self.skills_dir = Path(skills_dir)
+        else:
+            self.skills_dir = Path(__file__).parent.parent / "skills"
+        
+        self.skills_dir.mkdir(parents=True, exist_ok=True)
+        self._index: Dict[str, Dict[str, Any]] = {}
+        self.reload_index()
 
-    # ------------------------------------------------------------------
-    # Compact index — always-on context footprint
-    # ------------------------------------------------------------------
+    def reload_index(self) -> int:
+        """Scan skills directory and build lightweight index (name + description)."""
+        self._index.clear()
+        if not self.skills_dir.exists():
+            return 0
 
-    def compact_index(
-        self,
-        owner: Optional[str] = None,
-        *,
-        active_toolsets: Optional[List[str]] = None,
-        platform: Optional[str] = None,
-        max_skills: int = _MAX_COMPACT_SKILLS,
-    ) -> List[Dict]:
-        """Return the lightweight [{name, description, category}] list.
+        for file_path in self.skills_dir.glob("*.md"):
+            try:
+                metadata = self._extract_metadata(file_path)
+                if metadata and "name" in metadata:
+                    self._index[metadata["name"]] = {
+                        "name": metadata["name"],
+                        "description": metadata.get("description", ""),
+                        "path": str(file_path.resolve()),
+                    }
+            except Exception as e:
+                logger.error(f"Error indexing skill {file_path}: {e}")
 
-        This is the ONLY skill data that should sit in the system prompt
-        permanently.  Full skill content MUST NOT appear here.
-        """
-        idx = self._sm.index_for(
-            owner=owner,
-            active_toolsets=active_toolsets,
-            platform=platform,
-        )
-        # Trim to budget so a large skill library never blows the context cap.
-        return [{"name": s["name"], "description": s["description"], "category": s["category"]}
-                for s in idx[:max_skills]]
+        return len(self._index)
 
-    # ------------------------------------------------------------------
-    # On-demand full skill injection
-    # ------------------------------------------------------------------
+    def _extract_metadata(self, file_path: Path) -> Dict[str, Any]:
+        """Extract title/name and description from frontmatter or top headers."""
+        content = file_path.read_text(encoding="utf-8")
+        
+        # Check for YAML frontmatter
+        if content.startswith("---"):
+            parts = content.split("---", 2)
+            if len(parts) >= 3:
+                try:
+                    data = yaml.safe_load(parts[1])
+                    if isinstance(data, dict):
+                        return data
+                except Exception:
+                    pass
 
-    def select(
-        self,
-        name: str,
-        owner: Optional[str] = None,
-    ) -> Optional[str]:
-        """Return the full SKILL.md string for `name`, or None if not found.
+        # Markdown header fallback parse
+        name = file_path.stem
+        description = ""
+        lines = content.splitlines()
+        for i, line in enumerate(lines):
+            if line.startswith("# "):
+                name = line.replace("# ", "").strip()
+            elif line.startswith("## Description"):
+                if i + 1 < len(lines):
+                    description = lines[i + 1].strip()
 
-        Call this only when routing has decided the current task should use
-        this skill. Injecting full content unconditionally defeats progressive
-        disclosure.
-        """
-        md = self._sm.read_skill_md(name, owner=owner)
-        if md:
-            self._sm.record_use(name, owner=owner)
-        return md
+        return {"name": name, "description": description}
 
-    # ------------------------------------------------------------------
-    # Relevance search — on-demand, not injected by default
-    # ------------------------------------------------------------------
+    def get_progressive_context(self) -> List[Dict[str, str]]:
+        """Return lightweight index for system prompt injection (Progressive Disclosure)."""
+        return [
+            {"name": item["name"], "description": item["description"]}
+            for item in self._index.values()
+        ]
 
-    def search(
-        self,
-        query: str,
-        owner: Optional[str] = None,
-        *,
-        max_results: int = 5,
-        min_confidence: float = 0.0,
-    ) -> List[Dict]:
-        """Return [{name, description, category}] for skills relevant to `query`.
+    def get_full_skill(self, skill_name: str) -> Optional[Dict[str, Any]]:
+        """Load full instructions, examples, and failure modes on demand."""
+        if skill_name not in self._index:
+            return None
 
-        Results still contain only compact fields.  Call `select()` to get
-        full content for any result the router decides to inject.
-        """
-        skills = self._sm.load(owner=owner)
-        hits = self._sm.get_relevant_skills(
-            query,
-            skills=skills,
-            max_items=max_results,
-            min_confidence=min_confidence,
-        )
-        return [{"name": s["name"], "description": s.get("description", ""),
-                 "category": s.get("category", "general")} for s in hits]
+        file_path = Path(self._index[skill_name]["path"])
+        if not file_path.exists():
+            return None
 
-    # ------------------------------------------------------------------
-    # System-prompt block
-    # ------------------------------------------------------------------
+        content = file_path.read_text(encoding="utf-8")
+        return {
+            "name": skill_name,
+            "path": str(file_path),
+            "content": content,
+            "metadata": self._index[skill_name],
+        }
 
-    def prompt_block(
-        self,
-        owner: Optional[str] = None,
-        *,
-        active_toolsets: Optional[List[str]] = None,
-        platform: Optional[str] = None,
-        header: str = "## Available Skills",
-    ) -> str:
-        """Format the compact index as a system-prompt section.
-
-        The block is intentionally minimal.  Full skill instructions are
-        injected separately by AgentHarness.inject_skill() when routing
-        selects a skill for the current turn.
-
-        Example output:
-          ## Available Skills
-          - git-squash-commits: Squash the last N commits into one clean commit.
-          - skill_creator: Writes a new SKILL.md from a successful workflow trace.
-        """
-        idx = self.compact_index(
-            owner=owner,
-            active_toolsets=active_toolsets,
-            platform=platform,
-        )
-        if not idx:
-            return ""
-        lines = [header]
-        for s in idx:
-            desc = (s.get("description") or "").strip().rstrip(".")
-            lines.append(f"- {s['name']}: {desc}.")
-        return "\n".join(lines)
-
-    # ------------------------------------------------------------------
-    # Estimated token footprint
-    # ------------------------------------------------------------------
-
-    def estimated_tokens(self, owner: Optional[str] = None) -> int:
-        """Rough token count for the compact index (for the Token Panel)."""
-        return len(self.compact_index(owner=owner)) * _TOKENS_PER_SKILL
+    def list_skills(self) -> List[str]:
+        """List registered skill names."""
+        return list(self._index.keys())

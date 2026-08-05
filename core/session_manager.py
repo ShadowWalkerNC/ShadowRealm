@@ -57,8 +57,8 @@ class SessionManager:
         sm.close(session.session_id, status="completed")
     """
 
-    def __init__(self, base_dir: Path = SESSION_DIR):
-        self.base_dir = base_dir
+    def __init__(self, base_dir: Path | str = SESSION_DIR):
+        self.base_dir = Path(base_dir) if isinstance(base_dir, str) else base_dir
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self._active: dict[str, "Session"] = {}
 

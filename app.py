@@ -618,6 +618,10 @@ app.include_router(setup_skills_routes(skills_manager))
 from routes.agent_routes import setup_agent_routes
 app.include_router(setup_agent_routes(skills_manager))
 
+# Remote Mobile (iPhone / Android Controller)
+from routes.remote_routes import router as remote_router
+app.include_router(remote_router)
+
 # Chat
 from routes.chat_routes import setup_chat_routes
 app.include_router(setup_chat_routes(

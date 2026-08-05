@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#121212">
+  <title>ShadowRealm Remote (Android)</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body {
+      background-color: #121212;
+      color: #e3e3e3;
+      font-family: 'Roboto', sans-serif;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #2c2c2c;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: #bb86fc;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+      color: #000;
+    }
+    .brand-title {
+      font-size: 19px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background-color: rgba(3, 218, 198, 0.15);
+      border: 1px solid rgba(3, 218, 198, 0.4);
+      color: #03dac6;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      background-color: #03dac6;
+      border-radius: 50%;
+      box-shadow: 0 0 6px #03dac6;
+    }
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 16px;
+      overflow-y: auto;
+    }
+    .card {
+      background: #1e1e1e;
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #bb86fc;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .stat-box {
+      background: #282828;
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: #aaa;
+    }
+    .stat-val {
+      font-size: 15px;
+      font-weight: 500;
+      color: #fff;
+    }
+    .terminal-output {
+      background-color: #0a0a0a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #03dac6;
+      height: 200px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .command-bar {
+      display: flex;
+      gap: 8px;
+    }
+    .cmd-input {
+      flex: 1;
+      background-color: #282828;
+      border: 1px solid #3d3d3d;
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      outline: none;
+    }
+    .cmd-input:focus {
+      border-color: #bb86fc;
+    }
+    .btn-send {
+      background-color: #bb86fc;
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      padding: 0 20px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .btn-send:active {
+      opacity: 0.8;
+    }
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .btn-quick {
+      background: #2a2a2a;
+      border: 1px solid #3d3d3d;
+      color: #e3e3e3;
+      padding: 8px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .btn-quick:active {
+      background: #383838;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">🤖</div>
+      <div class="brand-title">ShadowRealm Android</div>
+    </div>
+    <div class="status-badge">
+      <div class="dot"></div>
+      <span id="sysStatus">Online</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="card">
+      <div class="card-title">Material Diagnostics</div>
+      <div class="grid-2">
+        <div class="stat-box">
+          <div class="stat-label">Host OS</div>
+          <div class="stat-val" id="platVal">Windows</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Active Processes</div>
+          <div class="stat-val" id="procVal">--</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="flex: 1;">
+      <div class="card-title">Android Execution Terminal</div>
+      <div class="quick-actions">
+        <button class="btn-quick" onclick="sendCmd('dir')">📁 List Files</button>
+        <button class="btn-quick" onclick="sendCmd('git status')">🌿 Git Status</button>
+        <button class="btn-quick" onclick="sendCmd('tasklist')">⚡ Tasks</button>
+        <button class="btn-quick" onclick="sendCmd('hostname')">💻 Hostname</button>
+      </div>
+
+      <div class="terminal-output" id="termOutput">> Android Remote Shell connected. Ready for commands...</div>
+
+      <div class="command-bar">
+        <input type="text" class="cmd-input" id="cmdInput" placeholder="Enter command..." onkeydown="if(event.key==='Enter') runInputCmd()">
+        <button class="btn-send" onclick="runInputCmd()">RUN</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const term = document.getElementById('termOutput');
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/remote/status');
+        const data = await res.json();
+        document.getElementById('sysStatus').innerText = data.status.toUpperCase();
+        document.getElementById('platVal').innerText = data.os;
+        document.getElementById('procVal').innerText = data.active_processes;
+      } catch (err) {
+        document.getElementById('sysStatus').innerText = 'Offline';
+      }
+    }
+
+    async function sendCmd(cmd) {
+      if (!cmd) return;
+      term.innerText += `\n\n> ${cmd}\nExecuting...`;
+      term.scrollTop = term.scrollHeight;
+
+      try {
+        const res = await fetch('/api/remote/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: cmd })
+        });
+        const data = await res.json();
+        if (data.stdout) {
+          term.innerText += `\n${data.stdout}`;
+        }
+        if (data.stderr) {
+          term.innerText += `\n[STDERR]\n${data.stderr}`;
+        }
+      } catch (err) {
+        term.innerText += `\nError: ${err.message}`;
+      }
+      term.scrollTop = term.scrollHeight;
+    }
+
+    function runInputCmd() {
+      const input = document.getElementById('cmdInput');
+      const val = input.value.trim();
+      if (val) {
+        sendCmd(val);
+        input.value = '';
+      }
+    }
+
+    fetchStatus();
+    setInterval(fetchStatus, 10000);
+  </script>
+</body>
+</html>

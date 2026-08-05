@@ -813,7 +813,32 @@ body.theme-frosted .modal {
   gap: 5px;
 }
 /* Days field inline with From / Until — push it + the action buttons to
-   the right end of the row so the row reads: From | Until | …gap… | Days | Cancel | Save. */
+   the right/* ── Accessibility & Keyboard Focus Styles (Sprint 4 C31 Pass) ── */
+:focus-visible {
+  outline: 2px solid var(--accent-primary, #7B5CF0);
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-agent-active, #00E5FF);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+row so the row reads: From | Until | …gap… | Days | Cancel | Save. */
 .hwfit-schedule-days-field {
   margin-left: auto;
 }

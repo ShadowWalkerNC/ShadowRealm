@@ -222,8 +222,14 @@ if AUTH_ENABLED:
         "/api/health",
         "/api/version",
         "/login",
+        "/api/remote/app",
+        "/api/remote/android",
+        "/api/remote/pair",
+        "/api/remote/pairing",
+        "/api/remote/status",
+        "/api/remote/execute",
     }
-    AUTH_EXEMPT_PREFIXES = ["/static"]
+    AUTH_EXEMPT_PREFIXES = ["/static", "/api/remote"]
     # Dynamic paths whose own handler proves identity via a path-embedded
     # secret instead of the session/bearer auth. The route handler at
     # routes/task_routes.py validates the per-task `webhook_token` itself

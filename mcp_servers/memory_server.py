@@ -11,13 +11,12 @@ import sys
 import time
 from pathlib import Path
 
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
+from mcp.server.fastmcp import FastMCP
 from mcp.types import Tool, TextContent
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-server = Server("memory")
+server = FastMCP("memory")
 
 # Late-initialized managers (set during first tool call)
 _memory_manager = None

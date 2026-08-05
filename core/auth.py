@@ -153,7 +153,7 @@ class AuthManager:
                     self._save_sessions()
                 logger.info(f"Loaded {len(self._sessions)} session(s) from disk")
         except Exception as e:
-            logger.error(f"Failed to load sessions: {e}")
+            logger.warning(f"Failed to load sessions ({e}), resetting in-memory session cache")
             self._sessions = {}
 
     def _save_sessions(self):

@@ -30,7 +30,17 @@ def atomic_write_json(path: str, data: Any, *, indent: Optional[int] = None) -> 
         json.dump(data, f, indent=indent)
         f.flush()
         os.fsync(f.fileno())
-    os.replace(tmp, path)
+    try:
+        os.replace(tmp, path)
+    except PermissionError:
+        if os.name == "nt" and os.path.exists(path):
+            try:
+                os.remove(path)
+            except Exception:
+                pass
+            os.replace(tmp, path)
+        else:
+            raise
 
 
 def atomic_write_text(path: str, text: str) -> None:

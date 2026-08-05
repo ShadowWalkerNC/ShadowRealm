@@ -88,10 +88,40 @@ def main():
     # pair subcommand
     pair_parser = subparsers.add_parser("pair", help="Show mobile pairing QR link and Tailscale IP")
 
+    # devsuite subcommand
+    devsuite_parser = subparsers.add_parser("devsuite", help="Master CLI Dev Suite — access and orchestrate local CLI tools")
+    devsuite_parser.add_argument("action", choices=["list", "run", "status"], nargs="?", default="list", help="DevSuite action")
+    devsuite_parser.add_argument("--tool", help="Specific tool to invoke")
+    devsuite_parser.add_argument("--args", nargs=argparse.REMAINDER, help="Arguments for the tool")
+
     # interactive mode if no subcommand
     args = parser.parse_args()
 
-    if args.command == "exec":
+    if args.command == "devsuite":
+        print("=== Master CLI Dev Suite ===")
+        tools = get_installed_cli_tools()
+        if args.action == "list" or not args.action:
+            print(f"[+] Master Dev Suite Toolset ({len(tools)} tools active):")
+            for t in tools:
+                loc = shutil_which(t)
+                print(f"  * {t:<12} -> {loc}")
+        elif args.action == "run":
+            if not args.tool:
+                print("Error: --tool required for run action.")
+                sys.exit(1)
+            tool_path = shutil_which(args.tool)
+            if not tool_path:
+                print(f"Error: Tool '{args.tool}' not found on system PATH.")
+                sys.exit(1)
+            tool_args = " ".join(args.args) if args.args else ""
+            full_cmd = f"{tool_path} {tool_args}".strip()
+            sys.exit(exec_local_cmd(full_cmd))
+        elif args.action == "status":
+            print(f"[+] DevSuite Engine: Operational")
+            print(f"[+] Connected Odysseus Server: {DEFAULT_SERVER_URL}")
+            print(f"[+] Available Tool Integrations: {len(tools)}")
+
+    elif args.command == "exec":
         cmd_str = " ".join(args.cmd)
         if not cmd_str:
             print("Error: No command provided.")
@@ -112,10 +142,10 @@ def main():
         try:
             req = urllib.request.urlopen(f"{DEFAULT_SERVER_URL}/api/remote/pairing")
             data = json.loads(req.read().decode())
-            print(f"\033[36mTailscale IP:\033[0m {data.get('tailscale_ip')}")
-            print(f"\033[36miPhone URL:\033[0m   {data.get('iphone_url')}")
-            print(f"\033[36mAndroid URL:\033[0m  {data.get('android_url')}")
-            print(f"\nOpen \033[32m{DEFAULT_SERVER_URL}/api/remote/pair\033[0m in browser for QR Code.")
+            print(f"Tailscale IP: {data.get('tailscale_ip')}")
+            print(f"iPhone URL:   {data.get('iphone_url')}")
+            print(f"Android URL:  {data.get('android_url')}")
+            print(f"\nOpen {DEFAULT_SERVER_URL}/api/remote/pair in browser for QR Code.")
         except Exception as e:
             print(f"Error connecting to ShadowRealm server at {DEFAULT_SERVER_URL}: {e}")
 
@@ -123,25 +153,29 @@ def main():
         try:
             req = urllib.request.urlopen(f"{DEFAULT_SERVER_URL}/api/skills")
             skills = json.loads(req.read().decode())
-            print("\033[35m=== Registered Skills ===\033[0m")
+            print("=== Registered Skills ===")
             for s in skills:
                 name = s.get("name", s) if isinstance(s, dict) else s
                 desc = s.get("description", "") if isinstance(s, dict) else ""
-                print(f"• \033[1m{name}\033[0m: {desc}")
+                print(f"* {name}: {desc}")
         except Exception as e:
             print(f"Error listing skills: {e}")
 
     else:
         # Interactive Odysseus shell prompt
-        print("\033[35m⛵ ShadowRealm / Odysseus CLI Harness (Terminal Mode)\033[0m")
-        print("Type \033[32m'scan'\033[0m to list local tools, or enter any system command/prompt.\n")
+        print("⛵ ShadowRealm / Odysseus CLI Harness (Master Dev Suite Mode)")
+        print("Type 'devsuite' or 'scan' to list local tools, or enter any system command/prompt.\n")
         try:
             while True:
-                user_in = input("\033[36modysseus>\033[0m ").strip()
+                user_in = input("odysseus> ").strip()
                 if not user_in:
                     continue
                 if user_in.lower() in ("exit", "quit"):
                     break
+                if user_in.lower() == "devsuite":
+                    tools = get_installed_cli_tools()
+                    print(f"Master Dev Suite Tools: {', '.join(tools)}")
+                    continue
                 if user_in.lower() == "scan":
                     tools = get_installed_cli_tools()
                     print(f"CLI Tools: {', '.join(tools)}")

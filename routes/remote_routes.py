@@ -1,8 +1,8 @@
-"""Remote routes — endpoints for iPhone/Mobile remote control wrapper."""
-
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Dict, Any
+from pathlib import Path
 from core.remote_controller import RemoteController
 
 router = APIRouter(prefix="/api/remote", tags=["remote"])
@@ -10,6 +10,14 @@ controller = RemoteController()
 
 class CommandRequest(BaseModel):
     command: str
+
+@router.get("/app", response_class=HTMLResponse)
+def get_remote_app():
+    """Serve native iOS/iPhone web remote controller view."""
+    html_path = Path(__file__).parent.parent / "static" / "remote.html"
+    if not html_path.exists():
+        raise HTTPException(status_code=404, detail="Remote app template missing")
+    return html_path.read_text(encoding="utf-8")
 
 @router.get("/status")
 def get_remote_status():

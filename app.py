@@ -626,6 +626,10 @@ app.include_router(remote_router)
 from routes.workspace_tree_routes import router as workflow_tree_router
 app.include_router(workflow_tree_router)
 
+# Buzz Custom Bots & 4-Stage Repo Audit Pipeline
+from routes.repo_audit_routes import router as audit_bots_router
+app.include_router(audit_bots_router)
+
 # Chat
 from routes.chat_routes import setup_chat_routes
 app.include_router(setup_chat_routes(

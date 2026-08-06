@@ -622,6 +622,10 @@ app.include_router(setup_agent_routes(skills_manager))
 from routes.remote_routes import router as remote_router
 app.include_router(remote_router)
 
+# File Tree Workflows
+from routes.workspace_tree_routes import router as workflow_tree_router
+app.include_router(workflow_tree_router)
+
 # Chat
 from routes.chat_routes import setup_chat_routes
 app.include_router(setup_chat_routes(

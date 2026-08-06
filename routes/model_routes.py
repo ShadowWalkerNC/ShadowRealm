@@ -1756,6 +1756,13 @@ def setup_model_routes(model_discovery):
         base_url = _normalize_base(base_url)
         if not base_url:
             raise HTTPException(400, "Base URL is required")
+        # Block cloud-metadata / link-local SSRF while still allowing LAN and
+        # loopback model servers (local-first). Full private lockdown is
+        # available via IMAGE_/EMBEDDING_-style env flags elsewhere.
+        from src.url_safety import check_outbound_url
+        _ok, _reason = check_outbound_url(base_url, block_private=False)
+        if not _ok:
+            raise HTTPException(400, f"Rejected base URL: {_reason}")
         # Resolve hostname via Tailscale if DNS fails
         from src.endpoint_resolver import resolve_url
         base_url = resolve_url(base_url)

@@ -14,10 +14,12 @@ Security fixes are handled on the default branch until formal releases are cut.
 - Use HTTPS when exposing the app beyond localhost.
 - Put the authenticated Odysseus web/API entrypoint behind a trusted reverse proxy or private access layer such as Cloudflare Access, Tailscale, or a VPN.
 - Keep ChromaDB, SearXNG, ntfy, Ollama, vLLM, llama.cpp, databases, and raw model/provider APIs internal-only.
+- Do **not** expose OpenHands, Prometheus, or Grafana on `0.0.0.0`. Default compose uses profiles (`openhands`, `monitoring`) and loopback binds.
+- Do **not** mount `/var/run/docker.sock` into the app unless required; use `docker-compose.docker-sock.yml` as an explicit opt-in.
 - Protect `.env`, `data/`, `logs/`, uploads, generated media, backups, auth/session files, database files, API keys, and model/provider tokens.
 - Disable open signup unless you intentionally want new accounts.
 - Keep demo/test users non-admin, and remove them entirely on serious deployments.
-- Give admin accounts strong passwords and enable 2FA where possible.
+- Give admin accounts strong passwords and enable 2FA where possible. Prefer `SHADOWREALM_ADMIN_PASSWORD` (legacy `ODYSSEUS_ADMIN_PASSWORD` still works).
 - Leave high-risk agent tools restricted to admins: shell, Python, file read/write, email send/read, MCP, app API, task/skill/memory management, settings, tokens, and model serving.
 - Rotate API keys, webhook secrets, and Odysseus API tokens if they appear in logs, screenshots, demos, or shared chats.
 - Treat shell, model-serving, MCP, email, calendar, and vault features as privileged admin functionality.

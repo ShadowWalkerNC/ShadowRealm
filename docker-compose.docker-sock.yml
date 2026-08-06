@@ -1,0 +1,19 @@
+# Optional overlay — mounts the host Docker socket into the app container.
+#
+# Required only for Cookbook features that talk to the host Docker daemon
+# (e.g. `docker exec` against sibling Ollama containers). Mounting the socket
+# collapses the container boundary: any RCE as the app user can control the
+# host Docker API. Keep this overlay off unless you need those features.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.docker-sock.yml up -d
+#
+# The in-container user must be in the socket's owning group. Override
+# DOCKER_GID if your host `docker` group is not 963 (Debian) / 999 (Ubuntu).
+
+services:
+  odysseus:
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - "${DOCKER_GID:-963}"

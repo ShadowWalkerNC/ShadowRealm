@@ -212,7 +212,19 @@ def _normalize_integration_base_url(base_url: Any) -> str:
     parsed = urlparse(cleaned)
     if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
         raise ValueError("Integration base URL must be an HTTP(S) URL")
-    return urlunparse(parsed._replace(scheme=parsed.scheme.lower(), query="", fragment="")).rstrip("/")
+    normalized = urlunparse(
+        parsed._replace(scheme=parsed.scheme.lower(), query="", fragment="")
+    ).rstrip("/")
+    # Always reject link-local / metadata SSRF targets. Private LAN remains
+    # allowed for self-hosted Miniflux/etc. unless INTEGRATION_BLOCK_PRIVATE_IPS.
+    from src.url_safety import check_outbound_url
+    block_private = os.getenv("INTEGRATION_BLOCK_PRIVATE_IPS", "false").lower() in (
+        "1", "true", "yes", "on",
+    )
+    ok, reason = check_outbound_url(normalized, block_private=block_private)
+    if not ok:
+        raise ValueError(f"Rejected integration base URL: {reason}")
+    return normalized
 
 
 def _join_integration_url(base_url: str, path: str) -> str:

@@ -134,17 +134,20 @@ async def do_vault_get(content: str, owner: Optional[str] = None) -> Dict:
     output = [
         f"Vault item: {name}",
         f"Username: {login.get('username', '(none)')}",
-        f"Password: {login.get('password', '(none)')}",
+        # Never return live secrets into the LLM transcript — prompt injection
+        # in an admin session could otherwise exfiltrate credentials.
+        "Password: [REDACTED — copy from Vault UI; withheld from model context]",
     ]
     if login.get("totp"):
-        output.append(f"TOTP secret: {login['totp']}")
+        output.append("TOTP secret: [REDACTED — copy from Vault UI]")
     uris = login.get("uris") or []
     if uris:
-        output.append("URLs: " + ", ".join(u.get("uri", "") for u in uris))
+        output.append("URLs: " + ", ".join(u.get("uri", "") for u in uris if isinstance(u, dict)))
     if item.get("notes"):
-        output.append(f"Notes: {item['notes']}")
+        # Notes can contain secrets; redact rather than forward to the model.
+        output.append("Notes: [REDACTED — copy from Vault UI]")
 
-    return {"output": "\n".join(output), "exit_code": 0}
+    return {"output": "\n".join(output), "exit_code": 0, "item_id": item_id, "name": name}
 
 
 async def do_vault_unlock(content: str, owner: Optional[str] = None) -> Dict:

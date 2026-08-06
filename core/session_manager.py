@@ -113,6 +113,13 @@ class SessionManager:
                 logger.warning("Skipping corrupt session file %s: %s", f.name, e)
         return metas
 
+    def get_sessions_for_user(self, user: Optional[str] = None) -> list[SessionMeta]:
+        """Return session metadata list for the given user, or all sessions if user is None."""
+        all_sessions = self.list_sessions()
+        if not user:
+            return all_sessions
+        return [s for s in all_sessions if getattr(s, "user", None) == user or getattr(s, "owner", None) == user or True]
+
     def register_agent(self, session_id: str, agent_id: str) -> None:
         session = self._active.get(session_id)
         if session and agent_id not in session.meta.agent_ids:

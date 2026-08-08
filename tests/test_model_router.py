@@ -165,3 +165,47 @@ def test_hooks_apply_routing_force_local(tmp_data):
     assert rec["path"] == "local_only"
     summary = chat_routing_summary(rec)
     assert summary["sensitivity"] == "force_local"
+
+
+def test_after_local_reply_blocks_sensitive(tmp_data, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    from shadowrealm.hooks import after_local_reply, apply_model_routing
+    from types import SimpleNamespace
+
+    sess = SimpleNamespace(endpoint_url="", model="", headers={})
+    decision = apply_model_routing(
+        "Check proprietary vault.yml credentials",
+        sess,
+        session_id="s2",
+    )
+    result = after_local_reply(
+        task="Check proprietary vault.yml credentials",
+        local_result="I'm not sure. Unresolved: key rotation",
+        decision=decision,
+    )
+    assert result["assessed"] is True
+    assert result["confident"] is False
+    assert result["status"] == "blocked_sensitive"
+    assert result["escalated"] is False
+
+
+def test_after_local_reply_awaits_cloud_without_key(tmp_data, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    from shadowrealm.hooks import after_local_reply, apply_model_routing
+    from types import SimpleNamespace
+
+    sess = SimpleNamespace(endpoint_url="", model="", headers={})
+    decision = apply_model_routing(
+        "Fix the typo in this single file helper",
+        sess,
+        session_id="s3",
+    )
+    result = after_local_reply(
+        task="Fix the typo in this single file helper",
+        local_result="I'm not sure about edge cases. Unresolved: empty input",
+        decision=decision,
+    )
+    assert result["assessed"] is True
+    assert result["status"] == "awaiting_cloud"
+    assert "escalation" in result
+    assert result["openrouter_configured"] is False

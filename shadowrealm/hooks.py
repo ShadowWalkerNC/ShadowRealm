@@ -109,6 +109,127 @@ def chat_routing_summary(decision: Optional[Dict[str, Any]]) -> Optional[Dict[st
     }
 
 
+def after_local_reply(
+    *,
+    task: str,
+    local_result: str,
+    decision: Optional[Dict[str, Any]],
+    auto_escalate: bool = True,
+) -> Dict[str, Any]:
+    """Assess local output; escalate unresolved to OpenRouter when allowed.
+
+    Always updates the routing log with confidence. Never escalates
+    ``local_only`` / sensitive decisions. If OpenRouter is not configured,
+    returns a skipped escalate package the UI can show later.
+    """
+    out: Dict[str, Any] = {
+        "assessed": False,
+        "confident": None,
+        "escalated": False,
+        "openrouter_configured": False,
+    }
+    try:
+        from shadowrealm.model_router import (
+            PATH_LOCAL_ONLY,
+            RoutingDecision,
+            build_default_router,
+        )
+        from shadowrealm.openrouter import escalate_unresolved, openrouter_configured
+        from shadowrealm.routing_log import update_decision
+
+        out["openrouter_configured"] = openrouter_configured()
+        if not decision:
+            return out
+
+        mr = build_default_router()
+        assessment = mr.assess_confidence(task or "", local_result or "")
+        out["assessed"] = True
+        out["confident"] = assessment.confident
+        out["assessment"] = assessment.to_dict()
+
+        update_decision(
+            decision.get("decision_id") or "",
+            {
+                "confidence": assessment.score,
+                "confidence_notes": assessment.notes,
+                "unresolved": assessment.unresolved,
+            },
+        )
+
+        if assessment.confident:
+            out["status"] = "local_complete"
+            return out
+
+        if decision.get("path") == PATH_LOCAL_ONLY or decision.get("sensitivity") == "force_local":
+            out["status"] = "blocked_sensitive"
+            out["reason"] = "Sensitive task — cloud escalation blocked; local gaps logged."
+            return out
+
+        rd = RoutingDecision(
+            decision_id=decision.get("decision_id") or "",
+            task_summary=decision.get("task_summary") or "",
+            sensitivity=decision.get("sensitivity") or "ok",
+            scope=decision.get("scope") or "contained",
+            path=decision.get("path") or "local_first",
+            reason=decision.get("reason") or "",
+            cloud_allowed=bool(decision.get("cloud_allowed")),
+        )
+        pkg = mr.package_escalation(
+            rd,
+            task=task or "",
+            local_result=local_result or "",
+            assessment=assessment,
+        )
+        out["escalation"] = pkg.to_dict()
+        out["escalation_prompt"] = pkg.to_prompt()
+
+        if not auto_escalate or not out["openrouter_configured"]:
+            out["status"] = "awaiting_cloud"
+            out["reason"] = (
+                "Local result incomplete — unresolved package ready. "
+                "Set OPENROUTER_API_KEY to auto-escalate, or POST /api/routing/escalate."
+            )
+            update_decision(
+                rd.decision_id,
+                {"path": "escalate_unresolved", "confidence_notes": assessment.notes},
+            )
+            return out
+
+        result = escalate_unresolved(
+            escalation_prompt=pkg.to_prompt(),
+            decision_id=rd.decision_id,
+        )
+        out["openrouter"] = result
+        out["escalated"] = bool(result.get("ok"))
+        out["status"] = "escalated" if result.get("ok") else "escalate_failed"
+        if result.get("ok") and result.get("content"):
+            out["cloud_content"] = result["content"]
+        return out
+    except Exception as e:
+        logger.warning("shadowrealm after_local_reply skipped: %s", e)
+        out["error"] = str(e)
+        return out
+
+
+def after_local_reply_sse(result: Dict[str, Any]) -> Optional[str]:
+    """SSE line for post-reply assessment / escalation."""
+    if not result or not result.get("assessed"):
+        return None
+    payload = {
+        "type": "routing_assessment",
+        "data": {
+            "status": result.get("status"),
+            "confident": result.get("confident"),
+            "assessment": result.get("assessment"),
+            "escalated": result.get("escalated"),
+            "openrouter_configured": result.get("openrouter_configured"),
+            "reason": result.get("reason"),
+            "decision_id": (result.get("escalation") or {}).get("routing_decision_id"),
+        },
+    }
+    return f"data: {json.dumps(payload)}\n\n"
+
+
 def append_self_test_directive(parts: List[str]) -> None:
     """Append the coding self-test system prompt section (mutates ``parts``)."""
     try:

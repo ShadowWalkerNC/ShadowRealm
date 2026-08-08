@@ -60,6 +60,17 @@ def _apply_model_routing(message: str, sess, *, session_id: str, owner: Optional
         return None
 
 
+def _shadowrealm_post_reply_sse(message: str, reply: str, decision: Optional[Dict[str, Any]]) -> Optional[str]:
+    """Assess local reply and optionally escalate; return SSE line or None."""
+    try:
+        from shadowrealm.hooks import after_local_reply, after_local_reply_sse
+        result = after_local_reply(task=message or "", local_result=reply or "", decision=decision)
+        return after_local_reply_sse(result)
+    except Exception as e:
+        logger.debug("shadowrealm post-reply assess skipped: %s", e)
+        return None
+
+
 def _stream_set(session_id: str, **fields) -> None:
     """Update fields on the active-stream entry for `session_id`, or
     no-op if the entry has already been popped. Using .get() avoids a
@@ -464,12 +475,28 @@ def setup_chat_routes(
         )
 
         out: Dict[str, Any] = {"response": reply}
-        # SHADOWREALM:
+        # SHADOWREALM: routing summary + post-reply confidence / escalate
         try:
-            from shadowrealm.hooks import chat_routing_summary
+            from shadowrealm.hooks import after_local_reply, chat_routing_summary
             summary = chat_routing_summary(_routing)
             if summary:
                 out["routing"] = summary
+            assess = after_local_reply(
+                task=message,
+                local_result=_clean_reply or reply,
+                decision=_routing,
+            )
+            if assess.get("assessed"):
+                out["routing_assessment"] = {
+                    "status": assess.get("status"),
+                    "confident": assess.get("confident"),
+                    "assessment": assess.get("assessment"),
+                    "escalated": assess.get("escalated"),
+                    "openrouter_configured": assess.get("openrouter_configured"),
+                    "reason": assess.get("reason"),
+                }
+                if assess.get("cloud_content"):
+                    out["cloud_escalation"] = assess["cloud_content"]
         except Exception:
             pass
         return out
@@ -1266,6 +1293,14 @@ def setup_chat_routes(
                                     owner=_user,
                                     allow_background_extraction=not tool_policy.block_all_tool_calls,
                                 )
+                            # SHADOWREALM: confidence assess / escalate after local reply
+                            _sr_line = _shadowrealm_post_reply_sse(
+                                message if isinstance(message, str) else "",
+                                full_response,
+                                _routing_decision,
+                            )
+                            if _sr_line:
+                                yield _sr_line
                             _stream_set(session, status="done")
                             yield chunk
                 except (asyncio.CancelledError, GeneratorExit):
@@ -1413,6 +1448,14 @@ def setup_chat_routes(
                                     extract_skills=user_requested_agent,
                                     allow_background_extraction=not tool_policy.block_all_tool_calls,
                                 )
+                            # SHADOWREALM: confidence assess / escalate after local reply
+                            _sr_line = _shadowrealm_post_reply_sse(
+                                message if isinstance(message, str) else "",
+                                full_response,
+                                _routing_decision,
+                            )
+                            if _sr_line:
+                                yield _sr_line
                             _stream_set(session, status="done")
                             yield chunk
                 except (asyncio.CancelledError, GeneratorExit):

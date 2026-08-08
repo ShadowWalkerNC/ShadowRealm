@@ -612,6 +612,10 @@ app.include_router(setup_skills_routes(skills_manager))
 from routes.agent_routes import setup_agent_routes
 app.include_router(setup_agent_routes(skills_manager))
 
+# Local/cloud ModelRouter + named workflow pipelines (C118 / Phase 2–4)
+from routes.routing_routes import setup_routing_routes
+app.include_router(setup_routing_routes())
+
 # Chat
 from routes.chat_routes import setup_chat_routes
 app.include_router(setup_chat_routes(

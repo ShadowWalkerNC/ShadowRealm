@@ -7,16 +7,16 @@ from pathlib import Path
 
 import pytest
 
-from core.model_router import (
+from shadowrealm.model_router import (
     PATH_LOCAL_FIRST,
     PATH_LOCAL_ONLY,
     PATH_LOCAL_PLAN_THEN_CLOUD,
     ModelRouter,
     build_default_router,
 )
-from core.routing_log import get_decision, list_decisions, log_decision
-from core.self_test_gate import looks_like_coding_task, run_self_tests
-from core.workflow_pipelines import (
+from shadowrealm.routing_log import get_decision, list_decisions, log_decision
+from shadowrealm.self_test_gate import looks_like_coding_task, run_self_tests
+from shadowrealm.workflow_pipelines import (
     PIPELINE_ANALYZE,
     PIPELINE_REVIEW,
     WorkflowPipelineEngine,
@@ -138,3 +138,74 @@ def test_review_before_ship_pipeline(tmp_data):
 def test_pipeline_defs_include_three_named():
     names = {p["name"] for p in list_pipeline_defs()}
     assert names == {"analyze-project", "fix-and-verify", "review-before-ship"}
+
+
+def test_openrouter_escalate_skips_without_key(monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    from shadowrealm.openrouter import escalate_unresolved, openrouter_configured
+
+    assert openrouter_configured() is False
+    result = escalate_unresolved(escalation_prompt="finish the unresolved part")
+    assert result["ok"] is False
+    assert result["skipped"] is True
+
+
+def test_hooks_apply_routing_force_local(tmp_data):
+    from types import SimpleNamespace
+    from shadowrealm.hooks import apply_model_routing, chat_routing_summary
+
+    sess = SimpleNamespace(endpoint_url="", model="", headers={})
+    rec = apply_model_routing(
+        "Review proprietary customer PII and vault.yml secrets",
+        sess,
+        session_id="s1",
+        owner="admin",
+    )
+    assert rec is not None
+    assert rec["path"] == "local_only"
+    summary = chat_routing_summary(rec)
+    assert summary["sensitivity"] == "force_local"
+
+
+def test_after_local_reply_blocks_sensitive(tmp_data, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    from shadowrealm.hooks import after_local_reply, apply_model_routing
+    from types import SimpleNamespace
+
+    sess = SimpleNamespace(endpoint_url="", model="", headers={})
+    decision = apply_model_routing(
+        "Check proprietary vault.yml credentials",
+        sess,
+        session_id="s2",
+    )
+    result = after_local_reply(
+        task="Check proprietary vault.yml credentials",
+        local_result="I'm not sure. Unresolved: key rotation",
+        decision=decision,
+    )
+    assert result["assessed"] is True
+    assert result["confident"] is False
+    assert result["status"] == "blocked_sensitive"
+    assert result["escalated"] is False
+
+
+def test_after_local_reply_awaits_cloud_without_key(tmp_data, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    from shadowrealm.hooks import after_local_reply, apply_model_routing
+    from types import SimpleNamespace
+
+    sess = SimpleNamespace(endpoint_url="", model="", headers={})
+    decision = apply_model_routing(
+        "Fix the typo in this single file helper",
+        sess,
+        session_id="s3",
+    )
+    result = after_local_reply(
+        task="Fix the typo in this single file helper",
+        local_result="I'm not sure about edge cases. Unresolved: empty input",
+        decision=decision,
+    )
+    assert result["assessed"] is True
+    assert result["status"] == "awaiting_cloud"
+    assert "escalation" in result
+    assert result["openrouter_configured"] is False

@@ -7,10 +7,10 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from core.model_router import build_default_router
-from core.routing_log import get_decision, list_decisions, log_decision, update_decision
-from core.self_test_gate import looks_like_coding_task, run_self_tests
-from core.workflow_pipelines import (
+from shadowrealm.model_router import build_default_router
+from shadowrealm.routing_log import get_decision, list_decisions, log_decision, update_decision
+from shadowrealm.self_test_gate import looks_like_coding_task, run_self_tests
+from shadowrealm.workflow_pipelines import (
     WorkflowPipelineEngine,
     list_pipeline_defs,
     list_runs,
@@ -48,6 +48,14 @@ class PipelineStartRequest(BaseModel):
 
 class PipelineResumeRequest(BaseModel):
     user_input: Dict[str, Any] = Field(default_factory=dict)
+
+
+class EscalateRequest(BaseModel):
+    task: str = Field(..., min_length=1)
+    local_result: str = Field(..., min_length=0)
+    decision_id: Optional[str] = None
+    model: Optional[str] = None
+    local_first_pass_plan: str = ""
 
 
 def setup_routing_routes() -> APIRouter:
@@ -114,7 +122,7 @@ def setup_routing_routes() -> APIRouter:
             if not assessment.confident:
                 decision_rec = get_decision(body.decision_id)
                 if decision_rec:
-                    from core.model_router import RoutingDecision
+                    from shadowrealm.model_router import RoutingDecision
                     decision = RoutingDecision(
                         decision_id=decision_rec["decision_id"],
                         task_summary=decision_rec.get("task_summary", ""),
@@ -203,5 +211,66 @@ def setup_routing_routes() -> APIRouter:
         except FileNotFoundError:
             raise HTTPException(404, "run not found")
         return run.to_dict()
+
+    @router.post("/escalate")
+    def escalate(body: EscalateRequest, request: Request):
+        """Escalate unresolved work to OpenRouter (no-op until key is set).
+
+        Sensitive ``local_only`` decisions refuse cloud escalation even if a
+        key exists.
+        """
+        require_user(request)
+        from shadowrealm.model_router import PATH_LOCAL_ONLY, RoutingDecision
+        from shadowrealm.openrouter import escalate_unresolved, openrouter_configured
+
+        mr = build_default_router()
+        decision_rec = get_decision(body.decision_id) if body.decision_id else None
+        if decision_rec and decision_rec.get("path") == PATH_LOCAL_ONLY:
+            raise HTTPException(
+                403,
+                "This task was marked local_only (sensitive). Cloud escalation is blocked.",
+            )
+        if decision_rec:
+            decision = RoutingDecision(
+                decision_id=decision_rec["decision_id"],
+                task_summary=decision_rec.get("task_summary", ""),
+                sensitivity=decision_rec.get("sensitivity", "ok"),
+                scope=decision_rec.get("scope", "contained"),
+                path=decision_rec.get("path", "local_first"),
+                reason=decision_rec.get("reason", ""),
+                cloud_allowed=bool(decision_rec.get("cloud_allowed")),
+            )
+        else:
+            decision = mr.route(body.task)
+            log_decision(decision)
+
+        assessment = mr.assess_confidence(body.task, body.local_result)
+        if assessment.confident:
+            return {
+                "skipped": True,
+                "reason": "local result looks complete — no cloud needed",
+                "assessment": assessment.to_dict(),
+                "decision_id": decision.decision_id,
+                "openrouter_configured": openrouter_configured(),
+            }
+        pkg = mr.package_escalation(
+            decision,
+            task=body.task,
+            local_result=body.local_result,
+            assessment=assessment,
+            local_first_pass_plan=body.local_first_pass_plan,
+        )
+        result = escalate_unresolved(
+            escalation_prompt=pkg.to_prompt(),
+            model=body.model,
+            decision_id=decision.decision_id,
+        )
+        return {
+            "assessment": assessment.to_dict(),
+            "escalation": pkg.to_dict(),
+            "openrouter": result,
+            "openrouter_configured": openrouter_configured(),
+            "decision_id": decision.decision_id,
+        }
 
     return router

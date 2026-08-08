@@ -21,13 +21,13 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from core.model_router import (
+from shadowrealm.model_router import (
     PATH_LOCAL_ONLY,
     ModelRouter,
     build_default_router,
 )
-from core.routing_log import log_decision
-from core.self_test_gate import run_self_tests
+from shadowrealm.routing_log import log_decision
+from shadowrealm.self_test_gate import run_self_tests
 
 logger = logging.getLogger(__name__)
 

@@ -580,9 +580,10 @@ def _assemble_prompt(tool_names: set, disabled_tools: set = None, compact: bool 
             "## Available tools\n" + ("\n".join(tool_lines) if tool_lines else "none"),
             _AGENT_RULES,
         ]
+        # SHADOWREALM:
         try:
-            from core.self_test_gate import SELF_TEST_DIRECTIVE
-            parts.append(SELF_TEST_DIRECTIVE)
+            from shadowrealm.hooks import append_self_test_directive
+            append_self_test_directive(parts)
         except Exception:
             pass
         parts.extend(_domain_rules_for_tools(included))
@@ -622,9 +623,10 @@ def _assemble_prompt(tool_names: set, disabled_tools: set = None, compact: bool 
         parts.append(f"(Other tools available when needed: {hint})")
 
     parts.append(_AGENT_RULES)
+    # SHADOWREALM:
     try:
-        from core.self_test_gate import SELF_TEST_DIRECTIVE
-        parts.append(SELF_TEST_DIRECTIVE)
+        from shadowrealm.hooks import append_self_test_directive
+        append_self_test_directive(parts)
     except Exception:
         pass
     parts.extend(_domain_rules_for_tools(included))
@@ -2987,50 +2989,28 @@ async def stream_agent_loop(
             # to re-trigger). Skipped on force-answer rounds (no tools to
             # fix with), pure Q&A, and when the toggle is off.
             _claimed_done = bool(_strip_think_blocks(cleaned_round).strip())
-            # Phase 3 — coding self-test gate before hand-off
-            if (_effectful_used and not _force_answer and _claimed_done
-                    and not _self_test_ran):
-                try:
-                    from core.self_test_gate import looks_like_coding_task, run_self_tests
-                    _tool_names_used = [
-                        str(ev.get("tool") or ev.get("name") or "")
-                        for ev in (tool_events or [])
-                        if isinstance(ev, dict)
-                    ]
-                    _user_task = ""
-                    for _m in reversed(messages or []):
-                        if isinstance(_m, dict) and _m.get("role") == "user":
-                            _user_task = str(_m.get("content") or "")
-                            break
-                    if looks_like_coding_task(_user_task, tools_used=_tool_names_used):
-                        _ws = None
-                        try:
-                            from src.tool_execution import get_active_workspace
-                            _ws = get_active_workspace()
-                        except Exception:
-                            _ws = None
-                        _st = run_self_tests(_ws or ".")
-                        _self_test_ran = True
-                        _blocker = _st.handoff_blocker()
-                        yield f'data: {json.dumps({"type": "self_test", "data": _st.to_dict()})}\n\n'
-                        if _blocker:
-                            logger.info("[agent] self-test gate blocked handoff: %s", _blocker)
-                            _note = f"\n\n_{_blocker}_\n\n"
-                            yield f'data: {json.dumps({"delta": _note})}\n\n'
-                            full_response += _note
-                            messages.append({
-                                "role": "system",
-                                "content": (
-                                    "Self-testing before hand-off failed or could not run:\n"
-                                    f"{_st.summary}\n{_st.output[:2000]}\n\n"
-                                    "Fix the issues with tools, or explicitly tell the user "
-                                    "tests could not be verified. Do NOT claim the work is done."
-                                ),
-                            })
-                            _effectful_used = False
-                            continue
-                except Exception as _ste:
-                    logger.debug("self-test gate skipped: %s", _ste)
+            # SHADOWREALM: coding self-test gate before hand-off
+            try:
+                from shadowrealm.hooks import maybe_self_test_handoff
+                _self_test_ran, _st_data, _st_sse, _st_sys = maybe_self_test_handoff(
+                    messages=messages,
+                    tool_events=tool_events,
+                    effectful_used=_effectful_used,
+                    force_answer=_force_answer,
+                    claimed_done=_claimed_done,
+                    already_ran=_self_test_ran,
+                )
+                if _st_sse:
+                    yield _st_sse
+                if _st_sys:
+                    _note = "\n\n_Self-test gate: do not present this change as done until verified._\n\n"
+                    yield f'data: {json.dumps({"delta": _note})}\n\n'
+                    full_response += _note
+                    messages.append({"role": "system", "content": _st_sys})
+                    _effectful_used = False
+                    continue
+            except Exception as _ste:
+                logger.debug("shadowrealm self-test hook skipped: %s", _ste)
 
             if (_effectful_used and not _force_answer
                     and _claimed_done

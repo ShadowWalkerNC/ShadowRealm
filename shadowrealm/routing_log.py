@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from core.model_router import RoutingDecision
+from shadowrealm.model_router import RoutingDecision
 
 logger = logging.getLogger(__name__)
 

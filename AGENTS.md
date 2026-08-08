@@ -24,6 +24,15 @@ agent orchestration layer, a 5-tier memory system, a living skills engine, and a
 self-healing pipeline. Think "AI-native VS Code that can think, remember, and fix
 itself" — with no vendor lock-in and no data leaving your machine unless you choose.
 
+### Fork policy (Odysseus upstream)
+
+ShadowRealm is a **fork of Odysseus**. Until an explicit diverge decision:
+
+1. Treat Odysseus as the primary source — pull/security updates regularly.
+2. Put new ShadowRealm features in `shadowrealm/` (not `core/` / `routes/` rewrites).
+3. Touch Odysseus files only via thin `# SHADOWREALM:` hooks so merges stay small.
+4. Prefer additive modules over renaming, rebranding, or deep refactors of upstream.
+
 ---
 
 ## Tech Stack

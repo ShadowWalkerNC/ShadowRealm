@@ -1,7 +1,10 @@
 """
-C118 — ModelRouter
-==================
+ShadowRealm ModelRouter (C118-aligned)
+======================================
 Local-first task routing with logged reasoning.
+
+Fork note: lives under ``shadowrealm/`` so Odysseus upstream syncs do not
+collide with a future upstream ``core/model_router.py``.
 
 Decision order (fixed):
   1. Sensitivity check — proprietary/sensitive → force local, never cloud

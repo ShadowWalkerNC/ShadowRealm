@@ -45,76 +45,19 @@ from src.tool_policy import build_effective_tool_policy
 
 logger = logging.getLogger(__name__)
 
-
-def _apply_model_routing(message: str, sess, *, session_id: str, owner: Optional[str] = None) -> Optional[Dict[str, Any]]:
-    """Run C118 ModelRouter, log the decision, optionally force a local endpoint.
-
-    Returns a JSON-serialisable decision dict for SSE / response metadata.
-    Failures are swallowed so routing never breaks chat.
-    """
-    try:
-        from core.model_router import (
-            PATH_LOCAL_ONLY,
-            PATH_LOCAL_FIRST,
-            PATH_LOCAL_PLAN_THEN_CLOUD,
-            build_default_router,
-        )
-        from core.routing_log import log_decision
-        from core.database import SessionLocal, ModelEndpoint
-
-        router = build_default_router()
-        decision = router.route(message or "", session_id=session_id, owner=owner)
-        record = log_decision(decision)
-
-        # For force-local / local-first paths, prefer an Ollama/local endpoint
-        # when the current session points at a cloud host (or has none).
-        if decision.path in {PATH_LOCAL_ONLY, PATH_LOCAL_FIRST, PATH_LOCAL_PLAN_THEN_CLOUD}:
-            db = SessionLocal()
-            try:
-                endpoints = db.query(ModelEndpoint).filter(ModelEndpoint.is_enabled == True).all()
-                local_ep, local_model = router.pick_local_endpoint(
-                    endpoints, preferred_model=decision.local_model
-                )
-            finally:
-                db.close()
-            if local_ep is not None:
-                from src.endpoint_resolver import build_chat_url, normalize_base, build_headers
-                from src.teacher_escalation import is_self_hosted
-
-                current_url = getattr(sess, "endpoint_url", "") or ""
-                must_force = decision.path == PATH_LOCAL_ONLY or not is_self_hosted(current_url)
-                if must_force or not current_url:
-                    base = normalize_base(local_ep.base_url or "")
-                    sess.endpoint_url = build_chat_url(base)
-                    if local_model:
-                        sess.model = local_model
-                    key = getattr(local_ep, "api_key", None) or ""
-                    sess.headers = build_headers(key, base) if key else (sess.headers or {})
-                    record["applied_endpoint"] = {
-                        "id": local_ep.id,
-                        "base_url": local_ep.base_url,
-                        "model": local_model,
-                    }
-                    logger.info(
-                        "routing applied local endpoint id=%s model=%s path=%s",
-                        local_ep.id,
-                        local_model,
-                        decision.path,
-                    )
-        # Stash for downstream confidence / escalation packaging
-        try:
-            setattr(sess, "_routing_decision_id", decision.decision_id)
-            setattr(sess, "_routing_path", decision.path)
-        except Exception:
-            pass
-        return record
-    except Exception as e:
-        logger.warning("model routing skipped: %s", e)
-        return None
-
 # Track active streams for partial-save safety net
 _active_streams: Dict[str, dict] = {}
 _IMAGE_MODEL_PREFIXES = ("gpt-image", "dall-e", "chatgpt-image")
+
+
+# SHADOWREALM: local/cloud routing (implementation lives in shadowrealm/)
+def _apply_model_routing(message: str, sess, *, session_id: str, owner: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    try:
+        from shadowrealm.hooks import apply_model_routing
+        return apply_model_routing(message, sess, session_id=session_id, owner=owner)
+    except Exception as e:
+        logger.warning("shadowrealm routing hook skipped: %s", e)
+        return None
 
 
 def _stream_set(session_id: str, **fields) -> None:
@@ -520,15 +463,15 @@ def setup_chat_routes(
             allow_background_extraction=not tool_policy.block_all_tool_calls,
         )
 
-        out = {"response": reply}
-        if _routing:
-            out["routing"] = {
-                "decision_id": _routing.get("decision_id"),
-                "path": _routing.get("path"),
-                "reason": _routing.get("reason"),
-                "scope": _routing.get("scope"),
-                "sensitivity": _routing.get("sensitivity"),
-            }
+        out: Dict[str, Any] = {"response": reply}
+        # SHADOWREALM:
+        try:
+            from shadowrealm.hooks import chat_routing_summary
+            summary = chat_routing_summary(_routing)
+            if summary:
+                out["routing"] = summary
+        except Exception:
+            pass
         return out
 
     # ------------------------------------------------------------------ #
@@ -717,7 +660,7 @@ def setup_chat_routes(
         # Ensure session has auth headers
         resolve_session_auth(sess, session, owner=effective_user(request))
 
-        # C118 local/cloud routing — logged + may rewrite session to local model
+        # SHADOWREALM: local/cloud routing — logged + may rewrite session to local model
         _routing_decision = _apply_model_routing(
             message if isinstance(message, str) else "",
             sess,
@@ -1163,22 +1106,14 @@ def setup_chat_routes(
                 _model_info["character_name"] = ctx.preset.character_name
             yield f'data: {json.dumps(_model_info)}\n\n'
 
-            # Visible routing decision (path + reason) for the operator
-            if _routing_decision:
-                _routing_evt = {
-                    "type": "routing",
-                    "data": {
-                        "decision_id": _routing_decision.get("decision_id"),
-                        "path": _routing_decision.get("path"),
-                        "reason": _routing_decision.get("reason"),
-                        "scope": _routing_decision.get("scope"),
-                        "sensitivity": _routing_decision.get("sensitivity"),
-                        "local_model": _routing_decision.get("local_model"),
-                        "cloud_allowed": _routing_decision.get("cloud_allowed"),
-                        "applied_endpoint": _routing_decision.get("applied_endpoint"),
-                    },
-                }
-                yield f"data: {json.dumps(_routing_evt)}\n\n"
+            # SHADOWREALM: visible routing decision for the operator
+            try:
+                from shadowrealm.hooks import routing_sse_event
+                _routing_line = routing_sse_event(_routing_decision)
+                if _routing_line:
+                    yield _routing_line
+            except Exception:
+                pass
 
             if _is_image_generation_session(sess, owner=_user):
                 from src.settings import get_setting

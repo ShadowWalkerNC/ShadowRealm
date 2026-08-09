@@ -4178,9 +4178,21 @@ function startOdysseusApp() {
   // Onboarding Wizard (Sprint 9)
   const onboardingModal = document.getElementById('onboarding-modal');
   if (onboardingModal) {
-    const onboardingCompleted = Storage.get('onboarding_completed');
-    if (!onboardingCompleted) {
+    const closeOnboardingModal = () => {
+      onboardingModal.classList.add('hidden');
+      // Clear any leftover inline display so .modal.hidden can take effect.
+      onboardingModal.style.removeProperty('display');
+    };
+    const openOnboardingModal = () => {
+      onboardingModal.style.removeProperty('display');
       onboardingModal.classList.remove('hidden');
+    };
+
+    const onboardingCompleted = Storage.get('onboarding_completed');
+    if (onboardingCompleted) {
+      closeOnboardingModal();
+    } else {
+      openOnboardingModal();
     }
     
     const next1 = document.getElementById('onboarding-next-1');
@@ -4198,7 +4210,7 @@ function startOdysseusApp() {
     if (next2 && onboardingModal) {
       next2.addEventListener('click', () => {
         Storage.set('onboarding_completed', 'true');
-        onboardingModal.classList.add('hidden');
+        closeOnboardingModal();
         if (window.uiModule && window.uiModule.showToast) {
           window.uiModule.showToast('Setup complete! Welcome to ShadowRealm.');
         } else {

@@ -98,18 +98,28 @@ def create_default_admin():
         import json
 
         # Priority: env vars > interactive prompt > random password
-        username = os.getenv("ODYSSEUS_ADMIN_USER", "").strip().lower()
-        password = os.getenv("ODYSSEUS_ADMIN_PASSWORD", "").strip()
+        # Accept SHADOWREALM_ADMIN_* (documented in .env.example) with
+        # ODYSSEUS_ADMIN_* as legacy aliases.
+        username = (
+            os.getenv("SHADOWREALM_ADMIN_USER")
+            or os.getenv("ODYSSEUS_ADMIN_USER")
+            or ""
+        ).strip().lower()
+        password = (
+            os.getenv("SHADOWREALM_ADMIN_PASSWORD")
+            or os.getenv("ODYSSEUS_ADMIN_PASSWORD")
+            or ""
+        ).strip()
 
         if username and password:
             # Both provided via env — validate before using
             if username in RESERVED_USERNAMES:
-                print(f"  [error] ODYSSEUS_ADMIN_USER '{username}' is a reserved username")
+                print(f"  [error] Admin username '{username}' is a reserved username")
                 return "failed"
             if len(password) < PASSWORD_MIN_LENGTH:
-                print(f"  [error] ODYSSEUS_ADMIN_PASSWORD must be at least {PASSWORD_MIN_LENGTH} characters")
+                print(f"  [error] Admin password must be at least {PASSWORD_MIN_LENGTH} characters")
                 return "failed"
-        elif sys.stdin.isatty() and not os.getenv("ODYSSEUS_SKIP_ADMIN_PROMPT"):
+        elif sys.stdin.isatty() and not os.getenv("ODYSSEUS_SKIP_ADMIN_PROMPT") and not os.getenv("SHADOWREALM_SKIP_ADMIN_PROMPT"):
             # Interactive terminal — ask the user
             username, password = _prompt_admin_credentials()
         else:
@@ -129,14 +139,21 @@ def create_default_admin():
         }
         with open(auth_path, "w", encoding="utf-8") as f:
             json.dump(auth_data, f, indent=2)
+        try:
+            os.chmod(auth_path, 0o600)
+        except OSError:
+            pass
 
-        if sys.stdin.isatty() and not os.getenv("ODYSSEUS_ADMIN_PASSWORD"):
+        _pw_from_env = bool(
+            os.getenv("SHADOWREALM_ADMIN_PASSWORD") or os.getenv("ODYSSEUS_ADMIN_PASSWORD")
+        )
+        if sys.stdin.isatty() and not _pw_from_env:
             print(f"  [ok] Admin account created ({username})")
         else:
             print(f"  [ok] Initial admin user created ({username})")
-            if not os.getenv("ODYSSEUS_ADMIN_PASSWORD"):
+            if not _pw_from_env:
                 print(f"        Temporary password: {password}")
-                print(f"        ** Change it after first login. Set ODYSSEUS_ADMIN_PASSWORD to choose your own. **")
+                print(f"        ** Change it after first login. Set SHADOWREALM_ADMIN_PASSWORD to choose your own. **")
         return "created"
     except ImportError as e:
         if "incompatible architecture" in str(e).lower():

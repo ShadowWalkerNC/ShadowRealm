@@ -12,22 +12,82 @@ from starlette.responses import Response
 # Per-process token that lets the in-app tool layer hit admin-gated
 # routes via HTTP loopback (the agent's tool calls don't carry the
 # admin user's session cookie). Set once at import; tools read the
-# same value from this module. Never persisted or exposed externally.
+# same value from this module. Never exposed to clients.
 #
 # Reads SHADOWREALM_INTERNAL_TOKEN first for new deployments.
 # Falls back to the legacy ODYSSEUS_INTERNAL_TOKEN name so existing
-# .env files keep working without changes.
-INTERNAL_TOOL_TOKEN = (
-    os.environ.get("SHADOWREALM_INTERNAL_TOKEN")
-    or os.environ.get("ODYSSEUS_INTERNAL_TOKEN")  # legacy compat
-    or secrets.token_hex(32)
-)
+# .env files keep working without changes. Env overrides must be at
+# least MIN_INTERNAL_TOKEN_LEN hex/bytes long — short values are
+# rejected and a fresh random token is used instead.
+MIN_INTERNAL_TOKEN_LEN = 32
+
+
+def _resolve_internal_tool_token() -> str:
+    for key in ("SHADOWREALM_INTERNAL_TOKEN", "ODYSSEUS_INTERNAL_TOKEN"):
+        raw = (os.environ.get(key) or "").strip()
+        if not raw:
+            continue
+        if len(raw) < MIN_INTERNAL_TOKEN_LEN:
+            # Weak/shared env tokens become a global admin key if accepted.
+            # Fail closed to a random per-process token and warn via stderr
+            # (logging may not be configured at import time).
+            import sys
+            print(
+                f"[security] Ignoring {key}: value shorter than "
+                f"{MIN_INTERNAL_TOKEN_LEN} chars; using ephemeral token.",
+                file=sys.stderr,
+            )
+            continue
+        return raw
+    return secrets.token_hex(32)
+
+
+INTERNAL_TOOL_TOKEN = _resolve_internal_tool_token()
 INTERNAL_TOOL_HEADER = "X-ShadowRealm-Internal-Token"
 # Backward-compat alias — old routes that still reference the Odysseus header
 # name will still match. Remove after Sprint 4 UI cleanup.
 INTERNAL_TOOL_HEADER_LEGACY = "X-Odysseus-Internal-Token"
 # Pseudo-username on in-process tool-loopback requests; require_admin trusts it and it is reserved.
 INTERNAL_TOOL_USER = "internal-tool"
+
+# Headers that prove a request was forwarded by a proxy/tunnel (cloudflared,
+# nginx, Caddy, Tailscale Funnel, …). cloudflared connects to the app FROM
+# 127.0.0.1, so without this check every tunneled request would look like
+# loopback and could bypass auth / the internal-tool path.
+PROXY_FWD_HEADERS = (
+    "cf-connecting-ip", "cf-ray", "cf-visitor",
+    "x-forwarded-for", "x-forwarded-host", "x-real-ip", "forwarded",
+)
+
+
+def is_trusted_loopback(request: Request) -> bool:
+    """True ONLY for a DIRECT loopback connection with no proxy/tunnel headers.
+
+    A bare ``client.host in ('127.0.0.1','::1')`` check is unsafe behind a
+    Cloudflare tunnel / reverse proxy: those connect from loopback, so a
+    remote visitor would otherwise inherit local trust. In-process agent
+    loopback calls carry none of these headers, so they still qualify.
+    """
+    host = request.client.host if getattr(request, "client", None) else None
+    if host not in ("127.0.0.1", "::1"):
+        return False
+    headers = getattr(request, "headers", None) or {}
+    for header in PROXY_FWD_HEADERS:
+        try:
+            if headers.get(header):
+                return False
+        except Exception:
+            continue
+    return True
+
+
+def tokens_match(provided: str | None, expected: str) -> bool:
+    """Constant-time compare that never raises on length mismatch."""
+    if not provided or not expected:
+        return False
+    if len(provided) != len(expected):
+        return False
+    return secrets.compare_digest(provided, expected)
 
 
 def is_cors_preflight(method: str, headers) -> bool:
@@ -45,27 +105,31 @@ def require_admin(request: Request):
     the in-process internal-tool token used by loopback agent tools.
     """
     # In-process bypass for tool-layer loopback calls. Two paths:
-    # (a) header-direct (caller set X-ShadowRealm-Internal-Token or legacy alias), or
-    # (b) the auth middleware already validated the token and stamped
+    # (a) header-direct (caller set X-ShadowRealm-Internal-Token or legacy alias)
+    #     AND the client is a trusted loopback (no proxy headers), or
+    # (b) the auth middleware already validated the token + loopback and stamped
     #     request.state.current_user = "internal-tool".
+    headers = getattr(request, "headers", None) or {}
     try:
-        hdr = (
-            request.headers.get(INTERNAL_TOOL_HEADER)
-            or request.headers.get(INTERNAL_TOOL_HEADER_LEGACY)
-        )
-        if hdr and secrets.compare_digest(hdr, INTERNAL_TOOL_TOKEN):
-            return
-        if getattr(request.state, "current_user", None) == INTERNAL_TOOL_USER:
-            return
+        hdr = headers.get(INTERNAL_TOOL_HEADER) or headers.get(INTERNAL_TOOL_HEADER_LEGACY)
     except Exception:
-        pass
+        hdr = None
+    if tokens_match(hdr, INTERNAL_TOOL_TOKEN) and is_trusted_loopback(request):
+        return
+    state = getattr(request, "state", None)
+    if getattr(state, "current_user", None) == INTERNAL_TOOL_USER:
+        return
 
-    auth_mgr = getattr(request.app.state, "auth_manager", None)
+    try:
+        auth_mgr = getattr(request.app.state, "auth_manager", None)
+    except Exception:
+        auth_mgr = None
+
     if os.getenv("AUTH_ENABLED", "true").lower() == "false":
         return
     if not auth_mgr or not auth_mgr.is_configured:
         raise HTTPException(403, "Admin only")
-    user = getattr(request.state, "current_user", None)
+    user = getattr(state, "current_user", None)
     if not user or not auth_mgr.is_admin(user):
         raise HTTPException(403, "Admin only")
 

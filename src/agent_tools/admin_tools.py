@@ -42,6 +42,10 @@ async def do_manage_endpoints(content: str, owner: Optional[str] = None) -> Dict
             api_key = args.get("api_key", "")
             if not base_url:
                 return {"error": "base_url is required", "exit_code": 1}
+            from src.url_safety import check_outbound_url
+            ok, reason = check_outbound_url(base_url, block_private=False)
+            if not ok:
+                return {"error": f"Rejected base_url: {reason}", "exit_code": 1}
             eid = str(_uuid.uuid4())[:8]
             from datetime import datetime
             ep = ModelEndpoint(id=eid, name=name or base_url, base_url=base_url,

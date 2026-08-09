@@ -161,7 +161,7 @@ class AuthManager:
         try:
             with self._sessions_lock:
                 snapshot = dict(self._sessions)
-            _atomic_write_json(self._sessions_path, snapshot)
+            _atomic_write_json(self._sessions_path, snapshot, mode=0o600)
         except Exception as e:
             logger.error(f"Failed to save sessions: {e}")
 
@@ -226,7 +226,7 @@ class AuthManager:
             self._save()
 
     def _save(self):
-        _atomic_write_json(self.auth_path, self._config, indent=2)
+        _atomic_write_json(self.auth_path, self._config, indent=2, mode=0o600)
 
     @property
     def users(self) -> Dict[str, Any]:
@@ -523,8 +523,8 @@ class AuthManager:
             self._config["users"][username]["totp_secret"] = secret
             self._config["users"][username]["totp_enabled"] = True
             self._config["users"][username].pop("totp_secret_pending", None)
-            # Generate backup codes
-            backup = [secrets.token_hex(4) for _ in range(8)]
+            # Generate backup codes (~64 bits each; single-use).
+            backup = [secrets.token_hex(8) for _ in range(8)]
             self._config["users"][username]["totp_backup_codes"] = backup
             self._save()
         logger.info(f"2FA enabled for '{username}'")

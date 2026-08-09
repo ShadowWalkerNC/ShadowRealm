@@ -393,8 +393,10 @@ def _find_line_break(buf):
     return ni, 1
 
 
-EXEC_TIMEOUT = 30  # seconds — shorter than agent's 60s
+EXEC_TIMEOUT = 30  # seconds — shorter than agent's default
 STREAM_TIMEOUT = 120  # default for short commands
+MAX_SHELL_TIMEOUT = 600  # hard cap — timeout=0 (unlimited) is no longer allowed
+MAX_SHELL_COMMAND_BYTES = 32_768
 MAX_OUTPUT = 200_000  # truncate limit
 TMUX_LOG_DIR = Path(tempfile.gettempdir()) / "odysseus-tmux"
 PTY_UNSUPPORTED_ERROR = "pty_unsupported"
@@ -403,10 +405,28 @@ PTY_UNSUPPORTED_ERROR = "pty_unsupported"
 class ShellExecRequest(BaseModel):
     command: str
     timeout: int | None = (
-        None  # optional override; 0 = no timeout (run until client disconnects)
+        None  # optional override; capped at MAX_SHELL_TIMEOUT (no unlimited)
     )
     use_pty: bool = False  # use pseudo-TTY (for progress bars)
     use_tmux: bool = False  # run in tmux session (survives browser disconnect)
+
+
+def _normalize_shell_timeout(timeout: int | None, default: int) -> int:
+    """Resolve a shell timeout. Rejects unlimited (0/negative) and caps the max."""
+    if timeout is None:
+        return default
+    if timeout <= 0:
+        return MAX_SHELL_TIMEOUT
+    return min(int(timeout), MAX_SHELL_TIMEOUT)
+
+
+def _validate_shell_command(command: str) -> str:
+    cmd = (command or "").strip()
+    if not cmd:
+        raise HTTPException(400, "No command provided")
+    if len(cmd.encode("utf-8", errors="replace")) > MAX_SHELL_COMMAND_BYTES:
+        raise HTTPException(400, f"Command exceeds {MAX_SHELL_COMMAND_BYTES} byte limit")
+    return cmd
 
 
 async def _create_shell(command: str, **kwargs):
@@ -821,35 +841,27 @@ def setup_shell_routes() -> APIRouter:
     async def shell_exec(request: Request, req: ShellExecRequest) -> Dict[str, Any]:
         """Execute a shell command and return output. Admin only."""
         _require_admin(request)
-        cmd = req.command.strip()
-        if not cmd:
-            return {"stdout": "", "stderr": "No command provided", "exit_code": 1}
+        _reject_cross_site(request)
+        cmd = _validate_shell_command(req.command)
+        timeout = _normalize_shell_timeout(req.timeout, EXEC_TIMEOUT)
 
-        logger.info("User shell exec requested: length=%d", len(cmd))
-        result = await _exec_shell(
-            cmd, timeout=req.timeout if req.timeout is not None else EXEC_TIMEOUT
-        )
+        logger.info("User shell exec requested: length=%d timeout=%ds", len(cmd), timeout)
+        result = await _exec_shell(cmd, timeout=timeout)
         return result
 
     @router.post("/api/shell/stream")
     async def shell_stream(request: Request, req: ShellExecRequest):
         """Execute a shell command and stream output line-by-line via SSE. Admin only."""
         _require_admin(request)
-        cmd = req.command.strip()
-        if not cmd:
+        _reject_cross_site(request)
+        cmd = _validate_shell_command(req.command)
 
-            async def empty():
-                yield f"data: {json.dumps({'stream': 'stderr', 'data': 'No command provided'})}\n\n"
-                yield f"data: {json.dumps({'exit_code': 1})}\n\n"
-
-            return StreamingResponse(empty(), media_type="text/event-stream")
-
-        timeout = req.timeout if req.timeout is not None else STREAM_TIMEOUT
+        timeout = _normalize_shell_timeout(req.timeout, STREAM_TIMEOUT)
         use_pty = req.use_pty
         use_tmux = req.use_tmux
         logger.info(
-            "User shell stream requested: timeout=%s pty=%s tmux=%s length=%d",
-            "none" if timeout == 0 else f"{timeout}s",
+            "User shell stream requested: timeout=%ss pty=%s tmux=%s length=%d",
+            timeout,
             use_pty,
             use_tmux,
             len(cmd),

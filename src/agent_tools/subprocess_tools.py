@@ -5,8 +5,9 @@ import collections
 from typing import Optional, Callable, Awaitable, Tuple, Dict
 from src.constants import MAX_OUTPUT_CHARS
 
-DEFAULT_BASH_TIMEOUT = 60 * 60     # 1 hour
-DEFAULT_PYTHON_TIMEOUT = 60 * 60
+DEFAULT_BASH_TIMEOUT = 10 * 60     # 10 minutes (was 1 hour)
+DEFAULT_PYTHON_TIMEOUT = 10 * 60
+MAX_AGENT_SUBPROCESS_TIMEOUT = 10 * 60
 
 PROGRESS_INTERVAL_S = 2.0
 PROGRESS_TAIL_LINES = 12

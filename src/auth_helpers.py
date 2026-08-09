@@ -93,18 +93,17 @@ def require_user(request: Request) -> str:
     if _auth_disabled():
         return ""
     auth_mgr = getattr(request.app.state, "auth_manager", None)
-    client = getattr(request, "client", None)
-    host = (client.host if client else "") or ""
-    is_loopback = host in ("127.0.0.1", "::1", "localhost")
+    from core.middleware import is_trusted_loopback
     # LOCALHOST_BYPASS=true is the dev-only "I'm on loopback, skip auth"
-    # switch. Mirror the middleware so routes don't 401 the same caller
-    # the middleware just let through.
-    if is_loopback and os.getenv("LOCALHOST_BYPASS", "false").lower() == "true":
+    # switch. Mirror the middleware (including proxy-header rejection) so
+    # routes don't 401 the same caller the middleware just let through —
+    # and don't grant bypass to tunneled requests that only look like loopback.
+    if is_trusted_loopback(request) and os.getenv("LOCALHOST_BYPASS", "false").lower() == "true":
         return ""
     if auth_mgr is not None and getattr(auth_mgr, "is_configured", False):
         raise HTTPException(401, "Not authenticated")
-    # Unconfigured / first-run mode: only allow loopback callers.
-    if is_loopback:
+    # Unconfigured / first-run mode: only allow trusted loopback callers.
+    if is_trusted_loopback(request):
         return ""
     raise HTTPException(401, "Not authenticated")
 

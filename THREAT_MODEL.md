@@ -45,9 +45,17 @@ Non-admin defaults are in `core/auth.py:DEFAULT_PRIVILEGES`. Tool enforcement is
 
 Agent tool calls reach admin-gated HTTP routes over an in-process HTTP loopback. The mechanism:
 
-1. At app startup, `core/middleware.py` generates a random `INTERNAL_TOOL_TOKEN` via `secrets.token_hex(32)`. It is never persisted and never sent to clients.
-2. Loopback requests carry `X-Odysseus-Internal-Token: <token>` or have `request.state.current_user` already set to `"internal-tool"` by the auth middleware.
-3. `require_admin` recognises either signal and grants access without checking the session user.
+1. At app startup, `core/middleware.py` resolves `INTERNAL_TOOL_TOKEN` from
+   `SHADOWREALM_INTERNAL_TOKEN` / `ODYSSEUS_INTERNAL_TOKEN` (min 32 chars) or
+   generates a random `secrets.token_hex(32)`. Short env values are ignored.
+   The token is never sent to clients.
+2. Loopback requests carry `X-ShadowRealm-Internal-Token` (or legacy
+   `X-Odysseus-Internal-Token`) **and** must be a trusted loopback client
+   (no proxy/tunnel forwarding headers). AuthMiddleware also stamps
+   `request.state.current_user` to `"internal-tool"` when valid.
+3. `require_admin` recognises the same loopback+token signal (or the
+   already-stamped `internal-tool` user) and grants access without checking
+   the session user.
 
 The agent may be running in a non-admin user's session, but tool dispatch first calls `src/tool_security.py:owner_is_admin_or_single_user` to verify the session owner is an admin before issuing any loopback call. Non-admin users cannot invoke admin tools even via the agent.
 
@@ -72,10 +80,17 @@ External content that reaches the LLM is treated as untrusted via `src/prompt_se
 
 These are open, acknowledged, and contributor help is welcome:
 
-1. **No shell/filesystem sandbox.** The agent `bash` and `read_file`/`write_file` tools run as the app process user with no network egress filtering or filesystem confinement. A successful prompt-injection reaching a shell-enabled admin session can make outbound requests to internal services. See #1058 for the sandbox proposal.
+1. **No shell/filesystem sandbox.** The agent `bash` and `read_file`/`write_file` tools run as the app process user with no network egress filtering or filesystem confinement. A successful prompt-injection reaching a shell-enabled admin session can make outbound requests to internal services. Shell timeouts are now capped (agent ≤10m, UI ≤10m; unlimited `timeout=0` rejected), but this is not a sandbox. See #1058 for the sandbox proposal. **Do not mount `/var/run/docker.sock` by default** — use `docker-compose.docker-sock.yml` only when Cookbook needs host Docker. OpenHands / Prometheus / Grafana are compose profiles and bind loopback only.
 
-2. **SSRF via `/api/v1/chat` `base_url` parameter.** A chat-scoped API token can supply an arbitrary `base_url`; the server forwards the LLM request to that host without validating the scheme or address. PR #1039 fixes this.
+2. **SSRF via `/api/v1/chat` `base_url` parameter — mitigated.** Chat-scoped tokens pass `base_url` through `validate_public_http_url` (scheme + DNS + private/link-local block). Residual: DNS-rebinding TOCTOU between resolve and connect. Admin-created model endpoints and integrations intentionally allow LAN/loopback (local-first) but **always block link-local / cloud metadata** via `check_outbound_url`.
 
 3. **`src/search/` partial consolidation.** `src.search.core` and `src.search.providers` correctly alias `services.search` via `sys.modules` replacement. `analytics`, `cache`, `content`, `query`, and `ranking` are still independent copies that can drift. The SSRF regression tests in `tests/test_webhook_ssrf_resilience.py` test `src.webhook_manager` directly (separate from search), so the safety net there is intact. See #1058.
 
-4. **Token scopes are coarse.** There is no way to grant a session a subset of the owning user's privileges. Companion/mobile tokens carry either `chat` or `admin` scope with no per-capability granularity.
+4. **Token scopes — path allowlist added; session privileges still coarse.** Bearer `ody_` tokens are **default-denied** unless the path matches `src/api_token_access.py` (e.g. `/api/v1/chat` and companion require `chat`; `/api/codex/*` relies on route-level scopes). There is still no way to grant a *browser session* a subset of the owning user's privileges.
+
+## Recent hardening notes
+
+- `require_admin` internal-tool bypass requires **trusted loopback** (no proxy headers), matching AuthMiddleware. Env overrides `SHADOWREALM_INTERNAL_TOKEN` / `ODYSSEUS_INTERNAL_TOKEN` shorter than 32 chars are ignored.
+- `auth.json` / `sessions.json` are written mode `0o600`.
+- `vault_get` redacts passwords/TOTP/notes from model-visible tool output.
+- Admin bootstrap accepts `SHADOWREALM_ADMIN_*` or legacy `ODYSSEUS_ADMIN_*`.

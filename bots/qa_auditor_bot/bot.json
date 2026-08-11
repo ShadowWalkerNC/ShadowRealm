@@ -1,0 +1,13 @@
+{
+  "bot_id": "qa_auditor_bot",
+  "name": "QA Audit Bot",
+  "description": "Performs 4-stage repository plan, code, build, and user tests.",
+  "skills": [
+    "repo_audit",
+    "code_review"
+  ],
+  "allowed_mcps": [
+    "filesystem",
+    "exec"
+  ]
+}

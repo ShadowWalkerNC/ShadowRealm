@@ -1,0 +1,13 @@
+{
+  "bot_id": "release_bot",
+  "name": "Release Bot",
+  "description": "Automates documentation generation, version tagging, and packaging.",
+  "skills": [
+    "doc_write",
+    "git_ops"
+  ],
+  "allowed_mcps": [
+    "filesystem",
+    "git"
+  ]
+}

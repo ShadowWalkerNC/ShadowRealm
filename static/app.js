@@ -1130,10 +1130,23 @@ function initializeEventListeners() {
                   <div style="font-size:11px;opacity:0.6;word-break:break-all;margin-top:4px;">${r.path}</div>
                 </div>
                 <div style="display:flex;gap:6px;margin-top:8px;">
+                  <button type="button" class="open-local-btn" data-repo="${r.name}" style="flex:1;background:var(--panel);color:var(--fg);border:1px solid var(--border);border-radius:4px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;">📂 Open Local</button>
                   <button type="button" class="armada-btn" data-repo="${r.name}" style="flex:1;background:var(--accent);color:#000;border:none;border-radius:4px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;">🚀 Armada</button>
                 </div>
               </div>
             `).join('');
+            listEl.querySelectorAll('.open-local-btn').forEach(btn => {
+              btn.addEventListener('click', async () => {
+                const repo = btn.dataset.repo;
+                const res = await fetch('/api/repos/open-local', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ repo_name: repo })
+                });
+                const d = await res.json();
+                if (uiModule && uiModule.showToast) uiModule.showToast(`Opened ${repo} in ${d.launched_via}`);
+              });
+            });
             listEl.querySelectorAll('.armada-btn').forEach(btn => {
               btn.addEventListener('click', async () => {
                 const repo = btn.dataset.repo;
@@ -1144,6 +1157,9 @@ function initializeEventListeners() {
                 });
                 const d = await res.json();
                 if (uiModule && uiModule.showToast) uiModule.showToast(`Armada launched for ${repo}`);
+                if (uiModule && uiModule.appendMessage) {
+                  uiModule.appendMessage('assistant', d.chat_summary || `🚀 Armada Swarm (Google Gemini Engine) launched for ${repo}`);
+                }
                 modal.classList.add('hidden');
               });
             });

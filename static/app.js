@@ -1128,6 +1128,10 @@ function initializeEventListeners() {
                     ${r.is_current ? '<span style="font-size:10px;background:var(--accent);color:#000;padding:1px 5px;border-radius:4px;">Active</span>' : ''}
                   </div>
                   <div style="font-size:11px;opacity:0.6;word-break:break-all;margin-top:4px;">${r.path}</div>
+                  <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">
+                    ${(r.stack || []).map(s => `<span style="font-size:9px;background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:1px 5px;border-radius:3px;">${s}</span>`).join('')}
+                    <span style="font-size:9px;background:rgba(255,255,255,0.06);border:1px solid var(--border);padding:1px 5px;border-radius:3px;color:var(--accent);">🌿 ${r.branch || 'main'}</span>
+                  </div>
                 </div>
                 <div style="display:flex;gap:6px;margin-top:8px;">
                   <button type="button" class="open-local-btn" data-repo="${r.name}" style="flex:1;background:var(--panel);color:var(--fg);border:1px solid var(--border);border-radius:4px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;">📂 Open</button>

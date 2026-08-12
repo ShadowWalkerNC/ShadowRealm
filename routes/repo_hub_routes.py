@@ -20,18 +20,41 @@ def _get_github_projects_dir() -> Path:
 
 @router.get("/")
 async def list_github_repositories():
-    """List all GitHub repositories located in parent workspace."""
+    """List all GitHub repositories with tech stack, dependencies, and git branch details."""
     p_dir = _get_github_projects_dir()
     repos = []
     if p_dir.exists():
         for item in p_dir.iterdir():
             if item.is_dir() and (item / ".git").exists():
                 readme_path = item / "README.md"
-                has_readme = readme_path.exists()
+                pkg_json = item / "package.json"
+                req_txt = item / "requirements.txt"
+                pyproj = item / "pyproject.toml"
+                
+                stack = []
+                if pkg_json.exists(): stack.append("Node.js / JS")
+                if req_txt.exists() or pyproj.exists(): stack.append("Python")
+                if (item / "pubspec.yaml").exists(): stack.append("Flutter / Dart")
+                if (item / "Cargo.toml").exists(): stack.append("Rust")
+                if not stack: stack.append("General Codebase")
+
+                # Get current git branch
+                branch = "main"
+                try:
+                    head_file = item / ".git" / "HEAD"
+                    if head_file.exists():
+                        ref_content = head_file.read_text().strip()
+                        if ref_content.startswith("ref: refs/heads/"):
+                            branch = ref_content.replace("ref: refs/heads/", "")
+                except Exception:
+                    pass
+
                 repos.append({
                     "name": item.name,
                     "path": str(item.resolve()),
-                    "has_readme": has_readme,
+                    "has_readme": readme_path.exists(),
+                    "stack": stack,
+                    "branch": branch,
                     "is_current": item.name == Path.cwd().name,
                 })
     return {"projects_directory": str(p_dir.resolve()), "count": len(repos), "repositories": repos}

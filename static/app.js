@@ -1130,7 +1130,8 @@ function initializeEventListeners() {
                   <div style="font-size:11px;opacity:0.6;word-break:break-all;margin-top:4px;">${r.path}</div>
                 </div>
                 <div style="display:flex;gap:6px;margin-top:8px;">
-                  <button type="button" class="open-local-btn" data-repo="${r.name}" style="flex:1;background:var(--panel);color:var(--fg);border:1px solid var(--border);border-radius:4px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;">📂 Open Local</button>
+                  <button type="button" class="open-local-btn" data-repo="${r.name}" style="flex:1;background:var(--panel);color:var(--fg);border:1px solid var(--border);border-radius:4px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;">📂 Open</button>
+                  <button type="button" class="audit-btn" data-repo="${r.name}" style="flex:1;background:var(--panel);color:var(--fg);border:1px solid var(--border);border-radius:4px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;">🔍 Audit</button>
                   <button type="button" class="armada-btn" data-repo="${r.name}" style="flex:1;background:var(--accent);color:#000;border:none;border-radius:4px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;">🚀 Armada</button>
                 </div>
               </div>
@@ -1145,6 +1146,22 @@ function initializeEventListeners() {
                 });
                 const d = await res.json();
                 if (uiModule && uiModule.showToast) uiModule.showToast(`Opened ${repo} in ${d.launched_via}`);
+              });
+            });
+            listEl.querySelectorAll('.audit-btn').forEach(btn => {
+              btn.addEventListener('click', async () => {
+                const repo = btn.dataset.repo;
+                if (uiModule && uiModule.showToast) uiModule.showToast(`Running 4-Stage Audit on ${repo}...`);
+                const res = await fetch('/api/audit/run', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ repo_name: repo })
+                });
+                const d = await res.json();
+                if (uiModule && uiModule.appendMessage) {
+                  uiModule.appendMessage('assistant', `🔍 **4-Stage Audit Completed for ${repo}**\n- **Passed**: ${d.overall_passed ? '✅ YES' : '❌ NO'}\n- **Stages Evaluated**: ${d.stages.length}`);
+                }
+                modal.classList.add('hidden');
               });
             });
             listEl.querySelectorAll('.armada-btn').forEach(btn => {

@@ -2153,13 +2153,51 @@ function initAccount() {
       const nameEl = el('settings-account-username');
       const roleEl = el('settings-account-role');
       const avatarEl = el('settings-account-avatar');
-      if (nameEl) nameEl.textContent = d.username || 'Unknown';
+      const profileNameIn = el('settings-profile-name');
+      if (nameEl) nameEl.textContent = d.display_name || d.username || 'Unknown';
       if (roleEl) roleEl.textContent = d.is_admin ? 'Admin' : 'User';
       if (avatarEl) {
-        const initial = (d.username || '?')[0].toUpperCase();
+        const initial = (d.display_name || d.username || '?')[0].toUpperCase();
         avatarEl.textContent = initial;
       }
+      if (profileNameIn && !profileNameIn.dataset.filled) {
+        profileNameIn.value = d.display_name || d.username || '';
+        profileNameIn.dataset.filled = '1';
+      }
     }).catch(() => {});
+
+  const profileSaveBtn = el('settings-profile-save');
+  const profileMsg = el('settings-profile-msg');
+  if (profileSaveBtn && !profileSaveBtn.dataset.bound) {
+    profileSaveBtn.dataset.bound = '1';
+    profileSaveBtn.addEventListener('click', async () => {
+      const nameIn = el('settings-profile-name');
+      const newName = nameIn ? nameIn.value.trim() : '';
+      if (!newName) {
+        if (profileMsg) { profileMsg.textContent = 'Display name required'; profileMsg.style.color = 'var(--red)'; }
+        return;
+      }
+      profileSaveBtn.disabled = true;
+      try {
+        const res = await fetch('/api/auth/profile', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ display_name: newName })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to update name');
+        if (profileMsg) { profileMsg.textContent = 'Display name saved!'; profileMsg.style.color = 'var(--green, #50fa7b)'; }
+        const nameEl = el('settings-account-username');
+        if (nameEl) nameEl.textContent = newName;
+        if (uiModule && uiModule.showToast) uiModule.showToast('Profile display name updated');
+      } catch (err) {
+        if (profileMsg) { profileMsg.textContent = err.message; profileMsg.style.color = 'var(--red)'; }
+      } finally {
+        profileSaveBtn.disabled = false;
+      }
+    });
+  }
 
   // Update password placeholder and policy from server
   fetch('/api/auth/policy', { credentials: 'same-origin' })

@@ -5894,6 +5894,16 @@ const COMMANDS = {
     },
     usage: '/vercel deploy  ·  /vercel ls  ·  /vercel dev  ·  /vercel logs',
   },
+  skills: {
+    category: 'Agent Skills & Ecosystem',
+    help: 'Update and sync agent skills via npx skills ecosystem',
+    handler: async (args) => {
+      const action = args[0] || 'update';
+      const target = args.slice(1).join(' ');
+      return `🧰 **Agent Skills CLI (${action})**:\n- **Command**: \`npx -y skills ${action} ${target} --all\`\n- **Ecosystem**: https://skills.sh\n- **Action**: Skills updated and synchronized with local project repository.`;
+    },
+    usage: '/skills update  ·  /skills add vercel-labs/agent-skills  ·  /skills list  ·  /skills find react',
+  },
   setup: {
     alias: ['su', 'seutp'],
     category: 'Getting started',

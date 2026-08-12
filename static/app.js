@@ -1043,6 +1043,7 @@ function initializeEventListeners() {
     },
     '/memory':   () => document.getElementById('tool-memory-btn')?.click(),
     '/gallery':  () => document.getElementById('tool-gallery-btn')?.click(),
+    '/repos':    () => document.getElementById('tool-github-btn')?.click(),
     '/tasks':    () => document.getElementById('tool-tasks-btn')?.click(),
     '/library':  () => sessionModule && sessionModule.openLibrary && sessionModule.openLibrary(),
   };
@@ -1084,6 +1085,73 @@ function initializeEventListeners() {
     chatsLibraryBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       if (sessionModule) sessionModule.openLibrary('chats');
+    });
+  }
+
+  // GitHub Repos tool button
+  const toolGithubBtn = el('tool-github-btn');
+  if (toolGithubBtn) {
+    toolGithubBtn.addEventListener('click', async () => {
+      let modal = document.getElementById('repos-dashboard-modal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'repos-dashboard-modal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+          <div class="modal-content" style="max-width:860px;width:92vw;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:20px;max-height:85vh;overflow-y:auto;">
+            <div class="modal-header" style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:16px;">
+              <h3 style="margin:0;display:flex;align-items:center;gap:8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                GitHub Repositories Dashboard
+              </h3>
+              <button class="close-btn" style="background:none;border:none;color:var(--fg);cursor:pointer;font-size:16px;">✖</button>
+            </div>
+            <div id="repos-dashboard-list" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:12px;">Loading repositories...</div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+        modal.querySelector('.close-btn').addEventListener('click', () => modal.classList.add('hidden'));
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
+      }
+      modal.classList.remove('hidden');
+      const listEl = document.getElementById('repos-dashboard-list');
+      if (listEl) {
+        try {
+          const res = await fetch('/api/repos/');
+          const data = await res.json();
+          if (data && data.repositories) {
+            listEl.innerHTML = data.repositories.map(r => `
+              <div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;flex-direction:column;justify-content:space-between;gap:8px;">
+                <div>
+                  <div style="font-weight:600;font-size:14px;color:var(--accent);display:flex;align-items:center;justify-content:space-between;">
+                    <span>${r.name}</span>
+                    ${r.is_current ? '<span style="font-size:10px;background:var(--accent);color:#000;padding:1px 5px;border-radius:4px;">Active</span>' : ''}
+                  </div>
+                  <div style="font-size:11px;opacity:0.6;word-break:break-all;margin-top:4px;">${r.path}</div>
+                </div>
+                <div style="display:flex;gap:6px;margin-top:8px;">
+                  <button type="button" class="armada-btn" data-repo="${r.name}" style="flex:1;background:var(--accent);color:#000;border:none;border-radius:4px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;">🚀 Armada</button>
+                </div>
+              </div>
+            `).join('');
+            listEl.querySelectorAll('.armada-btn').forEach(btn => {
+              btn.addEventListener('click', async () => {
+                const repo = btn.dataset.repo;
+                const res = await fetch('/api/repos/armada/launch', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ repo_name: repo })
+                });
+                const d = await res.json();
+                if (uiModule && uiModule.showToast) uiModule.showToast(`Armada launched for ${repo}`);
+                modal.classList.add('hidden');
+              });
+            });
+          }
+        } catch (_) {
+          listEl.innerHTML = '<div style="color:var(--danger)">Failed to load GitHub repositories.</div>';
+        }
+      }
     });
   }
 

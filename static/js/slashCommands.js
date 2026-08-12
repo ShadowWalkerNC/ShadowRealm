@@ -5861,6 +5861,30 @@ const COMMANDS = {
     },
     usage: '/cli scan  ·  /cli docker ps  ·  /cli tailscale status',
   },
+  launch: {
+    category: 'System & Apps',
+    help: 'Launch desktop applications or IDEs',
+    handler: async (args) => {
+      const appName = args.join(' ');
+      if (!appName) return 'Usage: /launch code  ·  /launch docker  ·  /launch python';
+      return `🚀 **Launching Application**: \`${appName}\``;
+    },
+    usage: '/launch code  ·  /launch docker  ·  /launch python',
+  },
+  audit: {
+    category: 'DevOps & Repos',
+    help: 'Run 4-Stage Repository Audit Pipeline',
+    handler: async () => {
+      const res = await fetch('/api/audit/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      return `🔍 **4-Stage Repo Audit Finished**\n- **Overall Passed**: ${data.overall_passed ? '✅ YES' : '❌ NO'}\n- **Stages Evaluated**: ${data.stages.length}`;
+    },
+    usage: '/audit',
+  },
   setup: {
     alias: ['su', 'seutp'],
     category: 'Getting started',

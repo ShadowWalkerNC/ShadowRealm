@@ -645,7 +645,7 @@ body.bg-pattern-sparkles {
       flex-shrink: 0;
       background: var(--panel);
       border-right: 1px solid var(--border);
-      display: none;
+      display: flex;
       flex-direction: column;
       align-items: center;
       padding: 48px 4px 8px 4px;

@@ -1179,26 +1179,35 @@ function initializeEventListeners() {
                 const d = await res.json();
                 if (uiModule && uiModule.showToast) uiModule.showToast(`Armada launched for ${repo}`);
                 if (uiModule && uiModule.appendMessage) {
+                  const rocketSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.71 1.1-1.63 1.1-2.58 0-.95-.39-1.87-1.1-2.58s-1.63-1.1-2.58-1.1c-.95 0-1.87.39-2.58 1.1z"/><path d="M12 15l-3-3 7.5-7.5.75 2.25 2.25.75L12 15z"/></svg>`;
+                  const zapSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+                  const gitSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>`;
+                  const toolSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
+                  const brainSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04Z"/></svg>`;
+                  const checkSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+                  const xSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+                  const searchSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+
                   const drawerHtml = `
                     <div class="swarm-drawer-card" style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:10px;box-shadow:0 4px 16px rgba(0,0,0,0.2);">
                       <div style="font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:space-between;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:10px;">
-                        <span style="display:flex;align-items:center;gap:6px;">🚀 <strong>Armada Swarm Hub</strong> — ${repo}</span>
+                        <span style="display:flex;align-items:center;gap:6px;">${rocketSvg} <strong>Armada Swarm Hub</strong> — ${repo}</span>
                         <span style="font-size:10px;font-weight:700;background:rgba(80,250,123,0.15);color:var(--green, #50fa7b);border:1px solid rgba(80,250,123,0.3);padding:2px 8px;border-radius:12px;">ACTIVE SWARM</span>
                       </div>
                       
-                      <!-- Discovered Host Tools Indicator -->
+                      <!-- Discovered Host Tools SVG Indicator -->
                       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
                         <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
-                          ⚡ AST Indexer
+                          ${zapSvg} AST Indexer
                         </span>
                         <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
-                          🌿 Git Pipeline
+                          ${gitSvg} Git Pipeline
                         </span>
                         <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
-                          🛠️ CLI Harness
+                          ${toolSvg} CLI Harness
                         </span>
                         <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
-                          🧠 Gemini 2.0 Pro
+                          ${brainSvg} Gemini 2.0 Pro
                         </span>
                       </div>
 
@@ -1213,10 +1222,10 @@ function initializeEventListeners() {
                       </details>
 
                       <div style="display:flex;gap:8px;margin-top:12px;">
-                        <button type="button" class="swarm-branch-btn" data-repo="${repo}" style="flex:1;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;">🌿 Create Branch</button>
-                        <button type="button" class="swarm-diff-btn" data-repo="${repo}" style="flex:1;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;">🔍 View Diff</button>
-                        <button type="button" class="swarm-approve-btn" style="flex:1.2;background:var(--accent);color:#000;border:none;border-radius:6px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">✅ Approve &amp; Commit</button>
-                        <button type="button" class="swarm-reject-btn" style="flex:1;background:var(--panel);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;">❌ Reject</button>
+                        <button type="button" class="swarm-branch-btn" data-repo="${repo}" style="flex:1;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">${gitSvg} Create Branch</button>
+                        <button type="button" class="swarm-diff-btn" data-repo="${repo}" style="flex:1;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">${searchSvg} View Diff</button>
+                        <button type="button" class="swarm-approve-btn" style="flex:1.2;background:var(--accent);color:#000;border:none;border-radius:6px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">${checkSvg} Approve &amp; Commit</button>
+                        <button type="button" class="swarm-reject-btn" style="flex:1;background:var(--panel);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">${xSvg} Reject</button>
                       </div>
                     </div>
                   `;

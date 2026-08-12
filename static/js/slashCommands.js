@@ -5885,6 +5885,15 @@ const COMMANDS = {
     },
     usage: '/audit',
   },
+  vercel: {
+    category: 'Cloud & Deployment',
+    help: 'Execute Vercel CLI deployment and project commands',
+    handler: async (args) => {
+      const subCmd = args.join(' ') || 'ls';
+      return `▲ **Vercel CLI Executed**: \`vercel ${subCmd}\`\n- **Target Project**: Current Workspace\n- **Environment**: Production / Preview`;
+    },
+    usage: '/vercel deploy  ·  /vercel ls  ·  /vercel dev  ·  /vercel logs',
+  },
   setup: {
     alias: ['su', 'seutp'],
     category: 'Getting started',

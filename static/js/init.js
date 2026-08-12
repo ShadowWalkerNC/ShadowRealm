@@ -31,6 +31,8 @@ window.addEventListener('pageshow', clearFreshComposerRestore);
     const data = await res.json().catch(() => ({}));
     const liveUser = (data && data.username) || '';
     if (!liveUser) return;
+    const nameEl = document.getElementById('user-bar-name');
+    if (nameEl) nameEl.textContent = liveUser;
     const KEY = 'odysseus-auth-user';
     const cachedUser = localStorage.getItem(KEY);
     if (cachedUser && cachedUser !== liveUser) {

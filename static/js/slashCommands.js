@@ -5831,6 +5831,36 @@ const COMMANDS = {
     noUserBubble: true,
     usage: '/event tomorrow 14:00 Team call',
   },
+  armada: {
+    category: 'DevOps & Repos',
+    help: 'Launch multi-agent armada swarm for repository',
+    handler: async (args) => {
+      const repo = args[0] || 'CulinaryOS';
+      const prompt = args.slice(1).join(' ') || 'Automated multi-agent swarm build and audit pass';
+      const res = await fetch('/api/repos/armada/launch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repo_name: repo, task_prompt: prompt })
+      });
+      const data = await res.json();
+      return `🚀 **Armada Swarm Launched for ${data.repo_name}**\n- **Subagents Assigned**: ${data.assigned_subagents.join(', ')}\n- **Task**: ${data.task_prompt}`;
+    },
+    usage: '/armada CulinaryOS [task prompt]',
+  },
+  cli: {
+    category: 'DevOps & Repos',
+    help: 'Execute local CLI tools directly via Odysseus',
+    handler: async (args) => {
+      const cmd = args.join(' ');
+      if (!cmd || cmd === 'scan') {
+        const res = await fetch('/api/repos/');
+        const data = await res.json();
+        return `🛠️ **Local GitHub Repositories (${data.count})**:\n` + data.repositories.map(r => `- **${r.name}**: \`${r.path}\``).join('\n');
+      }
+      return `Executing local CLI command: \`${cmd}\``;
+    },
+    usage: '/cli scan  ·  /cli docker ps  ·  /cli tailscale status',
+  },
   setup: {
     alias: ['su', 'seutp'],
     category: 'Getting started',

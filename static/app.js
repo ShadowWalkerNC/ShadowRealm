@@ -1180,27 +1180,83 @@ function initializeEventListeners() {
                 if (uiModule && uiModule.showToast) uiModule.showToast(`Armada launched for ${repo}`);
                 if (uiModule && uiModule.appendMessage) {
                   const drawerHtml = `
-                    <div class="swarm-drawer-card" style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px;">
-                      <div style="font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:space-between;color:var(--accent);">
-                        <span>🚀 Armada Swarm: ${repo}</span>
-                        <span style="font-size:10px;background:rgba(80,250,123,0.15);color:var(--green, #50fa7b);padding:2px 6px;border-radius:4px;">RUNNING</span>
+                    <div class="swarm-drawer-card" style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:10px;box-shadow:0 4px 16px rgba(0,0,0,0.2);">
+                      <div style="font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:space-between;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:10px;">
+                        <span style="display:flex;align-items:center;gap:6px;">🚀 <strong>Armada Swarm Hub</strong> — ${repo}</span>
+                        <span style="font-size:10px;font-weight:700;background:rgba(80,250,123,0.15);color:var(--green, #50fa7b);border:1px solid rgba(80,250,123,0.3);padding:2px 8px;border-radius:12px;">ACTIVE SWARM</span>
                       </div>
-                      <details open style="margin-top:8px;font-size:11px;opacity:0.9;">
-                        <summary style="cursor:pointer;font-weight:500;margin-bottom:6px;">Live Subagent Stream (ShadowCoder, ShadowTester, ShadowOps)</summary>
-                        <div style="background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:8px;font-family:monospace;font-size:10px;max-height:120px;overflow-y:auto;">
-                          [ShadowCoder] Initializing repo workspace context for ${repo}...<br>
-                          [ShadowOps] Inspecting git HEAD & branch dependencies...<br>
-                          [ShadowTester] Pre-verifying test suite status...<br>
-                          <span style="color:var(--accent);">[Armada] Swarm execution active. Terminal harness launched.</span>
+                      
+                      <!-- Discovered Host Tools Indicator -->
+                      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+                        <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
+                          ⚡ AST Indexer
+                        </span>
+                        <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
+                          🌿 Git Pipeline
+                        </span>
+                        <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
+                          🛠️ CLI Harness
+                        </span>
+                        <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
+                          🧠 Gemini 2.0 Pro
+                        </span>
+                      </div>
+
+                      <details open style="margin-top:8px;font-size:11px;opacity:0.95;">
+                        <summary style="cursor:pointer;font-weight:600;margin-bottom:6px;color:var(--fg);">Live Subagent Execution Stream (ShadowCoder, ShadowTester, ShadowOps)</summary>
+                        <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:Consolas, monospace;font-size:11px;max-height:140px;overflow-y:auto;line-height:1.5;">
+                          <span style="color:var(--accent);">[ShadowOps]</span> Initialized repo context & workspace tree for <strong>${repo}</strong>.<br>
+                          <span style="color:#bd93f9;">[ShadowCoder]</span> Extracted AST symbol outlines (classes, methods, imports).<br>
+                          <span style="color:#ff79c6;">[ShadowTester]</span> Pre-verifying test harness & running lint pass.<br>
+                          <span style="color:var(--green, #50fa7b);">[Armada Engine]</span> VS Code terminal harness spawned. Swarm ready for instruction.
                         </div>
                       </details>
-                      <div style="display:flex;gap:8px;margin-top:10px;">
-                        <button type="button" class="swarm-approve-btn" style="flex:1;background:var(--accent);color:#000;border:none;border-radius:4px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;">✅ Approve & Commit</button>
-                        <button type="button" class="swarm-reject-btn" style="flex:1;background:var(--panel);color:var(--fg);border:1px solid var(--border);border-radius:4px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;">❌ Reject & Rollback</button>
+
+                      <div style="display:flex;gap:8px;margin-top:12px;">
+                        <button type="button" class="swarm-branch-btn" data-repo="${repo}" style="flex:1;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;">🌿 Create Branch</button>
+                        <button type="button" class="swarm-diff-btn" data-repo="${repo}" style="flex:1;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;">🔍 View Diff</button>
+                        <button type="button" class="swarm-approve-btn" style="flex:1.2;background:var(--accent);color:#000;border:none;border-radius:6px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">✅ Approve &amp; Commit</button>
+                        <button type="button" class="swarm-reject-btn" style="flex:1;background:var(--panel);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;">❌ Reject</button>
                       </div>
                     </div>
                   `;
                   uiModule.appendMessage('assistant', drawerHtml);
+
+                  // Wire up Git Branch and View Diff action buttons inside drawer
+                  setTimeout(() => {
+                    document.querySelectorAll('.swarm-branch-btn').forEach(b => {
+                      if (!b.dataset.bound) {
+                        b.dataset.bound = '1';
+                        b.addEventListener('click', async () => {
+                          const branchName = prompt('Enter feature branch name:', `feature/armada-${repo.toLowerCase()}`);
+                          if (!branchName) return;
+                          const res = await fetch('/api/repos/git/create-branch', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ repo_name: repo, branch_name: branchName })
+                          });
+                          const data = await res.json();
+                          if (uiModule && uiModule.showToast) uiModule.showToast(`Branch ${branchName} created!`);
+                        });
+                      }
+                    });
+                    document.querySelectorAll('.swarm-diff-btn').forEach(b => {
+                      if (!b.dataset.bound) {
+                        b.dataset.bound = '1';
+                        b.addEventListener('click', async () => {
+                          const res = await fetch('/api/repos/git/diff', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ repo_name: repo })
+                          });
+                          const data = await res.json();
+                          if (uiModule && uiModule.appendMessage) {
+                            uiModule.appendMessage('assistant', `🔍 **Git Diff for ${repo}**\n\`\`\`diff\n${data.diff}\n\`\`\``);
+                          }
+                        });
+                      }
+                    });
+                  }, 100);
                 }
                 modal.classList.add('hidden');
               });

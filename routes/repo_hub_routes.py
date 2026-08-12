@@ -102,6 +102,17 @@ async def run_repo_audit(body: RunAuditRequest):
         "stages": stages
     }
 
+class GetASTSymbolsRequest(BaseModel):
+    file_path: str
+
+@router.post("/ast/symbols")
+async def get_file_ast_symbols(body: GetASTSymbolsRequest):
+    """Retrieve token-efficient AST symbol tree for a target file."""
+    from src.ast_indexer import index_file_symbols, get_ast_outline
+    res = index_file_symbols(body.file_path)
+    res["outline"] = get_ast_outline(body.file_path)
+    return res
+
 @router.post("/armada/launch")
 async def launch_armada_swarm(body: LaunchArmadaRequest):
     """Launch multi-agent armada swarm on target repository via local command shell."""

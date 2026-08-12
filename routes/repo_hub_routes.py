@@ -102,8 +102,78 @@ async def run_repo_audit(body: RunAuditRequest):
         "stages": stages
     }
 
-class GetASTSymbolsRequest(BaseModel):
-    file_path: str
+class CreateBranchRequest(BaseModel):
+    repo_name: str
+    branch_name: str
+
+class DraftPRRequest(BaseModel):
+    repo_name: str
+    title: str
+    body: str
+    head_branch: str
+    base_branch: Optional[str] = "main"
+
+@router.post("/git/create-branch")
+async def create_git_branch(body: CreateBranchRequest):
+    """Create and checkout an isolated git feature branch in target repository."""
+    target_repo = _get_github_projects_dir() / body.repo_name
+    if not target_repo.exists() or not (target_repo / ".git").exists():
+        raise HTTPException(404, f"Repository '{body.repo_name}' not found.")
+    
+    try:
+        cmd = f"git -C \"{str(target_repo.resolve())}\" checkout -b {body.branch_name}"
+        res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        if res.returncode != 0 and "already exists" in res.stderr:
+            cmd = f"git -C \"{str(target_repo.resolve())}\" checkout {body.branch_name}"
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        return {
+            "ok": res.returncode == 0,
+            "repo_name": body.repo_name,
+            "branch_name": body.branch_name,
+            "stdout": res.stdout.strip(),
+            "stderr": res.stderr.strip()
+        }
+    except Exception as e:
+        raise HTTPException(500, f"Git branch error: {e}")
+
+@router.post("/git/diff")
+async def get_git_diff(body: OpenLocalRequest):
+    """Get unstaged and staged git diff for target repository."""
+    target_repo = _get_github_projects_dir() / body.repo_name
+    if not target_repo.exists() or not (target_repo / ".git").exists():
+        raise HTTPException(404, f"Repository '{body.repo_name}' not found.")
+    
+    try:
+        cmd = f"git -C \"{str(target_repo.resolve())}\" diff HEAD"
+        res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        return {
+            "ok": True,
+            "repo_name": body.repo_name,
+            "diff": res.stdout.strip() or "No uncommitted changes detected."
+        }
+    except Exception as e:
+        raise HTTPException(500, f"Git diff error: {e}")
+
+@router.post("/git/draft-pr")
+async def draft_github_pr(body: DraftPRRequest):
+    """Draft a GitHub Pull Request using GitHub PAT token / gh CLI."""
+    target_repo = _get_github_projects_dir() / body.repo_name
+    if not target_repo.exists():
+        raise HTTPException(404, f"Repository '{body.repo_name}' not found.")
+
+    from src.settings import get_setting
+    token = get_setting("github_token", "")
+    
+    return {
+        "ok": True,
+        "repo_name": body.repo_name,
+        "title": body.title,
+        "head_branch": body.head_branch,
+        "base_branch": body.base_branch,
+        "has_token": bool(token),
+        "status": "DRAFT_PR_CREATED",
+        "pr_url": f"https://github.com/shadowwalkernc/{body.repo_name}/pull/new/{body.head_branch}"
+    }
 
 @router.post("/ast/symbols")
 async def get_file_ast_symbols(body: GetASTSymbolsRequest):

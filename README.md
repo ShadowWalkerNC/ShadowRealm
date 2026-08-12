@@ -50,6 +50,7 @@ Native installs, GPU notes, Windows/macOS instructions, HTTPS, and configuration
 - **Deep Research** — multi-step web research with source reading and report generation.
 - **Compare** — blind side-by-side model testing and synthesis.
 - **Documents** — writing-first editor with AI edits, suggestions, Markdown, HTML, CSV, and syntax highlighting.
+- **Mobile PWA & 100% Free Remote Access** — Native iOS/Android standalone PWA with Cloudflare Tunnel (`cloudflared`) and LAN access (`0.0.0.0:7000`) for zero-cost remote chat prompts and swarm monitoring on your phone.
 - **Email, Notes, Tasks & Calendar** — IMAP/SMTP inbox, triage, todos, scheduled agent tasks, and CalDAV sync.
 
 ## Demo

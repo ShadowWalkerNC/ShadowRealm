@@ -5843,7 +5843,7 @@ const COMMANDS = {
         body: JSON.stringify({ repo_name: repo, task_prompt: prompt })
       });
       const data = await res.json();
-      return `🚀 **Armada Swarm Launched for ${data.repo_name}**\n- **Subagents Assigned**: ${data.assigned_subagents.join(', ')}\n- **Task**: ${data.task_prompt}`;
+      return `🚀 **Armada Swarm (Google Gemini Engine) Launched for ${data.repo_name}**\n- **Engine**: ${data.model_engine}\n- **Subagents Assigned**: ${data.assigned_subagents.join(', ')}\n- **Task**: ${data.task_prompt}`;
     },
     usage: '/armada CulinaryOS [task prompt]',
   },

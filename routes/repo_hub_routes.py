@@ -48,6 +48,7 @@ async def launch_armada_swarm(body: LaunchArmadaRequest):
         "repo_name": body.repo_name,
         "repo_path": str(target_repo.resolve()),
         "task_prompt": body.task_prompt,
-        "armada_status": "ARMADA_SWARM_LAUNCHED",
-        "assigned_subagents": ["ShadowCoder", "ShadowTester", "ShadowOps"],
+        "model_engine": "Google Gemini (gemini-2.5-flash / gemini-2.0-pro)",
+        "armada_status": "ARMADA_GEMINI_SWARM_LAUNCHED",
+        "assigned_subagents": ["ShadowCoder (Gemini)", "ShadowTester (Gemini)", "ShadowOps (Gemini)"],
     }

@@ -49,7 +49,6 @@ const _RECIPES = [
     },
   },
 
-  // ── llama.cpp ─────────────────────────────────────────────────────────
   // ── OpenCode & Ollama Free Coding Agents ─────────────────────────────
   {
     backend: 'vllm',
@@ -60,6 +59,15 @@ const _RECIPES = [
       docker: { commands: ['docker pull vllm/vllm-openai:latest'] },
     },
   },
+  // ── llama.cpp ─────────────────────────────────────────────────────────
+  {
+    backend: 'llama_cpp',
+    label: 'Any GGUF model',
+    match: () => true,
+    variants: {
+      pip:    { commands: ['CMAKE_ARGS="-DGGML_CUDA=on" uv pip install -U "llama-cpp-python[server]"'] },
+      docker: { commands: ['docker pull ghcr.io/ggml-org/llama.cpp:server-cuda'] },
+    },
   },
 ];
 

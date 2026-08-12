@@ -45,7 +45,11 @@ function _compactUrlSchemeValue(value) {
 
 function _isDangerousUrl(value) {
   const compact = _compactUrlSchemeValue(value);
-  return compact.startsWith('javascript:') || compact.startsWith('vbscript:') || compact.startsWith('data:');
+  if (compact.startsWith('javascript:') || compact.startsWith('vbscript:')) return true;
+  if (compact.startsWith('data:')) {
+    return !compact.startsWith('data:image/');
+  }
+  return false;
 }
 
 function _isDangerousSrcset(value) {

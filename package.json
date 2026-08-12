@@ -1,9 +1,35 @@
 {
+  "name": "odysseus-desktop",
+  "version": "2.0.0",
+  "description": "Odysseus - Autonomous AI Developer Suite Desktop App",
+  "main": "desktop/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/pewdiepie-archdaemon/odysseus.git"
+    "url": "https://github.com/ShadowWalkerNC/ShadowRealm.git"
   },
   "devDependencies": {
-    "@antithesishq/bombadil": "^0.6.1"
+    "@antithesishq/bombadil": "^0.6.1",
+    "electron": "^28.2.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.odysseus.desktop",
+    "productName": "Odysseus AI Suite",
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "static/favicon.ico"
+    },
+    "files": [
+      "desktop/**/*",
+      "static/**/*",
+      "routes/**/*",
+      "src/**/*",
+      "core/**/*",
+      "app.py"
+    ]
   }
 }

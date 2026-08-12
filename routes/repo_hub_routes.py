@@ -175,6 +175,12 @@ async def draft_github_pr(body: DraftPRRequest):
         "pr_url": f"https://github.com/shadowwalkernc/{body.repo_name}/pull/new/{body.head_branch}"
     }
 
+@router.get("/harness/tools")
+async def get_discovered_host_tools():
+    """Discover host OS installed developer CLI tools."""
+    from src.tool_harness import discover_host_tools
+    return discover_host_tools()
+
 @router.post("/ast/symbols")
 async def get_file_ast_symbols(body: GetASTSymbolsRequest):
     """Retrieve token-efficient AST symbol tree for a target file."""

@@ -40,14 +40,17 @@ Native installs, GPU notes, Windows/macOS instructions, HTTPS, and configuration
 
 ## Features
 
-- **Chat + Agents** — local/API models, tools, MCP, files, shell, skills, and memory.
+- **Autonomous AI Developer Suite** — 100% open-source Cursor, Goose, and Claude Code alternative with AST symbol indexing (`src/ast_indexer.py`) and dynamic CLI tool discovery.
+- **GitHub Repositories Hub & Armada Swarms** — Central dashboard (`/repos`) managing 20+ local projects with stack detection, git branches, 4-stage audits, and multi-agent Armada swarms.
+- **Interactive Swarm Progress Drawer** — Live collapsible monospace logs with one-click **Approve & Commit** and **Reject & Rollback** controls.
+- **Native Git & Branch Pipelines** — Isolated feature branch creation (`feature/armada-swarm-xyz`), staged diff reviews, and GitHub PR drafting.
+- **Full Web & HTML Viewer** — Live interactive HTML, JavaScript, CSS, and form previewing in the Document Panel.
+- **Chat + Agents** — local/API models, tools, MCP, files, shell, skills, and vector memory.
 - **Cookbook** — hardware-aware model recommendations, downloads, and serving.
 - **Deep Research** — multi-step web research with source reading and report generation.
 - **Compare** — blind side-by-side model testing and synthesis.
 - **Documents** — writing-first editor with AI edits, suggestions, Markdown, HTML, CSV, and syntax highlighting.
-- **Email** — IMAP/SMTP inbox with triage, tags, summaries, reminders, and reply drafts.
-- **Notes, Tasks + Calendar** — reminders, todos, scheduled agent tasks, and CalDAV sync.
-- **Extras** — gallery/image editor, themes, uploads, web search, presets, sessions, and 2FA.
+- **Email, Notes, Tasks & Calendar** — IMAP/SMTP inbox, triage, todos, scheduled agent tasks, and CalDAV sync.
 
 ## Demo
 

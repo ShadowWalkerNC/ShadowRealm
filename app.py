@@ -634,6 +634,10 @@ app.include_router(setup_diagnostics_routes(rag_manager, rag_available, research
 from routes.cleanup_routes import setup_cleanup_routes
 app.include_router(setup_cleanup_routes(session_manager))
 
+# GitHub Repos Hub & Armada Swarm Router
+from routes.repo_hub_routes import router as repo_hub_router
+app.include_router(repo_hub_router)
+
 # Personal docs
 from routes.personal_routes import setup_personal_routes
 app.include_router(setup_personal_routes(personal_docs_mgr, rag_manager, rag_available))

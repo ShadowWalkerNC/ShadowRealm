@@ -1156,7 +1156,7 @@ function initializeEventListeners() {
               btn.addEventListener('click', async () => {
                 const repo = btn.dataset.repo;
                 if (uiModule && uiModule.showToast) uiModule.showToast(`Running 4-Stage Audit on ${repo}...`);
-                const res = await fetch('/api/audit/run', {
+                const res = await fetch('/api/repos/audit/run', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ repo_name: repo })

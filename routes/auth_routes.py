@@ -186,6 +186,8 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
             u = result.get("username")
             if u:
                 result["privileges"] = auth_manager.get_privileges(u)
+                user_info = auth_manager.users.get(u, {})
+                result["display_name"] = user_info.get("display_name", u)
         except Exception:
             pass
         return result
@@ -208,6 +210,24 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
             raise HTTPException(400, "Current password is incorrect")
         await asyncio.to_thread(auth_manager.revoke_user_sessions, user, current_token)
         return {"ok": True}
+
+    class UpdateProfileRequest(BaseModel):
+        display_name: str
+
+    @router.post("/profile")
+    async def update_profile(body: UpdateProfileRequest, request: Request):
+        user = _get_current_user(request)
+        if not user:
+            raise HTTPException(401, "Not authenticated")
+        new_name = body.display_name.strip()
+        if not new_name:
+            raise HTTPException(400, "Display name cannot be empty")
+        
+        # Update user profile in auth_manager
+        if user in auth_manager.users:
+            auth_manager.users[user]["display_name"] = new_name
+            auth_manager._save_users()
+        return {"ok": True, "display_name": new_name}
 
     # ------------------------------------------------------------------
     # Two-factor authentication

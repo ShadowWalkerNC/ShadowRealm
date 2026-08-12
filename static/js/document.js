@@ -6329,10 +6329,11 @@ import * as Modals from './modalManager.js';
 
     try {
       const res = await fetch(`${API_BASE}/api/documents/${sessionId}`);
-      const allDocs = await res.json();
+      const rawData = await res.json();
+      const allDocs = Array.isArray(rawData) ? rawData : (rawData?.documents || []);
       _hideLoadingOverlay();
       // Only load active docs
-      const activeDocs = allDocs.filter(d => d.is_active);
+      const activeDocs = allDocs.filter(d => d && d.is_active);
       if (activeDocs.length === 0) {
         // No docs yet — show empty editor, doc will be created when user types
         if (!restoreMode || shouldRestoreOpen) {

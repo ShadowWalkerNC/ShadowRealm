@@ -40,9 +40,12 @@ Native installs, GPU notes, Windows/macOS instructions, HTTPS, and configuration
 
 ## Features
 
-- **Autonomous AI Developer Suite** — 100% open-source Cursor, Goose, and Claude Code alternative with AST symbol indexing (`src/ast_indexer.py`) and dynamic CLI tool discovery.
+- **Autonomous AI Developer Suite** — 100% open-source Cursor, Goose, and Claude Code alternative with AST symbol indexing (`src/ast_indexer.py`), CLI Anything engine, and dynamic tool discovery.
+- **Odysseus Terminal CLI Hub (`odysseus.py`)** — Interactive terminal menu interface to manage repos, run 4-stage audits, trigger swarms, launch servers, and mass update tools directly under CLI.
+- **Windows Desktop Executable (`.exe`) & Electron App** — Native Windows desktop application with system tray integration and 1-click NSIS installer (`dist/Odysseus AI Suite Setup 2.0.0.exe`).
 - **GitHub Repositories Hub & Armada Swarms** — Central dashboard (`/repos`) managing 20+ local projects with stack detection, git branches, 4-stage audits, and multi-agent Armada swarms.
-- **Interactive Swarm Progress Drawer** — Live collapsible monospace logs with one-click **Approve & Commit** and **Reject & Rollback** controls.
+- **Strix AI Audit & 25+ Toolchains** — Built-in integration for Strix autonomous AI pen-testing, Semgrep, Trivy, Bandit, Pipelock, Agent-Audit, Docker, Cargo, UV, and GH extensions with mass multi-package manager updates (`/api/repos/harness/update`).
+- **Interactive Swarm Progress Drawer** — Live collapsible monospace logs with SVG iconography and one-click **Approve & Commit** / **Reject & Rollback** controls.
 - **Native Git & Branch Pipelines** — Isolated feature branch creation (`feature/armada-swarm-xyz`), staged diff reviews, and GitHub PR drafting.
 - **Full Web & HTML Viewer** — Live interactive HTML, JavaScript, CSS, and form previewing in the Document Panel.
 - **Chat + Agents** — local/API models, tools, MCP, files, shell, skills, and vector memory.

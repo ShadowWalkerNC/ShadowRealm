@@ -175,11 +175,21 @@ async def draft_github_pr(body: DraftPRRequest):
         "pr_url": f"https://github.com/shadowwalkernc/{body.repo_name}/pull/new/{body.head_branch}"
     }
 
+class ExecuteCLIAnythingRequest(BaseModel):
+    command: str
+    cwd: Optional[str] = ""
+
 @router.get("/harness/tools")
 async def get_discovered_host_tools():
     """Discover host OS installed developer CLI tools."""
     from src.tool_harness import discover_host_tools
     return discover_host_tools()
+
+@router.post("/harness/execute")
+async def execute_cli_anything_endpoint(body: ExecuteCLIAnythingRequest):
+    """Dynamically execute ANY host program or CLI tool with auto-diagnostics."""
+    from src.tool_harness import execute_cli_anything
+    return execute_cli_anything(body.command, body.cwd or "")
 
 @router.post("/ast/symbols")
 async def get_file_ast_symbols(body: GetASTSymbolsRequest):

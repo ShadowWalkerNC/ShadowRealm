@@ -1204,10 +1204,10 @@ function initializeEventListeners() {
                           ${gitSvg} Git Pipeline
                         </span>
                         <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
-                          ${toolSvg} CLI Harness
+                          ${toolSvg} Strix AI Audit
                         </span>
                         <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
-                          ${brainSvg} Gemini 2.0 Pro
+                          ${brainSvg} Semgrep / Trivy
                         </span>
                       </div>
 

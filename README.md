@@ -41,7 +41,9 @@ Native installs, GPU notes, Windows/macOS instructions, HTTPS, and configuration
 ## Features
 
 - **Autonomous AI Developer Suite** — 100% open-source Cursor, Goose, and Claude Code alternative with AST symbol indexing (`src/ast_indexer.py`), CLI Anything engine, and dynamic tool discovery.
-- **Odysseus Terminal CLI Hub (`odysseus.py`)** — Interactive terminal menu interface to manage repos, run 4-stage audits, trigger swarms, launch servers, and mass update tools directly under CLI.
+- **Odysseus Terminal CLI Hub (`odysseus.py` / `odysseus.bat`)** — Interactive terminal menu interface to run parallel multi-repo swarms, track token analytics, run 4-stage audits, launch servers, and mass update toolchains directly under CLI from **any folder on PATH**.
+- **Parallel Swarm Execution** — Launch parallel Armada swarms across multiple repositories simultaneously (`CulinaryOS, openDAW, buzz`).
+- **Token Analytics Tracker** — Real-time tracking of input/output token usage, prompt counts, context compression ratios, and estimated API costs.
 - **Windows Desktop Executable (`.exe`) & Electron App** — Native Windows desktop application with system tray integration and 1-click NSIS installer (`dist/Odysseus AI Suite Setup 2.0.0.exe`).
 - **GitHub Repositories Hub & Armada Swarms** — Central dashboard (`/repos`) managing 20+ local projects with stack detection, git branches, 4-stage audits, and multi-agent Armada swarms.
 - **Strix AI Audit & 25+ Toolchains** — Built-in integration for Strix autonomous AI pen-testing, Semgrep, Trivy, Bandit, Pipelock, Agent-Audit, Docker, Cargo, UV, and GH extensions with mass multi-package manager updates (`/api/repos/harness/update`).

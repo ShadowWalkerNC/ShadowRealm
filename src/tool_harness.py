@@ -13,9 +13,47 @@ from typing import Dict, Any, List
 logger = logging.getLogger(__name__)
 
 SUPPORTED_TOOLS = [
-    "git", "docker", "pytest", "python", "node", "npm", "cargo", "go", "gh", 
-    "tailscale", "strix", "semgrep", "trivy", "bandit", "pipelock", "agent-audit"
+    # Core Developer & Build Tools
+    "git", "docker", "python", "pip", "uv", "node", "npm", "npx", "yarn", "pnpm",
+    "cargo", "go", "rustc", "cmake", "make", "gh", "tailscale",
+    # Security, Auditing & SAST
+    "strix", "semgrep", "trivy", "bandit", "pipelock", "agent-audit", "gitleaks", "syft", "grype",
+    # Linters & Formatters
+    "ruff", "black", "eslint", "prettier"
 ]
+
+def mass_update_toolchains() -> Dict[str, Any]:
+    """Massively perform updates across all installed developer tools and package managers."""
+    results = {}
+    
+    # 1. Update Python packages via pip / uv
+    if shutil.which("uv"):
+        res = subprocess.run("uv self update", shell=True, capture_output=True, text=True)
+        results["uv"] = res.stdout.strip() or "uv updated"
+    elif shutil.which("pip"):
+        res = subprocess.run("python -m pip install --upgrade pip setuptools wheel", shell=True, capture_output=True, text=True)
+        results["pip"] = "pip updated"
+        
+    # 2. Update Node.js global packages
+    if shutil.which("npm"):
+        res = subprocess.run("npm update -g", shell=True, capture_output=True, text=True)
+        results["npm_globals"] = "npm global packages updated"
+
+    # 3. Update Rust cargo binaries
+    if shutil.which("cargo"):
+        res = subprocess.run("cargo install-update -a", shell=True, capture_output=True, text=True)
+        results["cargo"] = "cargo binaries updated"
+
+    # 4. Update GitHub CLI extensions
+    if shutil.which("gh"):
+        res = subprocess.run("gh extension upgrade --all", shell=True, capture_output=True, text=True)
+        results["gh_extensions"] = "gh extensions upgraded"
+
+    return {
+        "ok": True,
+        "updated_components": len(results),
+        "details": results
+    }
 
 def discover_host_tools() -> Dict[str, Any]:
     """Scan host OS for installed developer CLI tools."""

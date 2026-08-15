@@ -191,6 +191,12 @@ async def execute_cli_anything_endpoint(body: ExecuteCLIAnythingRequest):
     from src.tool_harness import execute_cli_anything
     return execute_cli_anything(body.command, body.cwd or "")
 
+@router.post("/harness/update")
+async def mass_update_tools_endpoint():
+    """Massively perform updates across all installed developer tools and package managers."""
+    from src.tool_harness import mass_update_toolchains
+    return mass_update_toolchains()
+
 @router.post("/ast/symbols")
 async def get_file_ast_symbols(body: GetASTSymbolsRequest):
     """Retrieve token-efficient AST symbol tree for a target file."""

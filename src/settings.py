@@ -108,7 +108,7 @@ DEFAULT_SETTINGS = {
     # Tune via Settings or by editing data/settings.json.
     "research_run_timeout_seconds": 1800,
     "agent_max_tool_calls": 0,
-    "agent_max_rounds": 20,  # per-message agent step cap (clamped 1..200)
+    "agent_max_rounds": 40,  # per-message agent step cap (clamped 1..200)
     # Soft input-token budget for the agent loop. The DEFAULT value (6000) is the
     # "auto" sentinel: it means "scale the budget to the model's context window"
     # (#1230) — so long-context models aren't capped at 6000. Set ANY OTHER value
@@ -117,7 +117,7 @@ DEFAULT_SETTINGS = {
     # default is treated as auto because the settings-save path materializes
     # defaults, so a persisted 6000 can't be told apart from a deliberate 6000 —
     # to pin a budget near the default, use a nearby value (e.g. 5999).
-    "agent_input_token_budget": 6000,
+    "agent_input_token_budget": 128000,
     # Ceiling on the *auto-derived* input budget; a configurable setting since #1273
     # (the merged #1230 left it a module constant). No effect on an explicit budget
     # — a deliberate value is honoured (#1230). Default matches
@@ -125,37 +125,40 @@ DEFAULT_SETTINGS = {
     # cost-paranoid setups, raise it on premium APIs with very large windows you
     # want to actually use (e.g. 900_000 to fill a 1M-context model). See
     # `compute_input_token_budget`.
-    "agent_input_token_hard_max": 200_000,
-    "agent_stream_timeout_seconds": 300,
+    "agent_input_token_hard_max": 1000000,
+    "agent_stream_timeout_seconds": 600,
     # Extra directory roots that read_file / write_file may access, in
     # addition to the built-in project data/ and system temp dirs. Each
     # entry is an absolute path. Sensitive subpaths (.ssh, .gnupg, shell
     # rc files, SSH key files) are always blocked regardless of roots.
     "tool_path_extra_roots": [],
     "task_endpoint_id": "",
-    "task_model": "",
+    "task_model": "models/gemini-2.5-flash",
     "default_endpoint_id": "",
-    "default_model": "",
+    "default_model": "models/gemini-2.5-flash",
     # Ordered fallback chain for the default chat model. Each entry is
     # {"endpoint_id": "...", "model": "..."}. If the primary model fails
     # before producing output (endpoint offline / errors), the chat
     # dispatch retries the next entry in order.
-    "default_model_fallbacks": [],
+    "default_model_fallbacks": [
+        "models/gemini-2.0-pro-exp-02-05",
+        "models/gemini-1.5-pro"
+    ],
     "utility_endpoint_id": "",
-    "utility_model": "",
+    "utility_model": "models/gemini-2.5-flash",
     # Ordered fallback chain for the Utility model (summarization, naming,
     # tidy actions, etc.).
-    "utility_model_fallbacks": [],
-    "teacher_model": "",
-    "teacher_enabled": False,
+    "utility_model_fallbacks": ["models/gemini-2.0-flash"],
+    "teacher_model": "models/gemini-2.0-pro-exp-02-05",
+    "teacher_enabled": True,
     # Skills: minimum self-reported confidence for an auto-written (LLM-authored)
     # DRAFT skill to be injected into the agent prompt. Published skills always
     # qualify. Keeps low-confidence auto-skills out of context until they're
     # vetted/published. 0 disables the gate.
-    "skill_autosave_min_confidence": 0.85,
+    "skill_autosave_min_confidence": 0.80,
     # Max relevant skills injected into the prompt for one request. The skills
     # library can grow beyond this; cleanup/retirement is an explicit review flow.
-    "skill_max_injected": 3,
+    "skill_max_injected": 6,
     # Reminders
     "reminder_channel": "browser",   # "browser" | "email" | "ntfy" | "webhook"
     "reminder_llm_synthesis": False,

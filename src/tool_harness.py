@@ -11,7 +11,7 @@ from typing import Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_TOOLS = ["git", "docker", "pytest", "python", "node", "npm", "cargo", "go", "gh", "tailscale"]
+SUPPORTED_TOOLS = ["git", "docker", "pytest", "python", "node", "npm", "cargo", "go", "gh", "tailscale", "strix"]
 
 def discover_host_tools() -> Dict[str, Any]:
     """Scan host OS for installed developer CLI tools."""

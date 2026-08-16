@@ -54,6 +54,7 @@ def print_header():
     print("║  [7] 🌐 Launch Free Cloudflare Remote Tunnel                            ║")
     print("║  [8] ⚡ CLI Anything (Execute any program on host PATH)                 ║")
     print("║  [9] 📊 Detailed Token Usage & Cost Analytics                          ║")
+    print("║ [10] 🐙 GitHub Vault Harvester & Interactive Study Hub                 ║")
     print("║  [0] 🚪 Exit CLI Hub                                                    ║")
     print("╚" + "═" * 72 + "╝")
 
@@ -150,10 +151,49 @@ def cli_anything():
     print(res.get("stdout") or res.get("stderr") or "Execution finished.")
     input("\nPress Enter to return to menu...")
 
+def vault_and_learning_hub():
+    print("\n[+] GitHub Vault & Interactive Learning Hub")
+    print("  [A] Harvest & Sync GitHub Vault (Owned & Starred Repos)")
+    print("  [B] View Local Vault Summary")
+    print("  [C] Generate Codebase Study Guide & AST Architecture Map")
+    sub = input("\nSelect option [A-C]: ").strip().upper()
+    
+    if sub == "A":
+        print("\n[+] Harvesting GitHub Repositories into Vault...")
+        from src.github_vault import harvest_github_vault
+        res = harvest_github_vault()
+        if res.get("ok"):
+            print(f"✅ Harvested {res['owned_count']} owned repos and {res['starred_count']} starred repos for @{res['username']}!")
+        else:
+            print(f"❌ Vault harvest error: {res.get('error')}")
+    elif sub == "B":
+        from src.github_vault import get_vault_summary
+        s = get_vault_summary()
+        print(f"\nLocal Vault Summary for @{s.get('username', 'N/A')}:")
+        print(f"  - Owned Repositories   : {s.get('owned_count', 0)}")
+        print(f"  - Starred Repositories : {s.get('starred_count', 0)}")
+    elif sub == "C":
+        repo = input("\nEnter repository name for study guide: ").strip()
+        if repo:
+            from src.learning_engine import generate_repository_study_guide
+            g = generate_repository_study_guide(repo)
+            if g.get("ok"):
+                print(f"\n📚 Study Guide for {repo}:")
+                print(f"  - Source Files Indexed: {g['total_files_indexed']}")
+                print("\n  Learning Objectives:")
+                for obj in g["learning_objectives"]:
+                    print(f"    {obj}")
+                print("\n  Suggested Hands-on Exercises:")
+                for ex in g["suggested_exercises"]:
+                    print(f"    {ex}")
+            else:
+                print(f"❌ Error: {g.get('error')}")
+    input("\nPress Enter to return to menu...")
+
 def main():
     while True:
         print_header()
-        choice = input("Select an option [0-9]: ").strip()
+        choice = input("Select an option [0-10]: ").strip()
         
         if choice == "1":
             print("\nStarting Odysseus Server on 0.0.0.0:7000...")
@@ -176,6 +216,8 @@ def main():
             cli_anything()
         elif choice == "9":
             token_analytics()
+        elif choice == "10":
+            vault_and_learning_hub()
         elif choice == "0":
             print("\nExiting Odysseus CLI Hub. Goodbye!")
             sys.exit(0)

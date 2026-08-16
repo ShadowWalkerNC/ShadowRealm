@@ -197,6 +197,27 @@ async def mass_update_tools_endpoint():
     from src.tool_harness import mass_update_toolchains
     return mass_update_toolchains()
 
+@router.post("/vault/sync")
+async def sync_github_vault_endpoint():
+    """Harvest owned and starred repositories into local data vault."""
+    from src.github_vault import harvest_github_vault
+    return harvest_github_vault()
+
+@router.get("/vault/summary")
+async def get_github_vault_summary_endpoint():
+    """Get local GitHub data vault summary."""
+    from src.github_vault import get_vault_summary
+    return get_vault_summary()
+
+class StudyGuideRequest(BaseModel):
+    repo_name: str
+
+@router.post("/learn/study-guide")
+async def generate_study_guide_endpoint(body: StudyGuideRequest):
+    """Generate interactive token-minimal study guide for target codebase."""
+    from src.learning_engine import generate_repository_study_guide
+    return generate_repository_study_guide(body.repo_name)
+
 @router.post("/ast/symbols")
 async def get_file_ast_symbols(body: GetASTSymbolsRequest):
     """Retrieve token-efficient AST symbol tree for a target file."""

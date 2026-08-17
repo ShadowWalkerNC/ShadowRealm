@@ -612,6 +612,8 @@ def _detect_provider(url: str) -> str:
         return "nvidia"
     if _host_match(url, "moonshot.ai") or _host_match(url, "moonshot.cn"):
         return "moonshot"
+    if _host_match(url, "meta.ai"):
+        return "muse"
     from src.chatgpt_subscription import is_chatgpt_subscription_base
     if is_chatgpt_subscription_base(url):
         return "chatgpt-subscription"

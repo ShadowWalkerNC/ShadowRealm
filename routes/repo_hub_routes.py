@@ -214,6 +214,33 @@ async def install_needle_endpoint():
     return install_needle()
 
 
+# ---------------------------------------------------------------------------
+# Muse Code (Meta AI) — LLM Provider Endpoints
+# ---------------------------------------------------------------------------
+
+class MuseChatRequest(BaseModel):
+    prompt: str
+    model: str = "muse-spark-1.2"
+    max_tokens: int = 4096
+    temperature: float = 0.7
+
+@router.post("/muse/chat")
+async def muse_chat_endpoint(body: MuseChatRequest):
+    """Send a chat prompt to Muse Code (Meta AI muse-spark-1.2)."""
+    from src.muse import muse_chat
+    return muse_chat(
+        messages=[{"role": "user", "content": body.prompt}],
+        model=body.model,
+        max_tokens=body.max_tokens,
+        temperature=body.temperature,
+    )
+
+@router.get("/muse/info")
+async def muse_info_endpoint():
+    """Get Muse Code provider metadata and connection status."""
+    from src.muse import muse_model_info
+    return muse_model_info()
+
 @router.post("/vault/sync")
 async def sync_github_vault_endpoint():
     """Harvest owned and starred repositories into local data vault."""

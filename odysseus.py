@@ -57,6 +57,7 @@ def print_header():
     print("║ [10] 🐙 GitHub Vault Harvester & Interactive Study Hub                 ║")
     print("║ [11] 🌵 CactusNeedle Local AI Inference (Zero Tokens, On-Device)       ║")
     print("║ [12] 💸 CodeBurn — AI Token Cost Dashboard (npx codeburn)              ║")
+    print("║ [13] 🤖 Muse Code (Meta AI muse-spark-1.2) — Chat & Code              ║")
     print("║  [0] 🚪 Exit CLI Hub                                                    ║")
     print("╚" + "═" * 72 + "╝")
 
@@ -237,10 +238,36 @@ def codeburn_dashboard():
     subprocess.run("npx codeburn", shell=True)
     input("\nPress Enter to return to menu...")
 
+def muse_chat_cli():
+    from src.muse import muse_chat, muse_model_info, MUSE_MODEL_DEFAULT
+    print("\n╔══════════════════════════════════════════════════════╗")
+    print("║  🤖 Muse Code — Meta AI LLM (muse-spark-1.2)        ║")
+    print("╚══════════════════════════════════════════════════════╝")
+    info = muse_model_info()
+    print(f"  Model    : {info['model']}")
+    print(f"  API Base : {info['api_base']}")
+    print(f"  API Key  : {info['api_key_preview']}")
+    print(f"  Context  : {info['context_window']}")
+    print()
+    while True:
+        prompt = input("You (or 'exit' to return): ").strip()
+        if not prompt or prompt.lower() == "exit":
+            break
+        print("\n[Muse Code] Thinking...\n")
+        res = muse_chat([{"role": "user", "content": prompt}])
+        if res.get("ok"):
+            print(f"Muse: {res['content']}\n")
+            usage = res.get("usage", {})
+            if usage:
+                print(f"  [tokens: {usage}]\n")
+        else:
+            print(f"❌ Error: {res.get('error')}\n")
+    input("\nPress Enter to return to menu...")
+
 def main():
     while True:
         print_header()
-        choice = input("Select an option [0-12]: ").strip()
+        choice = input("Select an option [0-13]: ").strip()
 
         if choice == "1":
             print("\nStarting Odysseus Server on 0.0.0.0:7000...")
@@ -269,6 +296,8 @@ def main():
             needle_inference()
         elif choice == "12":
             codeburn_dashboard()
+        elif choice == "13":
+            muse_chat_cli()
         elif choice == "0":
             print("\nExiting Odysseus CLI Hub. Goodbye!")
             sys.exit(0)

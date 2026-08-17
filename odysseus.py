@@ -55,6 +55,8 @@ def print_header():
     print("║  [8] ⚡ CLI Anything (Execute any program on host PATH)                 ║")
     print("║  [9] 📊 Detailed Token Usage & Cost Analytics                          ║")
     print("║ [10] 🐙 GitHub Vault Harvester & Interactive Study Hub                 ║")
+    print("║ [11] 🌵 CactusNeedle Local AI Inference (Zero Tokens, On-Device)       ║")
+    print("║ [12] 💸 CodeBurn — AI Token Cost Dashboard (npx codeburn)              ║")
     print("║  [0] 🚪 Exit CLI Hub                                                    ║")
     print("╚" + "═" * 72 + "╝")
 
@@ -190,11 +192,56 @@ def vault_and_learning_hub():
                 print(f"❌ Error: {g.get('error')}")
     input("\nPress Enter to return to menu...")
 
+def needle_inference():
+    print("\n╔══════════════════════════════════════════════════╗")
+    print("║  🌵 CactusNeedle — Local AI Inference Engine    ║")
+    print("║  14MB model · Zero cloud · Zero token cost      ║")
+    print("╚══════════════════════════════════════════════════╝")
+    print("  [A] Install / Verify CactusNeedle")
+    print("  [B] Run Local Inference (natural language → JSON tool call)")
+    print("  [C] Launch Interactive Needle Playground UI")
+    sub = input("\nSelect option [A-C]: ").strip().upper()
+
+    if sub == "A":
+        print("\n[+] Checking / Installing cactus-needle...")
+        from src.tool_harness import install_needle
+        res = install_needle()
+        if res["ok"]:
+            print(f"✅ CactusNeedle ready! Status: {res['status']}")
+        else:
+            print(f"❌ Install error: {res.get('error')}")
+
+    elif sub == "B":
+        prompt = input("\nEnter natural language prompt for Needle: ").strip()
+        if prompt:
+            print(f"\n[+] Running local inference via Needle (14MB model)...")
+            from src.tool_harness import run_needle_inference
+            res = run_needle_inference(prompt)
+            if res.get("ok"):
+                print(f"\n✅ Result ({res['model']}):")
+                print(f"   {res['result']}")
+                print(f"   Tokens used: {res['tokens_used']} (cloud calls: {res['cloud_calls']})")
+            else:
+                print(f"❌ Error: {res.get('error')}")
+
+    elif sub == "C":
+        print("\n[+] Launching CactusNeedle Playground UI...")
+        subprocess.Popen("needle playground", shell=True)
+        print("✅ Needle playground opened in your browser!")
+
+    input("\nPress Enter to return to menu...")
+
+def codeburn_dashboard():
+    print("\n[+] Launching CodeBurn — AI Token Cost Dashboard...")
+    print("    Reads local logs from Claude Code, Cursor, Gemini CLI, Copilot & 40+ tools.")
+    subprocess.run("npx codeburn", shell=True)
+    input("\nPress Enter to return to menu...")
+
 def main():
     while True:
         print_header()
-        choice = input("Select an option [0-10]: ").strip()
-        
+        choice = input("Select an option [0-12]: ").strip()
+
         if choice == "1":
             print("\nStarting Odysseus Server on 0.0.0.0:7000...")
             subprocess.run([sys.executable, "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7000"], cwd=str(PROJECT_ROOT))
@@ -218,6 +265,10 @@ def main():
             token_analytics()
         elif choice == "10":
             vault_and_learning_hub()
+        elif choice == "11":
+            needle_inference()
+        elif choice == "12":
+            codeburn_dashboard()
         elif choice == "0":
             print("\nExiting Odysseus CLI Hub. Goodbye!")
             sys.exit(0)

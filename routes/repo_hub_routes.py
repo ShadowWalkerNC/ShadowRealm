@@ -197,6 +197,23 @@ async def mass_update_tools_endpoint():
     from src.tool_harness import mass_update_toolchains
     return mass_update_toolchains()
 
+class NeedleInferenceRequest(BaseModel):
+    prompt: str
+    tools: list = []
+
+@router.post("/harness/needle")
+async def run_needle_inference_endpoint(body: NeedleInferenceRequest):
+    """Run zero-cost local AI tool-call inference via CactusNeedle (14MB on-device model)."""
+    from src.tool_harness import run_needle_inference
+    return run_needle_inference(body.prompt, body.tools or None)
+
+@router.post("/harness/needle/install")
+async def install_needle_endpoint():
+    """Install cactus-needle Python package on the host."""
+    from src.tool_harness import install_needle
+    return install_needle()
+
+
 @router.post("/vault/sync")
 async def sync_github_vault_endpoint():
     """Harvest owned and starred repositories into local data vault."""

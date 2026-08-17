@@ -17,9 +17,18 @@ SUPPORTED_TOOLS = [
     "git", "docker", "python", "pip", "uv", "node", "npm", "npx", "yarn", "pnpm",
     "cargo", "go", "rustc", "cmake", "make", "gh", "tailscale",
     # Security, Auditing & SAST
-    "strix", "semgrep", "trivy", "bandit", "pipelock", "agent-audit", "gitleaks", "syft", "grype",
+    "strix", "semgrep", "trivy", "bandit", "pipelock", "agent-audit",
+    "gitleaks", "syft", "grype",
     # Linters & Formatters
-    "ruff", "black", "eslint", "prettier"
+    "ruff", "black", "eslint", "prettier",
+    # Local AI Inference (Zero Token Cost)
+    "needle",
+    # AI Token Cost Analytics
+    "codeburn",
+    # API Client (git-native Postman alternative)
+    "yaak",
+    # Rust-powered CLI Power Tools
+    "rg", "fzf", "zoxide", "bat", "eza", "fd", "starship",
 ]
 
 def mass_update_toolchains() -> Dict[str, Any]:
@@ -119,3 +128,64 @@ def execute_cli_anything(command_str: str, cwd: str = "") -> Dict[str, Any]:
         return {"ok": False, "error": f"Command '{command_str}' timed out after 120 seconds."}
     except Exception as e:
         return {"ok": False, "error": f"Execution error: {e}"}
+
+
+# ---------------------------------------------------------------------------
+# 🌵 CactusNeedle — Local AI Tool-Call Inference (Zero Cloud, Zero Token Cost)
+# ---------------------------------------------------------------------------
+
+def install_needle() -> Dict[str, Any]:
+    """Install cactus-needle Python package if not already present."""
+    try:
+        import needle  # type: ignore
+        return {"ok": True, "status": "already_installed"}
+    except ImportError:
+        res = subprocess.run(
+            "pip install cactus-needle --quiet",
+            shell=True, capture_output=True, text=True
+        )
+        if res.returncode == 0:
+            return {"ok": True, "status": "installed"}
+        return {"ok": False, "error": res.stderr.strip()}
+
+
+def run_needle_inference(prompt: str, tools: Optional[List[Dict]] = None) -> Dict[str, Any]:
+    """Run a local AI inference via CactusNeedle for tool-call dispatch.
+
+    CactusNeedle converts a natural-language prompt into a structured JSON
+    tool call using a 14MB on-device model — no cloud, no API key, no token cost.
+
+    Args:
+        prompt: Natural language instruction (e.g. "Search for Python files modified today")
+        tools:  List of tool schema dicts (OpenAI-style function definitions). If None,
+                falls back to a raw text completion.
+
+    Returns:
+        dict with keys: ok, result (the JSON tool call or text), model, tokens_used
+    """
+    # Ensure needle is installed
+    install_result = install_needle()
+    if not install_result["ok"]:
+        return {"ok": False, "error": f"needle not installed: {install_result.get('error')}"}
+
+    try:
+        import needle as nd  # type: ignore
+
+        checkpoint = nd.load_checkpoint()
+        result = nd.generate(
+            checkpoint=checkpoint,
+            prompt=prompt,
+            tools=tools or [],
+            max_tokens=512,
+        )
+        return {
+            "ok": True,
+            "model": "needle-2 (14MB local, zero cloud)",
+            "prompt": prompt,
+            "result": result,
+            "tokens_used": 0,   # On-device: no API tokens consumed
+            "cloud_calls": 0,
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+

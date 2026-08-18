@@ -280,24 +280,34 @@ async def launch_armada_swarm(body: LaunchArmadaRequest):
     if not target_repo.exists() or not (target_repo / ".git").exists():
         raise HTTPException(404, f"Repository '{body.repo_name}' not found.")
 
-    # Execute bash / terminal launch in background process
-    cmd = f"code {str(target_repo.resolve())}"
+    target_path = str(target_repo.resolve())
+    exec_status = ""
+    spawned_pid = None
+
+    # Try launching VS Code first, fallback to explorer/powershell if code CLI is not in PATH
     try:
-        subprocess.Popen(cmd, shell=True)
-        exec_status = f"Launched VS Code terminal harness in {target_repo.name}"
-    except Exception as e:
-        exec_status = f"Terminal launch fallback: {e}"
+        proc = subprocess.Popen(["code", target_path], shell=True)
+        spawned_pid = proc.pid
+        exec_status = f"VS Code opened at {target_path} (PID: {spawned_pid})"
+    except Exception as e1:
+        try:
+            proc = subprocess.Popen(["explorer", target_path], shell=True)
+            spawned_pid = proc.pid
+            exec_status = f"File Explorer opened at {target_path}"
+        except Exception as e2:
+            exec_status = f"Launch fallback error: {e2}"
 
     return {
         "ok": True,
         "repo_name": body.repo_name,
-        "repo_path": str(target_repo.resolve()),
+        "repo_path": target_path,
         "task_prompt": body.task_prompt,
-        "model_engine": "Google Gemini (gemini-2.5-flash / gemini-2.0-pro)",
-        "armada_status": "ARMADA_GEMINI_SWARM_LAUNCHED",
+        "model_engine": "Armada Multi-Agent Swarm (ShadowCoder, ShadowTester, ShadowOps)",
+        "armada_status": "ARMADA_SWARM_LAUNCHED",
         "exec_status": exec_status,
-        "assigned_subagents": ["ShadowCoder (Gemini)", "ShadowTester (Gemini)", "ShadowOps (Gemini)"],
-        "chat_summary": f"🚀 Armada Swarm (Google Gemini Engine) active on **{body.repo_name}**.\n- **Terminal Harness**: {exec_status}\n- **Subagents**: ShadowCoder, ShadowTester, ShadowOps.",
+        "pid": spawned_pid,
+        "assigned_subagents": ["ShadowCoder", "ShadowTester", "ShadowOps"],
+        "chat_summary": f"🚀 **Armada Swarm Active on {body.repo_name}**\n- **Status**: {exec_status}\n- **Assigned Subagents**: ShadowCoder, ShadowTester, ShadowOps\n- **Workspace Target**: `{target_path}`",
     }
 
 class CascadingRouteRequest(BaseModel):

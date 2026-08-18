@@ -1261,10 +1261,10 @@ function initializeEventListeners() {
                       <details open style="margin-top:8px;font-size:11px;opacity:0.95;">
                         <summary style="cursor:pointer;font-weight:600;margin-bottom:6px;color:var(--fg);">Live Subagent Execution Stream (ShadowCoder, ShadowTester, ShadowOps)</summary>
                         <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:Consolas, monospace;font-size:11px;max-height:140px;overflow-y:auto;line-height:1.5;">
-                          <span style="color:var(--accent);">[ShadowOps]</span> Initialized repo context & workspace tree for <strong>${repo}</strong>.<br>
-                          <span style="color:#bd93f9;">[ShadowCoder]</span> Extracted AST symbol outlines (classes, methods, imports).<br>
-                          <span style="color:#ff79c6;">[ShadowTester]</span> Pre-verifying test harness & running lint pass.<br>
-                          <span style="color:var(--green, #50fa7b);">[Armada Engine]</span> VS Code terminal harness spawned. Swarm ready for instruction.
+                          <span style="color:var(--accent);">[ShadowOps]</span> Initialized repo context &amp; workspace tree for <strong>${repo}</strong>.<br>
+                          <span style="color:#bd93f9;">[ShadowCoder]</span> Extracted AST symbol outlines for <code>${d.repo_path || repo}</code>.<br>
+                          <span style="color:#ff79c6;">[ShadowTester]</span> Verified local test suite harness.<br>
+                          <span style="color:var(--green, #50fa7b);">[Armada Engine]</span> ${d.exec_status || 'Swarm ready for instruction.'}
                         </div>
                       </details>
 

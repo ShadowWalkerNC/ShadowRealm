@@ -1188,13 +1188,19 @@ function initializeEventListeners() {
             listEl.querySelectorAll('.open-local-btn').forEach(btn => {
               btn.addEventListener('click', async () => {
                 const repo = btn.dataset.repo;
-                const res = await fetch('/api/repos/open-local', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ repo_name: repo })
-                });
-                const d = await res.json();
-                if (uiModule && uiModule.showToast) uiModule.showToast(`Opened ${repo} in ${d.launched_via}`);
+                try {
+                  const res = await fetch('/api/repos/open-local', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ repo_name: repo })
+                  });
+                  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                  const d = await res.json();
+                  if (uiModule && uiModule.showToast) uiModule.showToast(`Opened ${repo} in ${d.launched_via || 'editor'}`);
+                } catch (err) {
+                  console.error('Error opening local repo:', err);
+                  if (uiModule && uiModule.showToast) uiModule.showToast(`Failed to open ${repo}: ${err.message}`, 'error');
+                }
               });
             });
 
@@ -1202,124 +1208,167 @@ function initializeEventListeners() {
               btn.addEventListener('click', async () => {
                 const repo = btn.dataset.repo;
                 if (uiModule && uiModule.showToast) uiModule.showToast(`Running 4-Stage Audit on ${repo}...`);
-                const res = await fetch('/api/repos/audit/run', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ repo_name: repo })
-                });
-                const d = await res.json();
-                if (uiModule && uiModule.appendMessage) {
-                  uiModule.appendMessage('assistant', `🔍 **4-Stage Audit Completed for ${repo}**\n- **Passed**: ${d.overall_passed ? '✅ YES' : '❌ NO'}\n- **Stages Evaluated**: ${d.stages.length}`);
+                try {
+                  const res = await fetch('/api/repos/audit/run', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ repo_name: repo })
+                  });
+                  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                  const d = await res.json();
+                  if (uiModule && uiModule.appendMessage) {
+                    uiModule.appendMessage('assistant', `🔍 **4-Stage Audit Completed for ${repo}**\n- **Passed**: ${d.overall_passed ? '✅ YES' : '❌ NO'}\n- **Stages Evaluated**: ${(d.stages || []).length}`);
+                  }
+                  modal.classList.add('hidden');
+                } catch (err) {
+                  console.error('Error auditing repo:', err);
+                  if (uiModule && uiModule.showToast) uiModule.showToast(`Audit failed for ${repo}: ${err.message}`, 'error');
                 }
-                modal.classList.add('hidden');
               });
             });
 
             listEl.querySelectorAll('.armada-btn').forEach(btn => {
               btn.addEventListener('click', async () => {
                 const repo = btn.dataset.repo;
-                const res = await fetch('/api/repos/armada/launch', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ repo_name: repo })
-                });
-                const d = await res.json();
-                if (uiModule && uiModule.showToast) uiModule.showToast(`Armada launched for ${repo}`);
-                if (uiModule && uiModule.appendMessage) {
-                  const rocketSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.71 1.1-1.63 1.1-2.58 0-.95-.39-1.87-1.1-2.58s-1.63-1.1-2.58-1.1c-.95 0-1.87.39-2.58 1.1z"/><path d="M12 15l-3-3 7.5-7.5.75 2.25 2.25.75L12 15z"/></svg>`;
-                  const zapSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
-                  const gitSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>`;
-                  const toolSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
-                  const brainSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04Z"/></svg>`;
-                  const checkSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-                  const xSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-                  const searchSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
+                try {
+                  const res = await fetch('/api/repos/armada/launch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ repo_name: repo })
+                  });
+                  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                  const d = await res.json();
+                  if (uiModule && uiModule.showToast) uiModule.showToast(`Armada launched for ${repo}`);
+                  if (uiModule && uiModule.appendMessage) {
+                    const rocketSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.71 1.1-1.63 1.1-2.58 0-.95-.39-1.87-1.1-2.58s-1.63-1.1-2.58-1.1c-.95 0-1.87.39-2.58 1.1z"/><path d="M12 15l-3-3 7.5-7.5.75 2.25 2.25.75L12 15z"/></svg>`;
+                    const zapSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+                    const gitSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>`;
+                    const toolSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
+                    const brainSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04Z"/></svg>`;
+                    const checkSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+                    const xSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+                    const searchSvg = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`;
 
-                  const drawerHtml = `
-                    <div class="swarm-drawer-card" style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:10px;box-shadow:0 4px 16px rgba(0,0,0,0.2);">
-                      <div style="font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:space-between;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:10px;">
-                        <span style="display:flex;align-items:center;gap:6px;">${rocketSvg} <strong>Armada Swarm Hub</strong> — ${repo}</span>
-                        <span style="font-size:10px;font-weight:700;background:rgba(80,250,123,0.15);color:var(--green, #50fa7b);border:1px solid rgba(80,250,123,0.3);padding:2px 8px;border-radius:12px;">ACTIVE SWARM</span>
-                      </div>
-                      
-                      <!-- Discovered Host Tools SVG Indicator -->
-                      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
-                        <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
-                          ${zapSvg} AST Indexer
-                        </span>
-                        <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
-                          ${gitSvg} Git Pipeline
-                        </span>
-                        <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
-                          ${toolSvg} Strix AI Audit
-                        </span>
-                        <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
-                          ${brainSvg} Semgrep / Trivy
-                        </span>
-                      </div>
-
-                      <details open style="margin-top:8px;font-size:11px;opacity:0.95;">
-                        <summary style="cursor:pointer;font-weight:600;margin-bottom:6px;color:var(--fg);">Live Subagent Execution Stream (ShadowCoder, ShadowTester, ShadowOps)</summary>
-                        <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:Consolas, monospace;font-size:11px;max-height:140px;overflow-y:auto;line-height:1.5;">
-                          <span style="color:var(--accent);">[ShadowOps]</span> Initialized repo context &amp; workspace tree for <strong>${repo}</strong>.<br>
-                          <span style="color:#bd93f9;">[ShadowCoder]</span> Extracted AST symbol outlines for <code>${d.repo_path || repo}</code>.<br>
-                          <span style="color:#ff79c6;">[ShadowTester]</span> Verified local test suite harness.<br>
-                          <span style="color:var(--green, #50fa7b);">[Armada Engine]</span> ${d.exec_status || 'Swarm ready for instruction.'}
+                    const drawerHtml = `
+                      <div class="swarm-drawer-card" style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;margin-top:10px;box-shadow:0 4px 16px rgba(0,0,0,0.2);">
+                        <div style="font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:space-between;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:10px;">
+                          <span style="display:flex;align-items:center;gap:6px;">${rocketSvg} <strong>Armada Swarm Hub</strong> — ${repo}</span>
+                          <span style="font-size:10px;font-weight:700;background:rgba(80,250,123,0.15);color:var(--green, #50fa7b);border:1px solid rgba(80,250,123,0.3);padding:2px 8px;border-radius:12px;">ACTIVE SWARM</span>
                         </div>
-                      </details>
+                        
+                        <!-- Discovered Host Tools SVG Indicator -->
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+                          <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
+                            ${zapSvg} AST Indexer
+                          </span>
+                          <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
+                            ${gitSvg} Git Pipeline
+                          </span>
+                          <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
+                            ${toolSvg} Strix AI Audit
+                          </span>
+                          <span style="font-size:10px;background:rgba(255,255,255,0.05);border:1px solid var(--border);padding:2px 6px;border-radius:4px;display:flex;align-items:center;gap:4px;">
+                            ${brainSvg} Semgrep / Trivy
+                          </span>
+                        </div>
 
-                      <div style="display:flex;gap:8px;margin-top:12px;">
-                        <button type="button" class="swarm-branch-btn" data-repo="${repo}" style="flex:1;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">${gitSvg} Create Branch</button>
-                        <button type="button" class="swarm-diff-btn" data-repo="${repo}" style="flex:1;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">${searchSvg} View Diff</button>
-                        <button type="button" class="swarm-approve-btn" style="flex:1.2;background:var(--accent);color:#000;border:none;border-radius:6px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">${checkSvg} Approve &amp; Commit</button>
-                        <button type="button" class="swarm-reject-btn" style="flex:1;background:var(--panel);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">${xSvg} Reject</button>
+                        <details open style="margin-top:8px;font-size:11px;opacity:0.95;">
+                          <summary style="cursor:pointer;font-weight:600;margin-bottom:6px;color:var(--fg);">Live Subagent Execution Stream (ShadowCoder, ShadowTester, ShadowOps)</summary>
+                          <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:Consolas, monospace;font-size:11px;max-height:140px;overflow-y:auto;line-height:1.5;">
+                            <span style="color:var(--accent);">[ShadowOps]</span> Initialized repo context &amp; workspace tree for <strong>${repo}</strong>.<br>
+                            <span style="color:#bd93f9;">[ShadowCoder]</span> Extracted AST symbol outlines for <code>${d.repo_path || repo}</code>.<br>
+                            <span style="color:#ff79c6;">[ShadowTester]</span> Verified local test suite harness.<br>
+                            <span style="color:var(--green, #50fa7b);">[Armada Engine]</span> ${d.exec_status || 'Swarm ready for instruction.'}
+                          </div>
+                        </details>
+
+                        <div style="display:flex;gap:8px;margin-top:12px;">
+                          <button type="button" class="swarm-branch-btn" data-repo="${repo}" style="flex:1;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">${gitSvg} Create Branch</button>
+                          <button type="button" class="swarm-diff-btn" data-repo="${repo}" style="flex:1;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">${searchSvg} View Diff</button>
+                          <button type="button" class="swarm-approve-btn" data-repo="${repo}" style="flex:1.2;background:var(--accent);color:#000;border:none;border-radius:6px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">${checkSvg} Approve &amp; Commit</button>
+                          <button type="button" class="swarm-reject-btn" data-repo="${repo}" style="flex:1;background:var(--panel);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:7px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;">${xSvg} Dismiss</button>
+                        </div>
                       </div>
-                    </div>
-                  `;
-                  uiModule.appendMessage('assistant', drawerHtml);
+                    `;
+                    uiModule.appendMessage('assistant', drawerHtml);
 
-                  // Wire up Git Branch and View Diff action buttons inside drawer
-                  setTimeout(() => {
-                    document.querySelectorAll('.swarm-branch-btn').forEach(b => {
-                      if (!b.dataset.bound) {
-                        b.dataset.bound = '1';
-                        b.addEventListener('click', async () => {
-                          const branchName = prompt('Enter feature branch name:', `feature/armada-${repo.toLowerCase()}`);
-                          if (!branchName) return;
-                          const res = await fetch('/api/repos/git/create-branch', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ repo_name: repo, branch_name: branchName })
+                    // Wire up action buttons inside drawer with error safety
+                    setTimeout(() => {
+                      document.querySelectorAll('.swarm-branch-btn').forEach(b => {
+                        if (!b.dataset.bound) {
+                          b.dataset.bound = '1';
+                          b.addEventListener('click', async () => {
+                            const branchName = prompt('Enter feature branch name:', `feature/armada-${repo.toLowerCase()}`);
+                            if (!branchName) return;
+                            try {
+                              const res = await fetch('/api/repos/git/create-branch', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ repo_name: repo, branch_name: branchName })
+                              });
+                              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                              const data = await res.json();
+                              if (uiModule && uiModule.showToast) uiModule.showToast(`Branch ${branchName} created!`);
+                            } catch (e) {
+                              if (uiModule && uiModule.showToast) uiModule.showToast(`Failed to create branch: ${e.message}`, 'error');
+                            }
                           });
-                          const data = await res.json();
-                          if (uiModule && uiModule.showToast) uiModule.showToast(`Branch ${branchName} created!`);
-                        });
-                      }
-                    });
-                    document.querySelectorAll('.swarm-diff-btn').forEach(b => {
-                      if (!b.dataset.bound) {
-                        b.dataset.bound = '1';
-                        b.addEventListener('click', async () => {
-                          const res = await fetch('/api/repos/git/diff', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ repo_name: repo })
+                        }
+                      });
+
+                      document.querySelectorAll('.swarm-diff-btn').forEach(b => {
+                        if (!b.dataset.bound) {
+                          b.dataset.bound = '1';
+                          b.addEventListener('click', async () => {
+                            try {
+                              const res = await fetch('/api/repos/git/diff', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ repo_name: repo })
+                              });
+                              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                              const data = await res.json();
+                              if (uiModule && uiModule.appendMessage) {
+                                uiModule.appendMessage('assistant', `🔍 **Git Diff for ${repo}**\n\`\`\`diff\n${data.diff || 'No uncommitted changes'}\n\`\`\``);
+                              }
+                            } catch (e) {
+                              if (uiModule && uiModule.showToast) uiModule.showToast(`Failed to fetch git diff: ${e.message}`, 'error');
+                            }
                           });
-                          const data = await res.json();
-                          if (uiModule && uiModule.appendMessage) {
-                            uiModule.appendMessage('assistant', `🔍 **Git Diff for ${repo}**\n\`\`\`diff\n${data.diff}\n\`\`\``);
-                          }
-                        });
-                      }
-                    });
-                  }, 100);
+                        }
+                      });
+
+                      document.querySelectorAll('.swarm-approve-btn').forEach(b => {
+                        if (!b.dataset.bound) {
+                          b.dataset.bound = '1';
+                          b.addEventListener('click', () => {
+                            if (uiModule && uiModule.showToast) uiModule.showToast(`Swarm work approved for ${b.dataset.repo || repo}`);
+                          });
+                        }
+                      });
+
+                      document.querySelectorAll('.swarm-reject-btn').forEach(b => {
+                        if (!b.dataset.bound) {
+                          b.dataset.bound = '1';
+                          b.addEventListener('click', (e) => {
+                            const card = e.target.closest('.swarm-drawer-card');
+                            if (card) card.remove();
+                          });
+                        }
+                      });
+                    }, 100);
+                  }
+                  modal.classList.add('hidden');
+                } catch (err) {
+                  console.error('Error launching Armada swarm:', err);
+                  if (uiModule && uiModule.showToast) uiModule.showToast(`Armada launch error: ${err.message}`, 'error');
                 }
-                modal.classList.add('hidden');
               });
             });
           }
-        } catch (_) {
-          listEl.innerHTML = '<div style="color:var(--danger)">Failed to load GitHub repositories.</div>';
+        } catch (err) {
+          console.error('Error fetching repositories list:', err);
+          listEl.innerHTML = `<div style="color:var(--danger, #ff5555);padding:10px;">Failed to load GitHub repositories: ${err.message}</div>`;
         }
       }
     });

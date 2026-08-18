@@ -175,6 +175,26 @@ def setup_auth_routes(auth_manager: AuthManager) -> APIRouter:
 
     @router.get("/status")
     async def auth_status(request: Request):
+        # When AUTH_ENABLED=false this instance is single-owner / localhost-only.
+        # Return authenticated=true immediately so the frontend never shows the
+        # setup wizard or login screen on restart.
+        _auth_enabled = os.getenv("AUTH_ENABLED", "true").lower() not in ("false", "0", "no")
+        if not _auth_enabled:
+            return {
+                "configured": True,
+                "authenticated": True,
+                "username": "owner",
+                "is_admin": True,
+                "signup_enabled": False,
+                "display_name": "Owner",
+                "privileges": {
+                    "can_use_agent": True,
+                    "can_use_bash": True,
+                    "can_use_documents": True,
+                    "can_use_research": True,
+                    "can_manage_memory": True,
+                },
+            }
         token = request.cookies.get(SESSION_COOKIE)
         result = auth_manager.status(token)
         result["signup_enabled"] = auth_manager.signup_enabled

@@ -58,6 +58,9 @@ def print_header():
     print("║ [11] 🌵 CactusNeedle Local AI Inference (Zero Tokens, On-Device)       ║")
     print("║ [12] 💸 CodeBurn — AI Token Cost Dashboard (npx codeburn)              ║")
     print("║ [13] 🤖 Muse Code (Meta AI muse-spark-1.2) — Chat & Code              ║")
+    print("║ [14] 🖥️  WebVM — Browser Linux Sandbox (Debian/Alpine/Xorg)            ║")
+    print("║ [15] 🧠 Unsloth — Fine-Tune LLMs Locally (70% less VRAM)              ║")
+    print("║ [16] 📸 OpenReply — Self-Hosted Instagram DM Automation                ║")
     print("║  [0] 🚪 Exit CLI Hub                                                    ║")
     print("╚" + "═" * 72 + "╝")
 
@@ -264,10 +267,130 @@ def muse_chat_cli():
             print(f"❌ Error: {res.get('error')}\n")
     input("\nPress Enter to return to menu...")
 
+def webvm_launcher():
+    from src.webvm import open_webvm, list_webvm_environments, open_webvm_github
+    print("\n╔══════════════════════════════════════════════════════╗")
+    print("║  🖥️  WebVM — Browser-Based Linux Sandbox            ║")
+    print("║  Full x86 Linux in browser · No install needed      ║")
+    print("╚══════════════════════════════════════════════════════╝")
+    envs = list_webvm_environments()
+    print("  Available environments:")
+    for key, info in envs["environments"].items():
+        print(f"    [{key}] {info['description']}")
+    print("  [github] Open WebVM GitHub repo (for forking/deployment)")
+    print()
+    choice = input("Select environment [debian/alpine/xorg/github]: ").strip().lower()
+    if choice == "github":
+        open_webvm_github()
+        print("✅ WebVM GitHub opened in browser!")
+    else:
+        env = choice if choice in ("debian", "alpine", "xorg") else "debian"
+        res = open_webvm(env)
+        if res["ok"]:
+            print(f"\n✅ Opening WebVM ({env}): {res['url']}")
+            print(f"   {res['description']}")
+        else:
+            print(f"❌ Error: {res.get('error')}")
+    input("\nPress Enter to return to menu...")
+
+def unsloth_cli():
+    from src.unsloth_trainer import check_unsloth_status, install_unsloth, launch_unsloth_finetune, get_model_recommendations
+    print("\n╔══════════════════════════════════════════════════════╗")
+    print("║  🧠 Unsloth — Local LLM Fine-Tuning                 ║")
+    print("║  2-5x faster · 70% less VRAM · LoRA / QLoRA        ║")
+    print("╚══════════════════════════════════════════════════════╝")
+    print("  [A] Check GPU / Unsloth status")
+    print("  [B] Install Unsloth")
+    print("  [C] Launch fine-tuning run")
+    sub = input("\nSelect [A-C]: ").strip().upper()
+
+    if sub == "A":
+        s = check_unsloth_status()
+        print(f"\n  Unsloth installed : {'✅' if s['unsloth_installed'] else '❌'}")
+        print(f"  PyTorch available : {'✅' if s['torch_available'] else '❌'}")
+        print(f"  CUDA available    : {'✅' if s['cuda_available'] else '❌'}")
+        if s.get("gpu_name"):
+            print(f"  GPU               : {s['gpu_name']} ({s['vram_gb']} GB VRAM)")
+            recs = get_model_recommendations(s["vram_gb"])
+            print(f"  Recommended models:")
+            for m in recs:
+                print(f"    • {m}")
+        else:
+            print("  No NVIDIA GPU detected. Use Google Colab for free GPU:")
+            print("  https://colab.research.google.com/github/unslothai/unsloth/blob/main/Unsloth_Studio_2025.ipynb")
+
+    elif sub == "B":
+        print("\n[+] Installing Unsloth...")
+        res = install_unsloth()
+        if res["ok"]:
+            print(f"✅ {res.get('message', 'Unsloth ready!')}")
+        else:
+            print(f"❌ {res.get('error')}")
+
+    elif sub == "C":
+        model = input("Model (e.g. unsloth/Meta-Llama-3.1-8B): ").strip()
+        dataset = input("HuggingFace dataset (e.g. yahma/alpaca-cleaned): ").strip()
+        steps = input("Max steps [60]: ").strip()
+        max_steps = int(steps) if steps.isdigit() else 60
+        if model and dataset:
+            res = launch_unsloth_finetune(model=model or "unsloth/Meta-Llama-3.1-8B",
+                                          dataset=dataset, max_steps=max_steps)
+            if res.get("ok"):
+                print(f"\n✅ {res['message']}")
+                print(f"   Script: {res['script']}")
+            else:
+                print(f"❌ {res.get('error')}")
+
+    input("\nPress Enter to return to menu...")
+
+def openreply_cli():
+    from src.openreply import setup_openreply, start_openreply, stop_openreply, get_openreply_status
+    print("\n╔══════════════════════════════════════════════════════╗")
+    print("║  📸 OpenReply — Self-Hosted Instagram Automation    ║")
+    print("║  Free ManyChat alternative · Official Meta API     ║")
+    print("╚══════════════════════════════════════════════════════╝")
+    st = get_openreply_status()
+    print(f"  Docker     : {'✅' if st.get('ok') else '❌ Not found'}")
+    print(f"  Setup done : {'✅' if st.get('setup_done') else '⚠️ Not set up yet'}")
+    if st.get("url"):
+        print(f"  URL        : {st['url']}")
+    print()
+    print("  [A] Setup / Clone OpenReply")
+    print("  [B] Start OpenReply stack (Docker Compose)")
+    print("  [C] Stop OpenReply stack")
+    print("  [D] Open Meta Developer Portal (get API credentials)")
+    sub = input("\nSelect [A-D]: ").strip().upper()
+
+    if sub == "A":
+        print("\n[+] Setting up OpenReply...")
+        res = setup_openreply()
+        if res["ok"]:
+            print("✅ OpenReply setup complete!")
+            for step in res.get("next_steps", []):
+                print(f"   {step}")
+        else:
+            print(f"❌ {res.get('error')}")
+    elif sub == "B":
+        print("\n[+] Starting OpenReply stack...")
+        res = start_openreply()
+        if res["ok"]:
+            print(f"✅ {res['message']} → {res['url']}")
+        else:
+            print(f"❌ {res.get('error')}")
+    elif sub == "C":
+        print("\n[+] Stopping OpenReply stack...")
+        res = stop_openreply()
+        print("✅ Stopped!" if res["ok"] else f"❌ {res.get('error')}")
+    elif sub == "D":
+        import webbrowser
+        webbrowser.open("https://developers.facebook.com/apps/")
+        print("✅ Meta Developer Portal opened in browser!")
+    input("\nPress Enter to return to menu...")
+
 def main():
     while True:
         print_header()
-        choice = input("Select an option [0-13]: ").strip()
+        choice = input("Select an option [0-16]: ").strip()
 
         if choice == "1":
             print("\nStarting Odysseus Server on 0.0.0.0:7000...")
@@ -298,6 +421,12 @@ def main():
             codeburn_dashboard()
         elif choice == "13":
             muse_chat_cli()
+        elif choice == "14":
+            webvm_launcher()
+        elif choice == "15":
+            unsloth_cli()
+        elif choice == "16":
+            openreply_cli()
         elif choice == "0":
             print("\nExiting Odysseus CLI Hub. Goodbye!")
             sys.exit(0)

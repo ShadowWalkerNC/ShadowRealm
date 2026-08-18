@@ -262,6 +262,9 @@ async def generate_study_guide_endpoint(body: StudyGuideRequest):
     from src.learning_engine import generate_repository_study_guide
     return generate_repository_study_guide(body.repo_name)
 
+class GetASTSymbolsRequest(BaseModel):
+    file_path: str
+
 @router.post("/ast/symbols")
 async def get_file_ast_symbols(body: GetASTSymbolsRequest):
     """Retrieve token-efficient AST symbol tree for a target file."""

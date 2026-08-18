@@ -1465,6 +1465,86 @@ function initializeEventListeners() {
     });
   }
 
+  // Global Command Palette (Ctrl+K / Cmd+K) & Diff Viewer
+  (() => {
+    let cpModal = document.getElementById('command-palette-modal');
+    if (!cpModal) {
+      cpModal = document.createElement('div');
+      cpModal.id = 'command-palette-modal';
+      cpModal.className = 'modal hidden';
+      cpModal.innerHTML = `
+        <div class="modal-content" style="max-width:620px;width:90vw;background:var(--bg,#16181d);border:1px solid var(--border,#333);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.6);padding:0;overflow:hidden;margin-top:10vh;">
+          <div style="display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border,#333);gap:10px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="cp-input" placeholder="Type a command, tool, or repo... (Esc to close)" style="flex:1;background:none;border:none;color:var(--fg,#fff);font-size:14px;outline:none;font-family:inherit;" />
+            <kbd style="font-size:10px;background:rgba(255,255,255,0.08);border:1px solid var(--border,#444);border-radius:4px;padding:2px 6px;opacity:0.6;">ESC</kbd>
+          </div>
+          <div id="cp-results" style="max-height:320px;overflow-y:auto;padding:6px 0;"></div>
+        </div>
+      `;
+      document.body.appendChild(cpModal);
+
+      const actions = [
+        { name: 'Tools & CLI Hub', desc: 'Execute host terminal commands & inspect toolchains', icon: '⚡', action: () => document.getElementById('tool-harness-btn')?.click() },
+        { name: 'GitHub Repos & Armada Swarm', desc: 'Launch multi-agent coding swarms on repos', icon: '🐙', action: () => document.getElementById('tool-github-btn')?.click() },
+        { name: 'CactusNeedle Local Playground', desc: '14MB zero-token local function calling', icon: '🌵', action: () => { document.getElementById('tool-harness-btn')?.click(); setTimeout(() => document.getElementById('harness-needle-play-btn')?.click(), 200); } },
+        { name: 'CodeBurn AI Cost Dashboard', desc: 'View token expenses across all local AI tools', icon: '💸', action: () => { document.getElementById('tool-harness-btn')?.click(); setTimeout(() => document.getElementById('harness-codeburn-btn')?.click(), 200); } },
+        { name: 'WebVM Linux Sandbox (Debian)', desc: 'Run browser-based x86 Linux machine', icon: '🖥️', action: () => window.open('https://webvm.io', '_blank') },
+        { name: 'Open Settings Panel', desc: 'Configure AI models, keys, and appearance', icon: '⚙️', action: () => document.getElementById('user-bar-settings')?.click() },
+        { name: 'Memory & Long-term Brain', desc: 'View cross-session facts and skill files', icon: '🧠', action: () => document.getElementById('tool-memory-btn')?.click() },
+        { name: 'Cookbook Local Model Launcher', desc: 'Browse and run GGUF models locally', icon: '📖', action: () => document.getElementById('tool-cookbook-btn')?.click() },
+      ];
+
+      const input = cpModal.querySelector('#cp-input');
+      const results = cpModal.querySelector('#cp-results');
+
+      const render = (q = '') => {
+        const filtered = actions.filter(a => a.name.toLowerCase().includes(q.toLowerCase()) || a.desc.toLowerCase().includes(q.toLowerCase()));
+        results.innerHTML = filtered.map((a, idx) => `
+          <div class="cp-item" data-idx="${idx}" style="padding:10px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.03);transition:background .1s;">
+            <span style="font-size:18px;">${a.icon}</span>
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:13px;color:var(--fg,#fff);">${a.name}</div>
+              <div style="font-size:11px;opacity:0.6;">${a.desc}</div>
+            </div>
+            <span style="font-size:11px;opacity:0.4;">↵</span>
+          </div>
+        `).join('');
+
+        results.querySelectorAll('.cp-item').forEach((item, i) => {
+          item.addEventListener('click', () => {
+            cpModal.classList.add('hidden');
+            filtered[i].action();
+          });
+          item.addEventListener('mouseenter', () => {
+            results.querySelectorAll('.cp-item').forEach(el => el.style.background = '');
+            item.style.background = 'rgba(80,250,123,0.1)';
+          });
+        });
+      };
+
+      input.addEventListener('input', (e) => render(e.target.value));
+
+      cpModal.addEventListener('click', (e) => { if (e.target === cpModal) cpModal.classList.add('hidden'); });
+
+      window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          cpModal.classList.toggle('hidden');
+          if (!cpModal.classList.contains('hidden')) {
+            input.value = '';
+            render();
+            setTimeout(() => input.focus(), 50);
+          }
+        }
+        if (e.key === 'Escape' && !cpModal.classList.contains('hidden')) {
+          cpModal.classList.add('hidden');
+        }
+      });
+    }
+  })();
+
+
   const toolArchiveBtn = el('tool-archive-btn');
   if (toolArchiveBtn) {
     toolArchiveBtn.addEventListener('click', () => {

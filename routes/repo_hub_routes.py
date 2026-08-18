@@ -299,3 +299,28 @@ async def launch_armada_swarm(body: LaunchArmadaRequest):
         "assigned_subagents": ["ShadowCoder (Gemini)", "ShadowTester (Gemini)", "ShadowOps (Gemini)"],
         "chat_summary": f"🚀 Armada Swarm (Google Gemini Engine) active on **{body.repo_name}**.\n- **Terminal Harness**: {exec_status}\n- **Subagents**: ShadowCoder, ShadowTester, ShadowOps.",
     }
+
+class CascadingRouteRequest(BaseModel):
+    prompt: str
+    repo_name: Optional[str] = None
+
+@router.post("/cascade/route")
+async def cascade_route_endpoint(body: CascadingRouteRequest):
+    """Route query through Cascading Intelligence (Tier 0 to Tier 3)."""
+    from src.cascading_router import CascadingRouter
+    repo_path = str((_get_github_projects_dir() / body.repo_name).resolve()) if body.repo_name else None
+    return CascadingRouter.route_and_execute(body.prompt, repo_path)
+
+class SelfHealingTestRequest(BaseModel):
+    repo_name: str
+    max_attempts: Optional[int] = 2
+
+@router.post("/test/auto-heal")
+async def auto_heal_tests_endpoint(body: SelfHealingTestRequest):
+    """Execute test suite with autonomous error diagnosis and self-healing."""
+    from src.self_healing import run_test_suite_with_auto_heal
+    target_repo = _get_github_projects_dir() / body.repo_name
+    if not target_repo.exists():
+        raise HTTPException(404, f"Repository '{body.repo_name}' not found.")
+    return run_test_suite_with_auto_heal(str(target_repo.resolve()), body.max_attempts or 2)
+

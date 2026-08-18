@@ -1044,6 +1044,7 @@ function initializeEventListeners() {
     '/memory':   () => document.getElementById('tool-memory-btn')?.click(),
     '/gallery':  () => document.getElementById('tool-gallery-btn')?.click(),
     '/repos':    () => document.getElementById('tool-github-btn')?.click(),
+    '/tools':    () => document.getElementById('tool-harness-btn')?.click(),
     '/tasks':    () => document.getElementById('tool-tasks-btn')?.click(),
     '/library':  () => sessionModule && sessionModule.openLibrary && sessionModule.openLibrary(),
   };
@@ -1275,6 +1276,192 @@ function initializeEventListeners() {
           listEl.innerHTML = '<div style="color:var(--danger)">Failed to load GitHub repositories.</div>';
         }
       }
+    });
+  }
+
+  // Tools, CLI & Diagnostics Hub tool button
+  const toolHarnessBtn = el('tool-harness-btn');
+  if (toolHarnessBtn) {
+    toolHarnessBtn.addEventListener('click', async () => {
+      let modal = document.getElementById('tools-harness-modal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'tools-harness-modal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+          <div class="modal-content" style="max-width:960px;width:94vw;background:var(--bg,#1e1e24);border:1px solid var(--border,#333);border-radius:14px;padding:24px;max-height:88vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.45);font-family:system-ui,-apple-system,sans-serif;">
+            <div class="modal-header" style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border,#333);padding-bottom:14px;margin-bottom:18px;">
+              <h3 style="margin:0;display:flex;align-items:center;gap:10px;font-size:18px;color:var(--fg,#fff);">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:rgba(80,250,123,0.15);color:var(--accent,#50fa7b);">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </span>
+                ShadowRealm Tools &amp; CLI Command Center
+              </h3>
+              <button class="close-btn" style="background:none;border:none;color:var(--fg,#fff);opacity:0.6;cursor:pointer;font-size:18px;padding:4px 8px;border-radius:6px;transition:opacity .15s;">✖</button>
+            </div>
+
+            <!-- Top Action Quick-Bar -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:10px;margin-bottom:20px;">
+              <div style="background:var(--panel,rgba(255,255,255,0.03));border:1px solid var(--border,#333);border-radius:10px;padding:12px;display:flex;flex-direction:column;justify-content:space-between;gap:8px;">
+                <div style="font-weight:600;font-size:13px;color:var(--accent,#50fa7b);display:flex;align-items:center;gap:6px;">
+                  🌵 CactusNeedle Local AI
+                </div>
+                <div style="font-size:11px;opacity:0.7;">14MB zero-token on-device model for tool dispatch.</div>
+                <div style="display:flex;gap:6px;margin-top:4px;">
+                  <button type="button" id="harness-needle-install-btn" style="flex:1;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;">Check/Install</button>
+                  <button type="button" id="harness-needle-play-btn" style="flex:1;background:var(--accent,#50fa7b);color:#000;border:none;border-radius:6px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;">Playground</button>
+                </div>
+              </div>
+
+              <div style="background:var(--panel,rgba(255,255,255,0.03));border:1px solid var(--border,#333);border-radius:10px;padding:12px;display:flex;flex-direction:column;justify-content:space-between;gap:8px;">
+                <div style="font-weight:600;font-size:13px;color:#ff79c6;display:flex;align-items:center;gap:6px;">
+                  💸 CodeBurn Token Tracker
+                </div>
+                <div style="font-size:11px;opacity:0.7;">Track costs across Claude Code, Cursor, Copilot &amp; 40+ AI tools.</div>
+                <button type="button" id="harness-codeburn-btn" style="background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;margin-top:4px;">Launch Cost Dashboard</button>
+              </div>
+
+              <div style="background:var(--panel,rgba(255,255,255,0.03));border:1px solid var(--border,#333);border-radius:10px;padding:12px;display:flex;flex-direction:column;justify-content:space-between;gap:8px;">
+                <div style="font-weight:600;font-size:13px;color:#8be9fd;display:flex;align-items:center;gap:6px;">
+                  🖥️ WebVM Linux Sandbox
+                </div>
+                <div style="font-size:11px;opacity:0.7;">Run unmodified Debian, Alpine, or Xorg in your browser.</div>
+                <div style="display:flex;gap:6px;margin-top:4px;">
+                  <button type="button" onclick="window.open('https://webvm.io', '_blank')" style="flex:1;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;">Debian</button>
+                  <button type="button" onclick="window.open('https://webvm.io/?distro=alpine', '_blank')" style="flex:1;background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;">Alpine</button>
+                </div>
+              </div>
+
+              <div style="background:var(--panel,rgba(255,255,255,0.03));border:1px solid var(--border,#333);border-radius:10px;padding:12px;display:flex;flex-direction:column;justify-content:space-between;gap:8px;">
+                <div style="font-weight:600;font-size:13px;color:#bd93f9;display:flex;align-items:center;gap:6px;">
+                  📦 Toolchains &amp; Upgrades
+                </div>
+                <div style="font-size:11px;opacity:0.7;">Mass-update pip, npm, cargo, gh extensions across OS.</div>
+                <button type="button" id="harness-mass-update-btn" style="background:var(--bg);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:6px;font-size:11px;font-weight:600;cursor:pointer;margin-top:4px;">⚡ Run System Update</button>
+              </div>
+            </div>
+
+            <!-- CLI Command Runner & Live Terminal -->
+            <div style="background:var(--panel,rgba(0,0,0,0.25));border:1px solid var(--border,#333);border-radius:10px;padding:14px;margin-bottom:20px;">
+              <div style="font-weight:600;font-size:13px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+                <span style="display:flex;align-items:center;gap:6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                  CLI Anything — Direct Host Command Executor
+                </span>
+                <span style="font-size:10px;opacity:0.6;">Executes on host PATH with auto-diagnostics</span>
+              </div>
+              <form id="harness-cli-form" style="display:flex;gap:8px;margin-bottom:10px;">
+                <input type="text" id="harness-cli-input" placeholder="e.g. docker ps, git status, cargo --version, rg 'pattern', needle..." style="flex:1;background:var(--bg,#121216);color:var(--fg,#fff);border:1px solid var(--border,#444);border-radius:6px;padding:8px 12px;font-family:Consolas,monospace;font-size:12px;outline:none;" />
+                <button type="submit" style="background:var(--accent,#50fa7b);color:#000;border:none;border-radius:6px;padding:8px 16px;font-weight:700;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:4px;">
+                  Run ➔
+                </button>
+              </form>
+              <pre id="harness-cli-output" style="background:#0c0d10;color:#f8f8f2;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px;font-family:Consolas, monospace;font-size:11px;min-height:90px;max-height:220px;overflow-y:auto;white-space:pre-wrap;margin:0;line-height:1.4;">Enter any CLI command above and click Run.</pre>
+            </div>
+
+            <!-- Discovered Tools Grid -->
+            <div>
+              <div style="font-weight:600;font-size:14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+                <span>Discovered Host CLI Tools &amp; Runtimes</span>
+                <button type="button" id="harness-refresh-tools-btn" style="background:none;border:1px solid var(--border);border-radius:4px;color:var(--fg);padding:2px 8px;font-size:11px;cursor:pointer;">🔄 Refresh</button>
+              </div>
+              <div id="harness-tools-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(130px, 1fr));gap:8px;">
+                <div style="opacity:0.6;font-size:12px;">Scanning host tools...</div>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelector('.close-btn').addEventListener('click', () => modal.classList.add('hidden'));
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
+
+        // Wire CLI Executor
+        const form = modal.querySelector('#harness-cli-form');
+        const input = modal.querySelector('#harness-cli-input');
+        const output = modal.querySelector('#harness-cli-output');
+        form.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const cmd = input.value.trim();
+          if (!cmd) return;
+          output.textContent = `[+] Executing: ${cmd}...\n`;
+          try {
+            const res = await fetch('/api/repos/harness/execute', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ command: cmd })
+            });
+            const data = await res.json();
+            let text = '';
+            if (data.stdout) text += data.stdout + '\n';
+            if (data.stderr) text += '[stderr]\n' + data.stderr + '\n';
+            if (!text.trim()) text = `[Command exited with code ${data.returncode}]`;
+            output.textContent = text;
+          } catch (err) {
+            output.textContent = `[Error executing command]: ${err.message}`;
+          }
+        });
+
+        // Wire Mass Update
+        modal.querySelector('#harness-mass-update-btn').addEventListener('click', async () => {
+          output.textContent = '[+] Running mass package update across host toolchains...\n';
+          try {
+            const res = await fetch('/api/repos/harness/update', { method: 'POST' });
+            const data = await res.json();
+            output.textContent = JSON.stringify(data, null, 2);
+          } catch (err) {
+            output.textContent = `[Error running mass update]: ${err.message}`;
+          }
+        });
+
+        // Wire CodeBurn
+        modal.querySelector('#harness-codeburn-btn').addEventListener('click', async () => {
+          input.value = 'npx codeburn';
+          form.dispatchEvent(new Event('submit'));
+        });
+
+        // Wire CactusNeedle Install
+        modal.querySelector('#harness-needle-install-btn').addEventListener('click', async () => {
+          output.textContent = '[+] Verifying CactusNeedle installation...\n';
+          try {
+            const res = await fetch('/api/repos/harness/needle/install', { method: 'POST' });
+            const data = await res.json();
+            output.textContent = JSON.stringify(data, null, 2);
+          } catch (err) {
+            output.textContent = `[Error installing needle]: ${err.message}`;
+          }
+        });
+
+        // Wire CactusNeedle Playground
+        modal.querySelector('#harness-needle-play-btn').addEventListener('click', async () => {
+          input.value = 'needle playground';
+          form.dispatchEvent(new Event('submit'));
+        });
+
+        // Wire refresh tools
+        const loadTools = async () => {
+          const grid = modal.querySelector('#harness-tools-grid');
+          try {
+            const res = await fetch('/api/repos/harness/tools');
+            const data = await res.json();
+            if (data && data.tools) {
+              grid.innerHTML = Object.entries(data.tools).map(([tool, info]) => `
+                <div style="background:var(--panel,rgba(255,255,255,0.03));border:1px solid ${info.installed ? 'rgba(80,250,123,0.3)' : 'var(--border,#333)'};border-radius:6px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;">
+                  <span style="font-weight:600;font-size:12px;font-family:Consolas,monospace;">${tool}</span>
+                  <span style="font-size:10px;font-weight:700;color:${info.installed ? 'var(--accent,#50fa7b)' : 'rgba(255,255,255,0.3)'};">${info.installed ? 'INSTALLED' : '—'}</span>
+                </div>
+              `).join('');
+            }
+          } catch (_) {
+            grid.innerHTML = '<div style="opacity:0.6;font-size:12px;">Failed to scan tools.</div>';
+          }
+        };
+        modal.querySelector('#harness-refresh-tools-btn').addEventListener('click', loadTools);
+        modal._loadTools = loadTools;
+      }
+
+      modal.classList.remove('hidden');
+      if (modal._loadTools) modal._loadTools();
     });
   }
 

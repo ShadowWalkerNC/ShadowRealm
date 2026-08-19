@@ -1,6 +1,7 @@
 {
   "name": "odysseus-desktop",
   "version": "2.0.0",
+  "author": "ShadowWalkerNC",
   "description": "Odysseus - Autonomous AI Developer Suite Desktop App",
   "main": "desktop/main.js",
   "scripts": {
@@ -13,7 +14,7 @@
   },
   "devDependencies": {
     "@antithesishq/bombadil": "^0.6.1",
-    "electron": "^28.2.0",
+    "electron": "28.2.0",
     "electron-builder": "^24.9.1"
   },
   "build": {

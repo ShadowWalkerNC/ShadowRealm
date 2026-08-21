@@ -114,3 +114,34 @@ def get_ast_outline(file_path_str: str) -> str:
     for s in symbols:
         lines.append(f"  - [{s['type'].upper()}] {s['name']} (Lines {s['line_no']}-{s['end_line_no']}): {s['details']}")
     return "\n".join(lines)
+
+def extract_all_ast_metadata(directory_path_str: str) -> Dict[str, Any]:
+    """Recursively scan directory and extract AST metadata across all source files."""
+    root = Path(directory_path_str)
+    if not root.exists() or not root.is_dir():
+        return {"symbols": [], "files_scanned": 0, "error": "Invalid directory"}
+
+    all_symbols = []
+    files_scanned = 0
+
+    valid_extensions = {".py", ".js", ".ts", ".jsx", ".tsx", ".dart", ".rs"}
+    ignore_dirs = {".git", "node_modules", "venv", "__pycache__", "build", "dist", ".agents"}
+
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in ignore_dirs]
+        for f in filenames:
+            p = Path(dirpath) / f
+            if p.suffix.lower() in valid_extensions:
+                files_scanned += 1
+                file_res = index_file_symbols(str(p))
+                for sym in file_res.get("symbols", []):
+                    sym["file"] = p.name
+                    all_symbols.append(sym)
+
+    return {
+        "directory": str(root.resolve()),
+        "files_scanned": files_scanned,
+        "symbol_count": len(all_symbols),
+        "symbols": all_symbols
+    }
+

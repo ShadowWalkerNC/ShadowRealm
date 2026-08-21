@@ -57,10 +57,18 @@ class CascadingRouter:
 
         # Tier 0: AST Outline
         if tier == 0:
-            from src.ast_indexer import extract_all_ast_metadata
+            from src.ast_indexer import extract_all_ast_metadata, index_file_symbols
             target = repo_path or os.getcwd()
-            ast_data = extract_all_ast_metadata(target)
-            res = {"symbols": ast_data.get("symbols", [])[:30], "files_scanned": ast_data.get("files_scanned", 0)}
+            if os.path.isfile(target):
+                ast_data = index_file_symbols(target)
+                symbols = ast_data.get("symbols", [])
+                files_scanned = 1
+            else:
+                ast_data = extract_all_ast_metadata(target)
+                symbols = ast_data.get("symbols", [])[:30]
+                files_scanned = ast_data.get("files_scanned", 0)
+
+            res = {"symbols": symbols, "files_scanned": files_scanned}
             _QUERY_CACHE[cache_key] = res
             return {
                 "ok": True,
